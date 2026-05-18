@@ -12,7 +12,7 @@ function toggleLike(btn) {
     const formData = new FormData();
     formData.append("postId", postId);
 
-    fetch("/Controllers/PostController.php?action=like", {
+    fetch("/App/Controllers/PostController.php?action=like", {
         method: "POST",
         body: formData
     })
@@ -68,23 +68,34 @@ function createPost() {
         return;
     }
 
-    fetch("/Controllers/PostController.php?action=create", {
+    // Gọi API xử lý ngầm đến Controller
+    fetch("/App/Controllers/PostController.php?action=create", {
         method: "POST",
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error("Mạng lỗi rồi má ơi!");
+        return response.json(); // 🎯 Chuyển đổi dữ liệu nhận về thành JSON đối tượng
+    })
     .then(data => {
         if (!data.success) {
             alert(data.message);
             return;
         }
 
+        // 🎯 KÍCH HOẠT VẼ GIA DIỆN: Đẩy bài viết kèm mảng ảnh mới lên đầu bảng tin lập tức
         addPostToUI(data.post);
+        
+        // Dọn sạch Form và dọn sạch khung xem trước ảnh (Preview) sau khi đăng thành công
         form.reset();
+        const previewContainer = document.getElementById("preview-container");
+        if (previewContainer) {
+            previewContainer.innerHTML = "";
+        }
     })
     .catch(error => {
-        console.error(error);
-        alert("Có lỗi xảy ra khi đăng bài.");
+        console.error("Error Details:", error);
+        alert("Có lỗi xảy ra trong quá trình đăng bài AJAX.");
     });
 }
 
@@ -106,7 +117,7 @@ function addPostToUI(post) {
         post.Images.forEach(img => {
             imageHtml += `
                 <img 
-                    src="/${img}" 
+                    src="${img}" 
                     class="img-fluid rounded-4 mb-3"
                     style="max-height: 450px; object-fit: cover;"
                     alt="post image"
@@ -115,17 +126,15 @@ function addPostToUI(post) {
         });
     }
 
-    let avatarSrc = "/Public/assets/img/default-avatar.jpg";
+    let avatarSrc = "Public/assets/img/default-avatar.png"; 
+    if (post.ProfilePictureUrl) {
+        avatarSrc = post.ProfilePictureUrl; 
+    }
 
-    if (post.ProfilePictureUrl && post.ProfilePictureUrl.trim() !== "") {
-        if (
-            post.ProfilePictureUrl.startsWith("http://") ||
-            post.ProfilePictureUrl.startsWith("https://")
-        ) {
-            avatarSrc = post.ProfilePictureUrl;
-        } else {
-            avatarSrc = "/" + post.ProfilePictureUrl;
-        }
+    if (post.ProfilePictureUrl.startsWith("http://") || post.ProfilePictureUrl.startsWith("https://")) {
+        avatarSrc = post.ProfilePictureUrl;
+    } else {
+        avatarSrc = post.ProfilePictureUrl;
     }
 
     const fullName = post.FullName || post.Username || "Bạn";
@@ -227,7 +236,7 @@ function sendComment(btn) {
     formData.append("postId", postId);
     formData.append("content", content);
 
-    fetch("/Controllers/PostController.php?action=comment", {
+    fetch("/App/Controllers/PostController.php?action=comment", {
         method: "POST",
         body: formData
     })
@@ -278,7 +287,7 @@ function toggleFollow(btn) {
     const formData = new FormData();
     formData.append("userId", userId);
 
-    fetch("/Controllers/FollowController.php?action=toggle", {
+    fetch("/App/Controllers/FollowController.php?action=toggle", {
         method: "POST",
         body: formData
     })

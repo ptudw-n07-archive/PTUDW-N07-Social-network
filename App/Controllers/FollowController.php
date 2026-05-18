@@ -26,7 +26,7 @@ class FollowController {
     public function toggle() {
         header('Content-Type: application/json; charset=utf-8');
 
-        $followerId = $_SESSION['UserID'] ?? 1;
+        $followerId = $_SESSION['user_id'] ?? 1;
         $followingId = $_POST['userId'] ?? null;
 
         if (!$followingId) {
