@@ -109,7 +109,7 @@ function imagePath($path) {
                     </a>
 
                     <a 
-                        href="#"
+                        href="<?php echo BASE_URL; ?>App/Views/search.php"
                         class="sidebar-icon"
                         title="Tìm kiếm"
                     >

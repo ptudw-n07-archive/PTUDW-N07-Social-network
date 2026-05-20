@@ -178,7 +178,7 @@ function profileUrl($userId) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="#" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
                     <a href="#" class="header-star-btn"><i class="bi bi-star"></i></a>
                     <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
@@ -207,7 +207,7 @@ function profileUrl($userId) {
             > <i class="bi bi-house-door-fill"></i> </a>
 
             <a 
-                href="#"
+                href="<?php echo BASE_URL; ?>App/Views/search.php"
                 class="sidebar-icon"
                 id="nav-search"
                 title="Tìm kiếm"
