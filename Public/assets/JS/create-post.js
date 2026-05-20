@@ -20,15 +20,25 @@ function createPost() {
         method: "POST",
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Không thể kết nối tới server.");
+        }
+
+        return response.json();
+    })
     .then(data => {
         if (!data.success) {
             alert(data.message || "Không thể đăng bài.");
             return;
         }
 
+        if (Array.isArray(data.uploadErrors) && data.uploadErrors.length > 0) {
+            alert(data.uploadErrors[0]);
+        }
+
         sessionStorage.setItem("post_success", "Đăng bài thành công!");
-window.location.href = "/App/Views/feed.php";
+        window.location.href = "/App/Views/feed.php";
     })
     .catch(error => {
         console.error(error);
@@ -55,13 +65,29 @@ if (postImagesInput) {
         }
 
         Array.from(files).forEach(file => {
-            if (!file.type.startsWith("image/")) {
-                return;
-            }
+            const mediaType = file.type.startsWith("video/") ? "video" : "image";
 
             const reader = new FileReader();
 
             reader.onload = function (e) {
+                if (mediaType === "video") {
+                    const video = document.createElement("video");
+                    video.src = e.target.result;
+                    video.className = "preview-image";
+                    video.controls = true;
+                    previewContainer.appendChild(video);
+                    return;
+                }
+
+                const extension = getMediaExtension(file.name);
+                if (["heic", "heif"].includes(extension)) {
+                    const item = document.createElement("div");
+                    item.className = "preview-file";
+                    item.innerText = `${file.name}\nHEIC/HEIF sẽ được chuyển đổi sau khi đăng nếu server hỗ trợ.`;
+                    previewContainer.appendChild(item);
+                    return;
+                }
+
                 const img = document.createElement("img");
                 img.src = e.target.result;
                 img.className = "preview-image";
@@ -70,5 +96,31 @@ if (postImagesInput) {
 
             reader.readAsDataURL(file);
         });
+    });
+}
+
+function getMediaExtension(path) {
+    const cleanPath = String(path || "").split("?")[0].split("#")[0];
+    const parts = cleanPath.split(".");
+    return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
+const moreButton = document.getElementById("moreButton");
+const moreDropdown = document.getElementById("moreDropdown");
+
+if (moreButton && moreDropdown) {
+    moreButton.addEventListener("click", function (event) {
+        event.stopPropagation();
+        const isOpen = moreDropdown.classList.toggle("show");
+        moreButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+
+    moreDropdown.addEventListener("click", function (event) {
+        event.stopPropagation();
+    });
+
+    document.addEventListener("click", function () {
+        moreDropdown.classList.remove("show");
+        moreButton.setAttribute("aria-expanded", "false");
     });
 }

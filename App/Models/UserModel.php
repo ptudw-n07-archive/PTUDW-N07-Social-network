@@ -61,6 +61,29 @@ class UserModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    public function getUserProfileById($userId) {
+        $query = "SELECT
+                    u.UserID,
+                    u.RoleID,
+                    u.Username,
+                    u.Email,
+                    u.FullName,
+                    u.Bio,
+                    u.ProfilePictureUrl,
+                    u.CreatedAt,
+                    r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  WHERE u.UserID = :userId
+                  LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     public function isUsernameTaken($username, $excludeUserId) {
         $query = "SELECT UserID
                   FROM " . $this->table . "
@@ -149,7 +172,7 @@ class UserModel {
     }
 
     /**
-     * Xác thực đăng nhập bằng mật khẩu thô trực tiếp
+     * Xác thực đăng nhập bằng password_hash; giữ fallback plain text cho dữ liệu cũ.
      */
     public function login($username, $password) {
         // Đổi sang LEFT JOIN để an toàn tuyệt đối cho dữ liệu
@@ -162,9 +185,19 @@ class UserModel {
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Đối chiếu chuỗi mật khẩu thô trực tiếp
-        if ($user && $password === ($user['PasswordHash'] ?? $user['Password'] ?? '')) {
+        if (!$user) {
+            return false;
+        }
+
+        $storedPassword = $user['PasswordHash'] ?? $user['Password'] ?? '';
+
+        if (!empty($storedPassword) && password_verify($password, $storedPassword)) {
             return $user; 
+        }
+
+        // Fallback tạm thời cho dữ liệu cũ nếu còn tài khoản lưu plain text.
+        if (!empty($storedPassword) && hash_equals($storedPassword, $password)) {
+            return $user;
         }
         
         return false; 

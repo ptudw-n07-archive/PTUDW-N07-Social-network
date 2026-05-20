@@ -12,13 +12,19 @@ require_once __DIR__ . '/../Controllers/ProfileController.php';
 use App\Controllers\ProfileController;
 
 $profileController = new ProfileController();
-$profileData = $profileController->getCurrentProfileData();
+$profileData = $profileController->index();
 
 $profile = $profileData['profile'];
 $posts = $profileData['posts'];
 $stats = $profileData['stats'];
+$currentUserId = $profileData['currentUserId'];
+$profileUserId = $profileData['profileUserId'];
+$isOwnProfile = $profileData['isOwnProfile'];
+$profileNotFound = $profileData['notFound'];
 
 function profileImagePath($path) {
+    $path = trim((string) $path);
+
     if (empty($path)) {
         return BASE_URL . "Public/assets/img/default-avatar.jpg";
     }
@@ -27,8 +33,83 @@ function profileImagePath($path) {
         return $path;
     }
 
-    $cleanPath = str_replace("Public/", "", $path);
-    return BASE_URL . "Public/" . ltrim($cleanPath, "/");
+    $path = ltrim($path, "/");
+
+    if (str_starts_with($path, "Public/")) {
+        return BASE_URL . $path;
+    }
+
+    if (str_starts_with($path, "uploads/") || str_starts_with($path, "assets/")) {
+        return BASE_URL . "Public/" . $path;
+    }
+
+    return BASE_URL . $path;
+}
+
+function profilePostMediaPath($path) {
+    $path = trim((string) $path);
+
+    if ($path === '') {
+        return '';
+    }
+
+    if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
+        return $path;
+    }
+
+    $cleanPath = ltrim($path, "/");
+    $extension = strtolower(pathinfo(parse_url($cleanPath, PHP_URL_PATH) ?: $cleanPath, PATHINFO_EXTENSION));
+    if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'mp4', 'mov', 'webm'], true)) {
+        return '';
+    }
+
+    if (str_starts_with($cleanPath, "Public/")) {
+        $localPath = __DIR__ . '/../../' . $cleanPath;
+        return is_file($localPath) ? BASE_URL . $cleanPath : '';
+    }
+
+    if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
+        $localPath = __DIR__ . '/../../Public/' . $cleanPath;
+        return is_file($localPath) ? BASE_URL . "Public/" . $cleanPath : '';
+    }
+
+    $localPath = __DIR__ . '/../../' . $cleanPath;
+    return is_file($localPath) ? BASE_URL . $cleanPath : '';
+}
+
+function profilePostMediaType($path) {
+    $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
+
+    if (in_array($extension, ['mp4', 'mov', 'webm'], true)) {
+        return 'video';
+    }
+
+    if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+        return 'image';
+    }
+
+    if (in_array($extension, ['heic', 'heif'], true)) {
+        return 'unsupported-image';
+    }
+
+    return 'file';
+}
+
+function profilePostMediaMimeType($path) {
+    $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
+
+    return match ($extension) {
+        'jpg', 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        'heic' => 'image/heic',
+        'heif' => 'image/heif',
+        'mp4' => 'video/mp4',
+        'mov' => 'video/quicktime',
+        'webm' => 'video/webm',
+        default => 'application/octet-stream'
+    };
 }
 
 function profileTimeAgo($datetime) {
@@ -59,9 +140,9 @@ function profileNumber($number) {
     return number_format((int) $number, 0, '.', ',');
 }
 
-$profileName = $profile['FullName'] ?: $profile['Username'];
+$profileName = $profile ? ($profile['FullName'] ?: $profile['Username']) : '';
 $profileUsername = $profile['Username'] ?? '';
-$profileBio = $profile['Bio'] ?: 'Người dùng chưa cập nhật bio.';
+$profileBio = !empty($profile['Bio']) ? $profile['Bio'] : 'Người dùng chưa cập nhật bio.';
 $profileAvatar = $profile['ProfilePictureUrl'] ?? '';
 $profileEmail = $profile['Email'] ?? '';
 $profileRole = $profile['RoleName'] ?? 'Thành viên';
@@ -130,7 +211,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         <i class="bi bi-search"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="sidebar-icon" title="Đăng bài">
+                    <a href="<?php echo BASE_URL; ?>App/Views/createpost.php" class="sidebar-icon" title="Đăng bài">
                         <i class="bi bi-plus-square"></i>
                     </a>
 
@@ -141,16 +222,43 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                     <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="sidebar-icon active" title="Hồ sơ">
                         <i class="bi bi-person"></i>
                     </a>
+
+                    <div class="more-menu-wrapper">
+                        <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
+                            <i class="bi bi-list more-icon"></i>
+                            <span>More</span>
+                        </button>
+
+                        <div class="more-dropdown" id="moreDropdown">
+                            <button type="button" class="more-dropdown-item">Appearance</button>
+                            <button type="button" class="more-dropdown-item">Settings</button>
+                            <hr>
+                            <button type="button" class="more-dropdown-item">Liked</button>
+                            <button type="button" class="more-dropdown-item">Archive</button>
+                            <hr>
+                            <button type="button" class="more-dropdown-item">Report a problem</button>
+                            <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
+                        </div>
+                    </div>
                 </aside>
             </div>
 
+            <?php if ($profileNotFound): ?>
+                <div class="col-lg-11">
+                    <div class="alert alert-light border text-center py-5" role="alert">
+                        <i class="bi bi-person-x fs-2 d-block mb-2 text-muted"></i>
+                        Không tìm thấy người dùng.
+                    </div>
+                </div>
+            <?php else: ?>
             <div class="col-lg-3">
                 <div class="bg-white p-4 profile-card text-center h-100">
                     <img
                         id="profileAvatarPreview"
-                        src="<?php echo profileImagePath($profileAvatar); ?>"
+                        src="<?php echo htmlspecialchars(profileImagePath($profileAvatar), ENT_QUOTES, 'UTF-8'); ?>"
                         class="profile-avatar mb-3"
                         alt="Avatar"
+                        onerror="this.src='<?php echo BASE_URL; ?>Public/assets/img/default-avatar.jpg';"
                     >
 
                     <h2 id="profileNameText" class="profile-name"><?php echo htmlspecialchars($profileName); ?></h2>
@@ -175,12 +283,14 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         </div>
                     </div>
 
-                    <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                        <button class="btn btn-pink px-4" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-                            <i class="bi bi-pencil-square me-1"></i>
-                            Chỉnh sửa
-                        </button>
-                    </div>
+                    <?php if ($isOwnProfile): ?>
+                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                            <button class="btn btn-pink px-4" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                                <i class="bi bi-pencil-square me-1"></i>
+                                Chỉnh sửa
+                            </button>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="row text-center mt-4 g-3">
                         <div class="col-4">
@@ -211,7 +321,9 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                 <div class="bg-light p-4 profile-intro-card mb-4">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div>
-                            <h3 class="profile-section-title">Bài viết của bạn</h3>
+                            <h3 class="profile-section-title">
+                                <?php echo $isOwnProfile ? 'Bài viết của bạn' : 'Bài viết của ' . htmlspecialchars($profileName); ?>
+                            </h3>
                             <p class="text-muted mb-0">Dữ liệu lấy trực tiếp từ bảng posts, postimages, likes và comments.</p>
                         </div>
 
@@ -248,11 +360,27 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                         <?php if (!empty($post['Images'])): ?>
                                             <div class="d-flex flex-column gap-3 mb-3">
                                                 <?php foreach (explode(',', $post['Images']) as $image): ?>
-                                                    <img
-                                                        src="<?php echo profileImagePath(trim($image)); ?>"
-                                                        class="profile-post-image"
-                                                        alt="Post image"
-                                                    >
+                                                    <?php $profilePostMediaSrc = profilePostMediaPath($image); ?>
+                                                    <?php if ($profilePostMediaSrc !== ''): ?>
+                                                        <?php $profilePostMediaType = profilePostMediaType($image); ?>
+                                                        <?php if ($profilePostMediaType === 'video'): ?>
+                                                            <video controls class="profile-post-image">
+                                                                <source src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" type="<?php echo htmlspecialchars(profilePostMediaMimeType($image), ENT_QUOTES, 'UTF-8'); ?>">
+                                                                Trình duyệt không hỗ trợ video này.
+                                                            </video>
+                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small">Mở file video</a>
+                                                        <?php elseif ($profilePostMediaType === 'image'): ?>
+                                                            <img
+                                                                src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                class="profile-post-image"
+                                                                alt="Post image"
+                                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                                            >
+                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small" style="display:none;">Mở file ảnh</a>
+                                                        <?php else: ?>
+                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small">Mở file ảnh</a>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
                                                 <?php endforeach; ?>
                                             </div>
                                         <?php endif; ?>
@@ -276,14 +404,16 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                 <?php else: ?>
                     <div class="alert alert-light border text-center py-5" role="alert">
                         <i class="bi bi-file-earmark-text fs-2 d-block mb-2 text-muted"></i>
-                        Người dùng chưa có bài viết nào.
+                        <?php echo $isOwnProfile ? 'Bạn chưa có bài viết nào.' : 'Người dùng này chưa có bài viết nào.'; ?>
                     </div>
                 <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
     </div>
 </section>
 
+<?php if ($isOwnProfile): ?>
 <div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -376,12 +506,17 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
         </div>
     </div>
 </div>
+<?php endif; ?>
 
+<?php if ($isOwnProfile): ?>
 <script>
     window.PROFILE_UPDATE_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=update";
 </script>
+<?php endif; ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js"></script>
+<?php if ($isOwnProfile): ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/profile.js"></script>
+<?php endif; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>

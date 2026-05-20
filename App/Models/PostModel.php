@@ -38,7 +38,10 @@ class PostModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getPostsByUserId($userId) {
+    public function getPostsByUserId($userId, $viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
         $sql = "
             SELECT
                 p.PostID,
@@ -49,12 +52,14 @@ class PostModel {
                 u.FullName,
                 u.ProfilePictureUrl,
                 GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                $viewerLikeSelect
                 COUNT(DISTINCT l.UserID) AS LikeCount,
                 COUNT(DISTINCT c.CommentID) AS CommentCount
             FROM posts p
             JOIN users u ON p.UserID = u.UserID
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
+            $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
             WHERE p.UserID = :userId
             GROUP BY p.PostID
@@ -63,6 +68,11 @@ class PostModel {
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+        }
+
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
