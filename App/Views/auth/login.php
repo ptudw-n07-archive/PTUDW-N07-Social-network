@@ -21,7 +21,7 @@ if (!defined('BASE_URL')) {
     <div class="login-container">
         <h2>Xin chào!</h2>
         <p class="subtitle">Vui lòng đăng nhập để kết nối với bạn bè</p>
-
+             
         <?php if(isset($_SESSION['error'])): ?>
             <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.08); border-radius: 4px;">
                 <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
