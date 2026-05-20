@@ -78,15 +78,23 @@ class AuthController {
         <div class="divider">
             <span>HOẶC</span>
         </div>
+        <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
+            
+            <div style="text-align: left; flex: 1;">
+                <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
+            </div>
 
-        <div class="extra-links">
-            <a href="forgot-password.php">Quên mật khẩu?</a>
-            <a href="<?php echo BASE_URL; ?>Views/auth/register.php" style="color: #d39399;">Đăng ký mới</a>
+            <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
+                <a href="<?php echo BASE_URL; ?>Public/index.php" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+                    <i class="fa-solid fa-house"></i>
+                </a>
+            </div>
+
+            <div style="text-align: right; flex: 1; line-height: 1.5;">
+                <span style="color: #666;">Chưa có tài khoản?</span><br>
+                <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
+            </div>
+
         </div>
-
-        <br>
-        <a href="<?php echo BASE_URL; ?>Public/index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
-    </div>
-
 </body>
 </html>
