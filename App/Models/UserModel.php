@@ -1,57 +1,52 @@
 <?php
-namespace App\Models; 
+namespace App\Models;
 
-use PDO; 
+use PDO;
+
 class UserModel {
-    private $conn;
-    private $table = "Users";
+    private PDO $conn;
+    private string $table = "Users";
 
     public function __construct($db_connection) {
         $this->conn = $db_connection;
     }
 
-    // Kiểm tra xem Username hoặc Email đã tồn tại chưa
-    public function exists($username, $email) {
+    public function exists($username, $email): bool {
         $query = "SELECT UserID FROM " . $this->table . " WHERE Username = :username OR Email = :email LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':username', $username);
         $stmt->bindParam(':email', $email);
         $stmt->execute();
+
         return $stmt->rowCount() > 0;
     }
 
-    // Đăng ký người dùng mới - ĐÃ BẢO MẬT BẰNG PASSWORD_HASH
-    public function register($name, $username, $email, $password) {
-        $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, CreatedAt) 
+    public function register($name, $username, $email, $password): bool {
+        $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, CreatedAt)
                   VALUES (:name, :username, :email, :password, 2, NOW())";
         $stmt = $this->conn->prepare($query);
-        
-
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         $stmt->bindParam(':name', $name);
         $stmt->bindParam(':username', $username);
         $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':password', $hashed_password);
+        $stmt->bindParam(':password', $hashedPassword);
 
         return $stmt->execute();
     }
 
-    // Tìm người dùng bằng Username hoặc Email
-    public function findByCredentials($login_input) {
-       
-        $query = "SELECT u.*, r.RoleName FROM " . $this->table . " u 
-                  LEFT JOIN Roles r ON u.RoleID = r.RoleID 
-                  WHERE u.Username = :input OR u.Email = :input LIMIT 1";
+    public function findByCredentials($loginInput) {
+        $query = "SELECT u.*, r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  WHERE u.Username = :input OR u.Email = :input
+                  LIMIT 1";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':input', $login_input);
+        $stmt->bindParam(':input', $loginInput);
         $stmt->execute();
+
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
-<<<<<<< HEAD
-    
-    // Cập nhật lại mật khẩu mới khi Quên mật khẩu - ĐÃ UPDATE PASSWORD_HASH
-=======
 
     public function findById($userId) {
         $query = "SELECT u.*, r.RoleName
@@ -59,7 +54,6 @@ class UserModel {
                   LEFT JOIN Roles r ON u.RoleID = r.RoleID
                   WHERE u.UserID = :userId
                   LIMIT 1";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -82,7 +76,6 @@ class UserModel {
                   LEFT JOIN Roles r ON u.RoleID = r.RoleID
                   WHERE u.UserID = :userId
                   LIMIT 1";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -90,12 +83,11 @@ class UserModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function isUsernameTaken($username, $excludeUserId) {
+    public function isUsernameTaken($username, $excludeUserId): bool {
         $query = "SELECT UserID
                   FROM " . $this->table . "
                   WHERE Username = :username AND UserID != :userId
                   LIMIT 1";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':username', $username);
         $stmt->bindParam(':userId', $excludeUserId, PDO::PARAM_INT);
@@ -104,12 +96,11 @@ class UserModel {
         return $stmt->rowCount() > 0;
     }
 
-    public function isEmailTaken($email, $excludeUserId) {
+    public function isEmailTaken($email, $excludeUserId): bool {
         $query = "SELECT UserID
                   FROM " . $this->table . "
                   WHERE Email = :email AND UserID != :userId
                   LIMIT 1";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':email', $email);
         $stmt->bindParam(':userId', $excludeUserId, PDO::PARAM_INT);
@@ -118,7 +109,7 @@ class UserModel {
         return $stmt->rowCount() > 0;
     }
 
-    public function updateProfile($userId, $fullName, $username, $email, $bio, $avatarPath = null) {
+    public function updateProfile($userId, $fullName, $username, $email, $bio, $avatarPath = null): bool {
         $fields = [
             "FullName = :fullName",
             "Username = :username",
@@ -146,9 +137,8 @@ class UserModel {
         return $stmt->execute();
     }
 
-    public function countFollowing($userId) {
+    public function countFollowing($userId): int {
         $query = "SELECT COUNT(*) FROM follows WHERE FollowerID = :userId";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -156,9 +146,8 @@ class UserModel {
         return (int) $stmt->fetchColumn();
     }
 
-    public function countFollowers($userId) {
+    public function countFollowers($userId): int {
         $query = "SELECT COUNT(*) FROM follows WHERE FollowedID = :userId";
-
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
         $stmt->execute();
@@ -166,45 +155,20 @@ class UserModel {
         return (int) $stmt->fetchColumn();
     }
 
-    // Cập nhật lại mật khẩu mới khi Quên mật khẩu
->>>>>>> c6609eafb5f6c2feebe63fdd7af78326c540b9a8
-    public function updatePassword($email, $new_password) {
+    public function updatePassword($email, $newPassword): bool {
         $query = "UPDATE " . $this->table . " SET PasswordHash = :password WHERE Email = :email";
         $stmt = $this->conn->prepare($query);
-        
-        // Băm mật khẩu mới
-        $hashed_password = password_hash($new_password, PASSWORD_BCRYPT);
+        $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
 
-        $stmt->bindParam(':password', $hashed_password);
+        $stmt->bindParam(':password', $hashedPassword);
         $stmt->bindParam(':email', $email);
+
         return $stmt->execute();
     }
 
-<<<<<<< HEAD
-    // Xác thực đăng nhập hỗ trợ cả tài khoản thô (cũ) và tài khoản băm (mới)
-=======
-    /**
-     * Xác thực đăng nhập bằng password_hash; giữ fallback plain text cho dữ liệu cũ.
-     */
->>>>>>> c6609eafb5f6c2feebe63fdd7af78326c540b9a8
     public function login($username, $password) {
-        // Tìm user dựa trên cả Username hoặc Email
         $user = $this->findByCredentials($username);
 
-<<<<<<< HEAD
-        if ($user) {
-            $db_password = $user['PasswordHash'] ?? $user['Password'] ?? '';
-
-            // Trường hợp 1: Mật khẩu trong DB đã được băm bằng password_hash (Khuyên dùng)
-            if (password_verify($password, $db_password)) {
-                return $user;
-            }
-
-            // Trường hợp 2: Hỗ trợ các tài khoản cũ lưu mật khẩu thô chưa kịp đổi
-            if ($password === $db_password) {
-                return $user;
-            }
-=======
         if (!$user) {
             return false;
         }
@@ -212,16 +176,14 @@ class UserModel {
         $storedPassword = $user['PasswordHash'] ?? $user['Password'] ?? '';
 
         if (!empty($storedPassword) && password_verify($password, $storedPassword)) {
-            return $user; 
->>>>>>> c6609eafb5f6c2feebe63fdd7af78326c540b9a8
+            return $user;
         }
 
-        // Fallback tạm thời cho dữ liệu cũ nếu còn tài khoản lưu plain text.
         if (!empty($storedPassword) && hash_equals($storedPassword, $password)) {
             return $user;
         }
-        
-        return false; 
+
+        return false;
     }
 }
 ?>
