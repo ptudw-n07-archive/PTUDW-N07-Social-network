@@ -1,22 +1,12 @@
 <?php
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 if (!defined('BASE_URL')) {
     define("BASE_URL", "http://localhost:3000/");
 }
-// Định nghĩa lớp điều khiển AdminController để quản lý phân hệ quản trị
-class AuthController {
-    // Biến nội bộ dùng để lưu trữ cổng kết nối Cơ sở dữ liệu PDO
-    private $conn;
-
-    /**
-     * Hàm khởi tạo (Constructor)
-     * Nhận đối tượng kết nối Cơ sở dữ liệu từ bên ngoài truyền vào khi khởi tạo lớp
-     */
-    public function __construct($db_connection) {
-        $this->conn = $db_connection;
-    }
-}
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -26,9 +16,8 @@ class AuthController {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
     <style>
-        /* Tinh chỉnh thêm một chút cho trang đăng ký vì form dài hơn */
         .login-container {
-            max-width: 460px; /* Cho rộng hơn một tí để dàn hàng icon đẹp hơn */
+            max-width: 460px;
             margin: 20px;
         }
         .register-grid {
@@ -43,11 +32,11 @@ class AuthController {
     </style>
 </head>
 <body>
-<!-- thay đổi -->
-    <div class="login-container">
+<div class="login-container">
         <h2>Tham gia cùng chúng mình!</h2>
         <p class="subtitle">Tạo tài khoản để kết nối và chia sẻ ngay</p>
-                <?php if(isset($_SESSION['error'])): ?>
+        
+        <?php if(isset($_SESSION['error'])): ?>
             <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.08); border-radius: 4px;">
                 <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
             </div>
@@ -58,7 +47,8 @@ class AuthController {
                 <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
-        <form action="process-register.php" method="POST">
+        
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=register" method="POST">
             <div class="register-grid">
                 <div class="form-group full-width">
                     <label for="fullname">Họ và Tên</label>
@@ -94,11 +84,10 @@ class AuthController {
         </div>
 
         <div class="extra-links" style="justify-content: center;">
-            <p>Đã có tài khoản? <a href="<?php echo BASE_URL; ?>Views/auth/login.php" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
+            <p>Đã có tài khoản? <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
         </div>
 
-        <a href="<?php echo BASE_URL; ?>Public/index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
+        <a href="<?php echo BASE_URL; ?>index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
     </div>
-
 </body>
 </html>

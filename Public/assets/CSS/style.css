@@ -409,6 +409,21 @@ html {
 }
 
 .post-actions button,
+.post-actions a {
+    border: none;
+    background: transparent;
+    color: #6d5448;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    transition: 0.2s;
+}
+
+.post-actions a:hover {
+    color: #c98f6f;
+}
 .more-btn {
     border: none;
     background: transparent;
@@ -552,4 +567,56 @@ html {
     .login-card-title {
         font-size: 1.35rem;
     }
+}
+/* =========================
+UPLOAD IMAGE BUTTON
+========================= */
+
+.custom-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    background: #f4e5e7;
+    color: #b76e79;
+
+    padding: 10px 16px;
+
+    border-radius: 14px;
+
+    cursor: pointer;
+
+    font-weight: 500;
+
+    transition: 0.2s ease;
+}
+
+.custom-upload-btn:hover {
+    background: #e7cfd3;
+}
+
+.custom-upload-btn i {
+    font-size: 18px;
+}
+
+
+/* =========================
+IMAGE PREVIEW
+========================= */
+
+.preview-container {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.preview-image {
+    width: 100px;
+    height: 100px;
+
+    object-fit: cover;
+
+    border-radius: 14px;
+
+    border: 1px solid #e5d6d8;
 }

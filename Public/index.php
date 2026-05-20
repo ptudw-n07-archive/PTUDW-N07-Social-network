@@ -1,51 +1,83 @@
 <?php
-require_once __DIR__ . '/../Controllers/PostController.php';
+// 1. Khởi động Session hệ thống nếu chưa có
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-$postController = new PostController();
-$posts = $postController->index();
+// 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
+require_once __DIR__ . '/../App/Controllers/PostController.php';
 
-$totalPosts = count($posts);
-$totalUsers = count(array_unique(array_column($posts, 'UserID')));
-$totalComments = array_sum(array_column($posts, 'CommentCount'));
+// ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
+use App\Controllers\PostController;
 
+// 3. Khai báo BASE_URL nếu chưa định nghĩa
 if (!defined('BASE_URL')) {
     define("BASE_URL", "http://localhost:3000/");
 }
 
+// Chỉnh lại link dẫn vào Views vì nó đã chui vào trong App/Views/
+$loginUrl    = BASE_URL . "App/Views/auth/login.php";
+$registerUrl = BASE_URL . "App/Views/auth/register.php";
+$homeUrl     = BASE_URL . "Public/index.php";
 
+// 4. Khởi tạo đối tượng Controller
+$postController = new PostController();
+
+// 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
+$result = $postController->index();
+
+if (isset($result['posts'])) {
+    $posts         = $result['posts'];
+    $totalPosts    = $result['totalPosts'];
+    $totalUsers    = $result['totalUsers'];
+    $totalComments = $result['totalComments'];
+} else {
+    $posts         = $result;
+    $totalPosts    = count($posts);
+    $totalUsers    = count(array_unique(array_column($posts, 'UserID')));
+    $totalComments = array_sum(array_column($posts, 'CommentCount'));
+}
+
+// 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN (Giữ nguyên bên dưới...)
 function imagePath($path) {
     if (empty($path)) {
         return "assets/img/default-avatar.jpg";
     }
-
     if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
         return $path;
     }
-
     return str_replace("Public/", "", $path);
 }
 
 function timeAgo($datetime) {
-    $timestamp = strtotime($datetime);
-    $diff = time() - $timestamp;
-
-    if ($diff < 60) {
-        return "vừa xong";
-    } elseif ($diff < 3600) {
-        return floor($diff / 60) . " phút";
-    } elseif ($diff < 86400) {
-        return floor($diff / 3600) . " giờ";
-    } else {
-        return date("d/m/Y", $timestamp);
+    if (empty($datetime)) return "Không rõ thời gian";
+    
+    $time = strtotime($datetime);
+    $now  = time();
+    $diff = $now - $time;
+    
+    if ($diff < 60) return "vừa xong";
+    
+    $intervals = [
+        31536000 => 'năm',
+        2592000  => 'tháng',
+        604800   => 'tuần',
+        86400    => 'ngày',
+        3600     => 'giờ',
+        60       => 'phút'
+    ];
+    
+    foreach ($intervals as $secs => $str) {
+        $d = $diff / $secs;
+        if ($d >= 1) {
+            return round($d) . ' ' . $str . ' trước';
+        }
     }
+    return $datetime;
 }
 
 function formatNumber($number) {
-    if ($number >= 1000) {
-        return number_format($number, 0, ',', '.');
-    }
-
-    return $number;
+    return number_format((float)$number, 0, '.', ',');
 }
 ?>
 
@@ -72,31 +104,31 @@ function formatNumber($number) {
         <div class="row align-items-center py-3">
 
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>Public/index.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?= $homeUrl ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center align-items-center">
-                <div class="header-badge">
+                <a href="<?= $loginUrl ?>" class="header-badge text-decoration-none">
                     <i class="bi bi-stars"></i>
-                </div>
+                </a>
             </div>
 
             <div class="col-4 d-flex justify-content-end align-items-center">
                 <div class="header-actions">
-                    <a href="#" class="header-search-btn" title="Tìm kiếm">
+                    <a href="<?= $loginUrl ?>" class="header-search-btn" title="Tìm kiếm">
                         <i class="bi bi-search"></i>
                     </a>
 
-                    <a href="#" class="header-star-btn" title="About us">
+                    <a href="<?= $loginUrl ?>" class="header-star-btn" title="About us">
                         <i class="bi bi-star"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>Views/auth/login.php" class="header-login-btn" title="Đăng nhập">
+                    <a href="<?= $loginUrl ?>" class="header-login-btn" title="Đăng nhập">
                         <i class="bi bi-person"></i>
                         <span>Đăng nhập</span>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>Views/auth/register.php" class="header-register-btn" title="Đăng ký">
+                    <a href="<?= $registerUrl ?>" class="header-register-btn" title="Đăng ký">
                         <i class="bi bi-plus-lg"></i>
                         <span>Đăng ký</span>
                     </a>
@@ -131,7 +163,7 @@ function formatNumber($number) {
 
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mb-5">
                             <button class="btn hero-main-btn" onclick="scrollToFeed()">Bắt đầu</button>
-                            <a href="<?php echo BASE_URL; ?>Views/auth/login.php" class="btn hero-outline-btn">Đăng nhập</a>
+                            <a href="<?= $loginUrl ?>" class="btn hero-outline-btn">Đăng nhập</a>
                         </div>
 
                         <div class="hero-stats mx-auto">
@@ -179,27 +211,27 @@ function formatNumber($number) {
                         <i class="bi bi-circle-square"></i>
                     </div>
 
-                    <a href="<?php echo BASE_URL; ?>Public/index.php" class="sidebar-icon active" title="Trang chủ">
+                    <a href="<?= $homeUrl ?>" class="sidebar-icon active" title="Trang chủ">
                         <i class="bi bi-house-door-fill"></i>
                     </a>
 
-                    <a href="#" class="sidebar-icon" title="Tìm kiếm">
+                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Tìm kiếm">
                         <i class="bi bi-search"></i>
                     </a>
 
-                    <a href="#" class="sidebar-icon" title="Tạo bài viết">
+                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Tạo bài viết">
                         <i class="bi bi-plus-square"></i>
                     </a>
 
-                    <a href="#" class="sidebar-icon" title="Thông báo">
+                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Thông báo">
                         <i class="bi bi-heart"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>Views/profile.php" class="sidebar-icon" title="Trang cá nhân">
+                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Trang cá nhân">
                         <i class="bi bi-person"></i>
                     </a>
 
-                    <a href="#" class="sidebar-icon mt-auto" title="About us">
+                    <a href="<?= $loginUrl ?>" class="sidebar-icon mt-auto" title="About us">
                         <i class="bi bi-pin-angle"></i>
                     </a>
                 </aside>
@@ -208,7 +240,7 @@ function formatNumber($number) {
             <div class="col-lg-7 col-md-8">
                 <div class="feed-title text-center mb-4">Trang chủ</div>
 
-                <form action="#" method="POST" class="bg-white p-3 p-md-4 mb-4 post-composer">
+                <form action="<?= $loginUrl ?>" method="GET" class="bg-white p-3 p-md-4 mb-4 post-composer">
                     <div class="d-flex gap-3 align-items-start">
                         <img src="assets/img/default-avatar.jpg" class="avatar" alt="avatar">
 
@@ -223,7 +255,7 @@ function formatNumber($number) {
                             ></textarea>
 
                             <div class="d-flex justify-content-between align-items-center mt-3">
-                                <small class="text-muted">Chia sẻ một điều ngắn thôi cũng được.</small>
+                                <small class="text-muted">Đăng nhập để chia sẻ bài viết.</small>
                                 <button type="submit" class="btn btn-pink px-4">Đăng</button>
                             </div>
                         </div>
@@ -236,7 +268,7 @@ function formatNumber($number) {
                             <div class="p-3 p-md-4">
                                 <div class="d-flex justify-content-between">
                                     <div class="d-flex gap-3">
-                                        <a href="<?php echo BASE_URL; ?>Views/profile.php?id=<?= $post['UserID'] ?>">
+                                        <a href="<?= $loginUrl ?>">
                                             <img 
                                                 src="<?= imagePath($post['ProfilePictureUrl'] ?? '') ?>" 
                                                 class="avatar" 
@@ -247,7 +279,7 @@ function formatNumber($number) {
                                         <div>
                                             <div class="d-flex align-items-center gap-2 flex-wrap">
                                                 <a 
-                                                    href="<?php echo BASE_URL; ?>Views/profile.php?id=<?= $post['UserID'] ?>" 
+                                                    href="<?= $loginUrl ?>" 
                                                     class="fw-semibold text-decoration-none text-dark"
                                                 >
                                                     <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
@@ -266,38 +298,40 @@ function formatNumber($number) {
                                                 <?php $images = explode(',', $post['Images']); ?>
 
                                                 <?php foreach ($images as $img): ?>
-                                                    <img 
-                                                        src="<?= imagePath(trim($img)) ?>" 
-                                                        class="img-fluid rounded-4 mb-3"
-                                                        style="max-height: 450px; object-fit: cover;"
-                                                        alt="post image"
-                                                    >
+                                                    <a href="<?= $loginUrl ?>">
+                                                        <img 
+                                                            src="<?= imagePath(trim($img)) ?>" 
+                                                            class="img-fluid rounded-4 mb-3"
+                                                            style="max-height: 450px; object-fit: cover;"
+                                                            alt="post image"
+                                                        >
+                                                    </a>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
 
                                             <div class="post-actions d-flex gap-4">
-                                                <button type="button">
+                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
                                                     <i class="bi bi-heart"></i> <?= $post['LikeCount'] ?? 0 ?>
-                                                </button>
+                                                </a>
 
-                                                <button type="button">
+                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
                                                     <i class="bi bi-chat"></i> <?= $post['CommentCount'] ?? 0 ?>
-                                                </button>
+                                                </a>
 
-                                                <button type="button">
+                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
                                                     <i class="bi bi-arrow-repeat"></i> 0
-                                                </button>
+                                                </a>
 
-                                                <button type="button">
+                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
                                                     <i class="bi bi-send"></i>
-                                                </button>
+                                                </a>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <button type="button" class="more-btn">
+                                    <a href="<?= $loginUrl ?>" class="more-btn">
                                         <i class="bi bi-three-dots"></i>
-                                    </button>
+                                    </a>
 
                                 </div>
                             </div>
@@ -323,7 +357,7 @@ function formatNumber($number) {
                     </p>
 
                     <a 
-                        href="<?php echo BASE_URL; ?>Views/auth/login.php" 
+                        href="<?= $loginUrl ?>" 
                         class="username-login-btn w-100 text-center text-decoration-none d-block"
                     >
                         Đăng nhập bằng tên người dùng
@@ -333,9 +367,9 @@ function formatNumber($number) {
                 <div class="feed-footer text-center mt-4">
                     <small>
                         © 2026 Archive · 
-                        <a href="#" class="text-decoration-none text-muted">Điều khoản</a> · 
-                        <a href="#" class="text-decoration-none text-muted">Chính sách riêng tư</a> · 
-                        <a href="#" class="text-decoration-none text-muted">Chính sách cookie</a>
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Điều khoản</a> · 
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách riêng tư</a> · 
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách cookie</a>
                     </small>
                 </div>
             </div>

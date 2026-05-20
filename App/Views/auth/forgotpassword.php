@@ -27,27 +27,35 @@ if (session_status() == PHP_SESSION_NONE) {
             </div>
         <?php endif; ?>
 
-        <form action="process-forgot.php" method="POST">
+        <?php if(isset($_SESSION['success'])): ?>
+            <div style="color: #198754; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(25, 135, 84, 0.1); border-radius: 4px;">
+                <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=forgot" method="POST">
             <div class="form-group">
-                <label for="email"><i class="fa-regular fa-envelope"></i> Email đã đăng ký</label>
+                <label for="email"><i class=\"fa-regular fa-envelope\"></i> Email đã đăng ký</label>
                 <input type="email" id="email" name="email" placeholder="Nhập địa chỉ email của bạn" required>
             </div>
 
             <div class="form-group">
-                <label for="new_password"><i class="fa-solid fa-lock"></i> Mật khẩu mới</label>
+                <label for="new_password"><i class=\"fa-solid fa-lock\"></i> Mật khẩu mới</label>
                 <input type="password" id="new_password" name="new_password" placeholder="Nhập mật khẩu mới" required>
             </div>
 
             <div class="form-group">
-                <label for="confirm_password"><i class="fa-solid fa-shield-halved"></i> Xác nhận mật khẩu</label>
+                <label for="confirm_password"><i class=\"fa-solid fa-shield-halved\"></i> Xác nhận mật khẩu</label>
                 <input type="password" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu mới" required>
             </div>
 
             <button type="submit" class="btn-login">XÁC NHẬN ĐỔI MẬT KHẨU</button>
         </form>
 
-        <div class="extra-links" style="justify-content: center; margin-top: 15px;">
-            <a href="<?php echo BASE_URL; ?>Views/auth/login.php"><i class="fa-solid fa-angle-left"></i> Quay lại Đăng nhập</a>
+        <div class="extra-links" style="justify-content: center; gap: 15px;">
+            <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php">Quay lại Đăng nhập</a>
+            <span style="color: #ccc;">|</span>
+            <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php">Đăng ký tài khoản</a>
         </div>
     </div>
 

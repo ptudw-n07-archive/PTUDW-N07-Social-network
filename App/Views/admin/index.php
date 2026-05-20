@@ -16,8 +16,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/admin-style.css">
+    <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
+    <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/admin-style.css">
 </head>
 
 <body class="admin-body">
@@ -36,7 +36,7 @@
                         <span class="text-muted small fw-bold">Quản trị viên</span>
                         <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
                     </div>
-                    <button id="logoutBtn" class="header-logout-btn">
+                    <button id="logoutBtn" class="header-logout-btn" onclick="window.location.href='<?php echo BASE_URL; ?>App/Views/auth/login.php'">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
                 </div>
@@ -53,20 +53,20 @@
         <div class="d-flex justify-content-center mb-5">
             <ul class="nav nav-pills custom-admin-tabs" id="adminTab" role="tablist">
                 <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview"><i class="bi bi-grid-1x2 me-2"></i>Tổng quan</button>
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab"><i class="bi bi-grid-1x2 me-2"></i>Tổng quan</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports"><i class="bi bi-shield-check me-2"></i>Kiểm duyệt</button>
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab"><i class="bi bi-shield-check me-2"></i>Kiểm duyệt</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members"><i class="bi bi-person-badge me-2"></i>Thành viên</button>
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members" type="button" role="tab"><i class="bi bi-person-badge me-2"></i>Thành viên</button>
                 </li>
             </ul>
         </div>
 
         <div class="tab-content">
             
-            <div class="tab-pane fade show active" id="overview">
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
                 <div class="row g-4 d-flex align-items-stretch">
                     
                     <div class="col-md-3">
@@ -104,7 +104,7 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="reports">
+            <div class="tab-pane fade" id="reports" role="tabpanel">
                 <div class="admin-table-container">
                     <table class="table align-middle">
                         <thead>
@@ -126,15 +126,19 @@
                                                 <img src="<?php echo BASE_URL . $r['avatar']; ?>" alt="avatar" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">  
                                             </div>
                                             <div>
-                                                <h6 class="mb-0 fw-bold"><?php echo $r['user']; ?></h6>
-                                                <small class="text-muted"><?php echo $r['type']; ?></small>
+                                                <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($r['user']); ?></h6>
+                                                <small class="text-muted"><?php echo htmlspecialchars($r['type']); ?></small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td><span class="small"><?php echo $r['reason']; ?></span></td>
-                                    <td class="small text-muted"><?php echo $r['time']; ?></td>
+                                    <td><span class="small"><?php echo htmlspecialchars($r['reason']); ?></span></td>
+                                    <td class="small text-muted"><?php echo htmlspecialchars($r['time']); ?></td>
                                     <td>
-                                        <?php echo $this->renderStatus($r['status']); ?>
+                                        <?php if (($r['status'] ?? '') === 'Chờ duyệt'): ?>
+                                            <span class="badge rounded-pill bg-warning text-dark px-2.5 py-1 text-xs fw-medium">Chờ duyệt</span>
+                                        <?php else: ?>
+                                            <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Đã xử lý</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end">
                                         <button class="btn btn-pink-admin" <?php echo ($r['status'] == 'Đã xử lý') ? 'disabled style="opacity: 0.7;"' : ''; ?>>
@@ -144,14 +148,14 @@
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted">Hiện tại hệ thống sạch sẽ, chưa có báo cáo vi phạm nào!</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-4">Hiện tại hệ thống sạch sẽ, chưa có báo cáo vi phạm nào!</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="members">
+            <div class="tab-pane fade" id="members" role="tabpanel">
                 <div class="admin-table-container">
                     <table class="table align-middle">
                         <thead>
@@ -172,19 +176,23 @@
                                             <div class="me-3">
                                                 <img src="<?php echo BASE_URL . $m['avatar']; ?>" alt="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;">
                                             </div>
-                                            <div class="fw-bold"><?php echo $m['name']; ?></div>
+                                            <div class="fw-bold"><?php echo htmlspecialchars($m['name']); ?></div>
                                         </div>
                                     </td>
-                                    <td class="small text-muted"><?php echo $m['role']; ?></td>
-                                    <td class="small"><?php echo $m['joined']; ?></td>
+                                    <td class="small text-muted"><?php echo htmlspecialchars($m['role']); ?></td>
+                                    <td class="small"><?php echo htmlspecialchars($m['joined']); ?></td>
                                     <td>
-                                        <?php echo $this->renderStatus($m['status']); ?>
+                                        <?php if (($m['status'] ?? '') === 'Đã khóa'): ?>
+                                            <span class="badge rounded-pill bg-danger text-white px-2.5 py-1 text-xs fw-medium">Đã khóa</span>
+                                        <?php else: ?>
+                                            <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Hoạt động</span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end"><button class="btn btn-outline-brown">Sửa</button></td>
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted">Chưa có thành viên nào tham gia mạng xã hội.</td></tr>
+                                <tr><td colspan="5" class="text-center text-muted py-4">Chưa có thành viên nào tham gia mạng xã hội.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -195,6 +203,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo BASE_URL; ?>public/SCRIPT/admin-script.js"></script>
+    <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-script.js"></script>
 </body>
 </html>
