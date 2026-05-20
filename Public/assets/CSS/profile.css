@@ -48,6 +48,15 @@
     margin: 0 auto;
 }
 
+.profile-meta {
+    color: #5a4842;
+    font-size: 0.92rem;
+}
+
+.profile-meta .list-group-item {
+    border-color: rgba(121, 91, 74, 0.12);
+}
+
 /* BUTTON */
 .profile-outline-btn {
     background: transparent;

@@ -47,6 +47,96 @@ class UserModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    public function findById($userId) {
+        $query = "SELECT u.*, r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  WHERE u.UserID = :userId
+                  LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function isUsernameTaken($username, $excludeUserId) {
+        $query = "SELECT UserID
+                  FROM " . $this->table . "
+                  WHERE Username = :username AND UserID != :userId
+                  LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':username', $username);
+        $stmt->bindParam(':userId', $excludeUserId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public function isEmailTaken($email, $excludeUserId) {
+        $query = "SELECT UserID
+                  FROM " . $this->table . "
+                  WHERE Email = :email AND UserID != :userId
+                  LIMIT 1";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->bindParam(':userId', $excludeUserId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->rowCount() > 0;
+    }
+
+    public function updateProfile($userId, $fullName, $username, $email, $bio, $avatarPath = null) {
+        $fields = [
+            "FullName = :fullName",
+            "Username = :username",
+            "Email = :email",
+            "Bio = :bio"
+        ];
+
+        if ($avatarPath !== null) {
+            $fields[] = "ProfilePictureUrl = :avatarPath";
+        }
+
+        $query = "UPDATE " . $this->table . " SET " . implode(', ', $fields) . " WHERE UserID = :userId";
+        $stmt = $this->conn->prepare($query);
+
+        $stmt->bindParam(':fullName', $fullName);
+        $stmt->bindParam(':username', $username);
+        $stmt->bindParam(':email', $email);
+        $stmt->bindParam(':bio', $bio);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+
+        if ($avatarPath !== null) {
+            $stmt->bindParam(':avatarPath', $avatarPath);
+        }
+
+        return $stmt->execute();
+    }
+
+    public function countFollowing($userId) {
+        $query = "SELECT COUNT(*) FROM follows WHERE FollowerID = :userId";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countFollowers($userId) {
+        $query = "SELECT COUNT(*) FROM follows WHERE FollowedID = :userId";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
+    }
+
     // Cập nhật lại mật khẩu mới khi Quên mật khẩu
     public function updatePassword($email, $new_password) {
         $query = "UPDATE " . $this->table . " SET PasswordHash = :password WHERE Email = :email";
