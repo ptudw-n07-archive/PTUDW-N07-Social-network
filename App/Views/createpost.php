@@ -17,7 +17,9 @@ $currentFullName = $_SESSION['user_name'] ?? $currentUsername;
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 
 function imagePath($path) {
-    if (empty($path)) {
+    $path = trim((string) $path);
+
+    if ($path === '') {
         return BASE_URL . "Public/assets/img/default-avatar.jpg";
     }
 
@@ -25,8 +27,17 @@ function imagePath($path) {
         return $path;
     }
 
-    $cleanPath = str_replace("Public/", "", $path);
-    return BASE_URL . "Public/" . ltrim($cleanPath, "/");
+    $path = ltrim($path, "/");
+
+    if (str_starts_with($path, "Public/")) {
+        return BASE_URL . $path;
+    }
+
+    if (str_starts_with($path, "uploads/") || str_starts_with($path, "assets/")) {
+        return BASE_URL . "Public/" . $path;
+    }
+
+    return BASE_URL . $path;
 }
 ?>
 
@@ -106,7 +117,7 @@ function imagePath($path) {
                     </a>
 
                     <a 
-                        href="<?php echo BASE_URL; ?>App/Views/create-post.php"
+                        href="<?php echo BASE_URL; ?>App/Views/createpost.php"
                         class="sidebar-icon active"
                         title="Đăng bài"
                     >
@@ -129,6 +140,24 @@ function imagePath($path) {
                         <i class="bi bi-person"></i>
                     </a>
 
+                    <div class="more-menu-wrapper">
+                        <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
+                            <i class="bi bi-list more-icon"></i>
+                            <span>More</span>
+                        </button>
+
+                        <div class="more-dropdown" id="moreDropdown">
+                            <button type="button" class="more-dropdown-item">Appearance</button>
+                            <button type="button" class="more-dropdown-item">Settings</button>
+                            <hr>
+                            <button type="button" class="more-dropdown-item">Liked</button>
+                            <button type="button" class="more-dropdown-item">Archive</button>
+                            <hr>
+                            <button type="button" class="more-dropdown-item">Report a problem</button>
+                            <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
+                        </div>
+                    </div>
+
                 </aside>
             </div>
 
@@ -137,7 +166,12 @@ function imagePath($path) {
 
                 <div class="bg-white p-3 p-md-4 mb-4 post-composer">
                     <div class="d-flex gap-3 align-items-center mb-4">
-                        <img src="<?= imagePath($currentAvatar) ?>" class="avatar" alt="avatar">
+                        <img
+                            src="<?= htmlspecialchars(imagePath($currentAvatar), ENT_QUOTES, 'UTF-8') ?>"
+                            class="avatar"
+                            alt="avatar"
+                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                        >
 
                         <div>
                             <div class="fw-semibold">
@@ -149,7 +183,7 @@ function imagePath($path) {
                         </div>
                     </div>
 
-                    <form id="postForm" enctype="multipart/form-data">
+                    <form id="postForm" method="POST" enctype="multipart/form-data">
                         <textarea 
                             name="content"
                             class="form-control composer-input mb-3" 
@@ -158,15 +192,15 @@ function imagePath($path) {
                         ></textarea>
 
                         <label for="postImages" class="custom-upload-btn mb-3">
-                            <i class="bi bi-image"></i>
-                            <span>Thêm ảnh</span>
+                            <i class="bi bi-plus-square"></i>
+                            <span>+ Thêm ảnh/video</span>
                         </label>
 
                         <input 
                             type="file" 
                             name="images[]" 
                             id="postImages"
-                            accept="image/*"
+                            accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.mov,.webm,image/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm"
                             multiple
                             hidden
                         >
@@ -198,7 +232,7 @@ function imagePath($path) {
                         Gợi ý
                     </h6>
                     <p class="text-muted mb-0">
-                        Bạn có thể viết một suy nghĩ ngắn, chia sẻ cảm xúc hôm nay hoặc đăng kèm hình ảnh.
+                        Bạn có thể viết một suy nghĩ ngắn, chia sẻ cảm xúc hôm nay hoặc đăng kèm ảnh/video.
                     </p>
                 </div>
             </div>

@@ -35,7 +35,57 @@ class PostController {
         }
 
         $content = trim($_POST['content'] ?? '');
-        if ($content === '' && empty($_FILES['images']['name'][0])) {
+        $validImages = [];
+        $uploadErrors = [];
+
+        if (!empty($_FILES['images']['name'][0])) {
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'mp4', 'mov', 'webm'];
+            $allowedMimeTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+                'image/gif',
+                'image/heic',
+                'image/heif',
+                'image/heic-sequence',
+                'image/heif-sequence',
+                'video/mp4',
+                'video/quicktime',
+                'video/webm',
+                'application/octet-stream'
+            ];
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+
+            foreach ($_FILES['images']['name'] as $key => $name) {
+                if ($_FILES['images']['error'][$key] === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+
+                if ($_FILES['images']['error'][$key] !== UPLOAD_ERR_OK) {
+                    $uploadErrors[] = "Upload ảnh thất bại.";
+                    continue;
+                }
+
+                $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                if (!in_array($extension, $allowedExtensions, true)) {
+                    $uploadErrors[] = "Chỉ cho phép jpg, jpeg, png, webp, gif, heic, heif, mp4, mov hoặc webm.";
+                    continue;
+                }
+
+                $mimeType = $finfo->file($_FILES['images']['tmp_name'][$key]);
+                if (!in_array($mimeType, $allowedMimeTypes, true)) {
+                    $uploadErrors[] = "File upload không đúng định dạng ảnh/video.";
+                    continue;
+                }
+
+                $validImages[] = [
+                    'tmp_name' => $_FILES['images']['tmp_name'][$key],
+                    'extension' => $extension
+                ];
+            }
+        }
+
+        if ($content === '' && empty($validImages)) {
             echo json_encode(["success" => false, "message" => "Nội dung không được để trống."]);
             return;
         }
@@ -46,25 +96,26 @@ class PostController {
         // Mảng dùng để lưu các đường dẫn ảnh gửi về cho Front-end render tại chỗ
         $savedImages = [];
 
-        // 2. Xử lý Upload nhiều ảnh (Nếu có)
-        if ($postId && !empty($_FILES['images']['name'][0])) {
-            $uploadDir = __DIR__ . '/../../Public/assets/img/posts/';
+        if ($postId && !empty($validImages)) {
+            $uploadDir = __DIR__ . '/../../Public/uploads/posts/';
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
 
-            foreach ($_FILES['images']['name'] as $key => $name) {
-                if ($_FILES['images']['error'][$key] === UPLOAD_ERR_OK) {
-                    $ext = pathinfo($name, PATHINFO_EXTENSION);
-                    $fileName = uniqid('post_', true) . '.' . $ext;
-                    $targetFile = $uploadDir . $fileName;
+            foreach ($validImages as $image) {
+                $saveResult = $this->saveUploadedPostMedia($image['tmp_name'], $image['extension'], $uploadDir);
 
-                    if (move_uploaded_file($_FILES['images']['tmp_name'][$key], $targetFile)) {
-                        // Đường dẫn tương đối chuẩn để lưu DB và hiển thị trên giao diện
-                        $dbPath = 'Public/assets/img/posts/' . $fileName;
-                        $this->postModel->addPostImage($postId, $dbPath);
-                        $savedImages[] = BASE_URL . $dbPath; // Đắp full URL để Front-end hiển thị ăn chắc 100%
-                    }
+                if (!$saveResult['success']) {
+                    $uploadErrors[] = $saveResult['message'];
+                    continue;
+                }
+
+                $dbPath = 'Public/uploads/posts/' . $saveResult['fileName'];
+                $this->postModel->addPostImage($postId, $dbPath);
+                $savedImages[] = $dbPath;
+
+                if (!empty($saveResult['message'])) {
+                    $uploadErrors[] = $saveResult['message'];
                 }
             }
         }
@@ -80,11 +131,12 @@ class PostController {
                     "UserID" => $userId,
                     "Username" => $_SESSION['username'] ?? '',
                     "FullName" => $_SESSION['user_name'] ?? '',
-                    "ProfilePictureUrl" => $_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? $_SESSION['user_avatar'] ?? 'Public/assets/img/default-avatar.png',
-                    "Images" => $savedImages, // Trả về mảng ảnh xịn vừa upload
+                    "ProfilePictureUrl" => $_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? $_SESSION['user_avatar'] ?? 'Public/assets/img/default-avatar.jpg',
+                    "Images" => $savedImages,
                     "LikeCount" => 0,
                     "CommentCount" => 0
-                ]
+                ],
+                "uploadErrors" => $uploadErrors
             ]);
         } else {
             echo json_encode(["success" => false, "message" => "Không thể tạo bài viết."]);
@@ -161,6 +213,102 @@ class PostController {
 
     public function getComments($postId) {
         return $this->postModel->getCommentsByPostId($postId);
+    }
+
+    private function saveUploadedPostMedia(string $tmpName, string $extension, string $uploadDir): array {
+        $extension = strtolower($extension);
+
+        if (in_array($extension, ['heic', 'heif'], true)) {
+            return $this->saveHeicAsJpegWhenSupported($tmpName, $extension, $uploadDir);
+        }
+
+        $fileName = uniqid('post_', true) . '.' . $extension;
+        $targetFile = $uploadDir . $fileName;
+
+        if (!move_uploaded_file($tmpName, $targetFile)) {
+            return [
+                'success' => false,
+                'fileName' => null,
+                'message' => 'Không thể lưu file lên server.'
+            ];
+        }
+
+        return [
+            'success' => true,
+            'fileName' => $fileName,
+            'message' => ''
+        ];
+    }
+
+    private function saveHeicAsJpegWhenSupported(string $tmpName, string $extension, string $uploadDir): array {
+        $originalName = uniqid('post_', true) . '.' . $extension;
+        $originalPath = $uploadDir . $originalName;
+
+        if (!move_uploaded_file($tmpName, $originalPath)) {
+            return [
+                'success' => false,
+                'fileName' => null,
+                'message' => 'Không thể lưu file HEIC/HEIF lên server.'
+            ];
+        }
+
+        if (!$this->canConvertHeic()) {
+            return [
+                'success' => true,
+                'fileName' => $originalName,
+                'message' => 'Server chưa hỗ trợ chuyển đổi HEIC/HEIF. File đã được tải lên, nhưng trình duyệt có thể chỉ hiển thị link mở file.'
+            ];
+        }
+
+        $convertedName = uniqid('post_', true) . '.jpg';
+        $convertedPath = $uploadDir . $convertedName;
+
+        try {
+            $imagick = new \Imagick($originalPath);
+            $imagick->setImageFormat('jpeg');
+            $imagick->setImageCompressionQuality(90);
+            $imagick->writeImage($convertedPath);
+            $imagick->clear();
+            $imagick->destroy();
+
+            if (is_file($convertedPath)) {
+                @unlink($originalPath);
+
+                return [
+                    'success' => true,
+                    'fileName' => $convertedName,
+                    'message' => ''
+                ];
+            }
+        } catch (\Throwable $e) {
+            if (isset($imagick) && $imagick instanceof \Imagick) {
+                $imagick->clear();
+                $imagick->destroy();
+            }
+        }
+
+        return [
+            'success' => true,
+            'fileName' => $originalName,
+            'message' => 'Server chưa chuyển đổi được HEIC/HEIF. File đã được tải lên, nhưng trình duyệt có thể chỉ hiển thị link mở file.'
+        ];
+    }
+
+    private function canConvertHeic(): bool {
+        if (!extension_loaded('imagick') || !class_exists(\Imagick::class)) {
+            return false;
+        }
+
+        try {
+            $formats = array_map('strtoupper', array_merge(
+                \Imagick::queryFormats('HEIC'),
+                \Imagick::queryFormats('HEIF')
+            ));
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
     }
 }
 if (isset($_GET['action'])) {

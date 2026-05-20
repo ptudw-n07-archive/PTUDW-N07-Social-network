@@ -379,6 +379,89 @@ html {
     color: #2f2420;
 }
 
+.more-menu-wrapper {
+    position: fixed;
+    left: 28px;
+    bottom: 24px;
+    z-index: 1000;
+}
+
+.more-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 122px;
+    border: none;
+    border-radius: 14px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #2f2420;
+    font-weight: 600;
+    box-shadow: 0 8px 22px rgba(58, 42, 33, 0.08);
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.more-button:hover,
+.more-button[aria-expanded="true"] {
+    background: #eee2dc;
+    box-shadow: 0 10px 28px rgba(58, 42, 33, 0.12);
+}
+
+.more-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+.more-dropdown {
+    display: none;
+    position: absolute;
+    bottom: 54px;
+    left: 0;
+    width: 240px;
+    overflow: hidden;
+    border: 1px solid rgba(70, 53, 45, 0.08);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 18px 42px rgba(36, 27, 24, 0.18);
+}
+
+.more-dropdown.show {
+    display: block;
+}
+
+.more-dropdown hr {
+    margin: 0;
+    border-color: rgba(70, 53, 45, 0.12);
+    opacity: 1;
+}
+
+.more-dropdown-item {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 14px 18px;
+    color: #241b18;
+    text-align: left;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.more-dropdown-item:hover {
+    background: #f8f1ee;
+    color: #241b18;
+}
+
+.more-dropdown-item.logout-item {
+    color: #e03131;
+}
+
+.more-dropdown-item.logout-item:hover {
+    background: #fff1f1;
+    color: #c92a2a;
+}
+
 .post-composer,
 .post-card,
 .login-card {
@@ -619,4 +702,21 @@ IMAGE PREVIEW
     border-radius: 14px;
 
     border: 1px solid #e5d6d8;
+}
+
+.preview-file {
+    min-width: 160px;
+    max-width: 240px;
+    min-height: 100px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    word-break: break-word;
+    background: #f8f1f2;
+    border: 1px solid #e5d6d8;
+    border-radius: 14px;
+    color: #6f5559;
+    font-size: 0.9rem;
 }

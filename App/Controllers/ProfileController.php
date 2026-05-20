@@ -26,27 +26,43 @@ class ProfileController {
         $this->postModel = new PostModel($db);
     }
 
-    public function getCurrentProfileData(): array {
-        $userId = $this->requireLogin();
-        $profile = $this->userModel->findById($userId);
+    public function index(): array {
+        $currentUserId = $this->requireLogin();
+        $requestedId = $_GET['id'] ?? null;
+        $profileUserId = $requestedId === null || $requestedId === ''
+            ? $currentUserId
+            : filter_var($requestedId, FILTER_VALIDATE_INT);
 
-        if (!$profile) {
-            session_destroy();
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
-            exit();
+        if (!$profileUserId || $profileUserId < 1) {
+            return $this->notFoundData($currentUserId, 0);
         }
 
-        $posts = $this->postModel->getPostsByUserId($userId);
+        $profile = $this->userModel->getUserProfileById($profileUserId);
+
+        if (!$profile) {
+            return $this->notFoundData($currentUserId, (int) $profileUserId);
+        }
+
+        $isOwnProfile = (int) $profileUserId === (int) $currentUserId;
+        $posts = $this->postModel->getPostsByUserId($profileUserId, $currentUserId);
 
         return [
             'profile' => $profile,
             'posts' => $posts,
+            'currentUserId' => $currentUserId,
+            'profileUserId' => (int) $profileUserId,
+            'isOwnProfile' => $isOwnProfile,
+            'notFound' => false,
             'stats' => [
-                'posts' => $this->postModel->countPostsByUserId($userId),
-                'following' => $this->userModel->countFollowing($userId),
-                'followers' => $this->userModel->countFollowers($userId)
+                'posts' => $this->postModel->countPostsByUserId($profileUserId),
+                'following' => $this->userModel->countFollowing($profileUserId),
+                'followers' => $this->userModel->countFollowers($profileUserId)
             ]
         ];
+    }
+
+    public function getCurrentProfileData(): array {
+        return $this->index();
     }
 
     public function update() {
@@ -97,7 +113,7 @@ class ProfileController {
                 return;
             }
 
-            $profile = $this->userModel->findById($userId);
+            $profile = $this->userModel->getUserProfileById($userId);
             $_SESSION['username'] = $profile['Username'];
             $_SESSION['user_name'] = $profile['FullName'];
             $_SESSION['ProfilePictureUrl'] = $profile['ProfilePictureUrl'];
@@ -182,6 +198,22 @@ class ProfileController {
         }
 
         return 'Public/uploads/avatars/' . $fileName;
+    }
+
+    private function notFoundData(int $currentUserId, int $profileUserId): array {
+        return [
+            'profile' => null,
+            'posts' => [],
+            'currentUserId' => $currentUserId,
+            'profileUserId' => $profileUserId,
+            'isOwnProfile' => false,
+            'notFound' => true,
+            'stats' => [
+                'posts' => 0,
+                'following' => 0,
+                'followers' => 0
+            ]
+        ];
     }
 
     private function json(bool $success, string $message, array $extra = []): void {
