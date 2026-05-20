@@ -1,30 +1,12 @@
 <?php
-// 1. Khởi động session để hứng và hiển thị thông báo lỗi/thành công từ Controller chuyển hướng về
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. Định nghĩa hằng số đường dẫn gốc hệ thống
 if (!defined('BASE_URL')) {
     define("BASE_URL", "http://localhost:3000/");
 }
-
-// Định nghĩa lớp điều khiển AdminController để quản lý phân hệ quản trị
-class AuthController {
-    // Biến nội bộ dùng để lưu trữ cổng kết nối Cơ sở dữ liệu PDO
-    private $conn;
-
-    /**
-     * Hàm khởi tạo (Constructor)
-     * Nhận đối tượng kết nối Cơ sở dữ liệu PDO từ bên ngoài truyền vào khi khởi tạo lớp
-     */
-    public function __construct($db_connection) {
-        $this->conn = $db_connection;
-    }
-}
 ?>
-
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -52,7 +34,7 @@ class AuthController {
             </div>
         <?php endif; ?>
 
-        <form action="<?php echo BASE_URL; ?>App/Views/auth/process-login.php" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=login" method="POST">
             <div class="form-group">
                 <label for="username"><i class="fa-regular fa-user"></i> Tài khoản</label>
                 <input type="text" id="username" name="username" placeholder="Tên đăng nhập hoặc Email" required>
@@ -71,7 +53,7 @@ class AuthController {
         </div>
 
         <div class="extra-links">
-            <a href="<?php echo BASE_URL; ?>App/Views/auth/forgot-password.php">Quên mật khẩu?</a>
+            <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php">Quên mật khẩu?</a>
             <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php">Chưa có tài khoản? Đăng ký</a>
         </div>
     </div>
