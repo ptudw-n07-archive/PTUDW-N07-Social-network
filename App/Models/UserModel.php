@@ -52,9 +52,13 @@ class UserModel {
 
     // Cập nhật lại mật khẩu mới (Chức năng Quên mật khẩu đơn giản)
     public function updatePassword($email, $new_password) {
-        $query = "UPDATE " . $this->table . " SET Password = :password WHERE Email = :email";
+        $query = "UPDATE " . $this->table . " SET PasswordHash = :password WHERE Email = :email";
         $stmt = $this->conn->prepare($query);
+        
+        // Hash mật khẩu bảo mật (Hoặc nếu bạn đang tạm để chuỗi thuần thì giữ nguyên $new_password)
+        // Ở đây dùng password_hash theo chuẩn:
         $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        
         $stmt->bindParam(':password', $hashed_password);
         $stmt->bindParam(':email', $email);
         return $stmt->execute();

@@ -57,7 +57,7 @@ class AuthController {
                 <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
-        <form action="<?php echo BASE_URL; ?>App/Views/auth/process-register.php" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/process-register.php" method="POST">
             <div class="register-grid">
                 <div class="form-group full-width">
                     <label for="fullname">Họ và Tên</label>

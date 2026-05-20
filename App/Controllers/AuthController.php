@@ -1,5 +1,5 @@
 <?php
-namespace App\Controllers; // 1. Khai báo họ tên danh phận cho Controller
+namespace App\Controllers; 
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();

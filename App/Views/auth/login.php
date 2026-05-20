@@ -52,7 +52,7 @@ class AuthController {
             </div>
         <?php endif; ?>
 
-        <form action="<?php echo BASE_URL; ?>App/Views/auth/process-login.php" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/process-login.php" method="POST">
             <div class="form-group">
                 <label for="username"><i class="fa-regular fa-user"></i> Tài khoản</label>
                 <input type="text" id="username" name="username" placeholder="Tên đăng nhập hoặc Email" required>
@@ -71,7 +71,7 @@ class AuthController {
         </div>
 
         <div class="extra-links">
-            <a href="<?php echo BASE_URL; ?>App/Views/auth/forgot-password.php">Quên mật khẩu?</a>
+            <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php">Quên mật khẩu?</a>
             <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php">Chưa có tài khoản? Đăng ký</a>
         </div>
     </div>
