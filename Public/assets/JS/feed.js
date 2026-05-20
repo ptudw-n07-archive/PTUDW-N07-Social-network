@@ -48,161 +48,6 @@ function toggleLike(btn) {
 
 
 // =======================
-// POST - ĐĂNG BÀI AJAX
-// =======================
-function createPost() {
-    const form = document.getElementById("postForm");
-
-    if (!form) {
-        alert("Không tìm thấy form đăng bài.");
-        return;
-    }
-
-    const formData = new FormData(form);
-    const content = formData.get("content") ? formData.get("content").trim() : "";
-    const imageInput = document.getElementById("postImages");
-    const images = imageInput ? imageInput.files : [];
-
-    if (content === "" && images.length === 0) {
-        alert("Bạn hãy nhập nội dung hoặc chọn ảnh.");
-        return;
-    }
-
-    // Gọi API xử lý ngầm đến Controller
-    fetch("/App/Controllers/PostController.php?action=create", {
-        method: "POST",
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) throw new Error("Mạng lỗi rồi má ơi!");
-        return response.json(); // 🎯 Chuyển đổi dữ liệu nhận về thành JSON đối tượng
-    })
-    .then(data => {
-        if (!data.success) {
-            alert(data.message);
-            return;
-        }
-
-        // 🎯 KÍCH HOẠT VẼ GIA DIỆN: Đẩy bài viết kèm mảng ảnh mới lên đầu bảng tin lập tức
-        addPostToUI(data.post);
-        
-        // Dọn sạch Form và dọn sạch khung xem trước ảnh (Preview) sau khi đăng thành công
-        form.reset();
-        const previewContainer = document.getElementById("preview-container");
-        if (previewContainer) {
-            previewContainer.innerHTML = "";
-        }
-    })
-    .catch(error => {
-        console.error("Error Details:", error);
-        alert("Có lỗi xảy ra trong quá trình đăng bài AJAX.");
-    });
-}
-
-
-// =======================
-// THÊM BÀI MỚI LÊN GIAO DIỆN
-// =======================
-function addPostToUI(post) {
-    const postsList = document.getElementById("posts-list");
-
-    if (!postsList) {
-        alert("Không tìm thấy danh sách bài viết.");
-        return;
-    }
-
-    let imageHtml = "";
-
-    if (post.Images && post.Images.length > 0) {
-        post.Images.forEach(img => {
-            imageHtml += `
-                <img 
-                    src="${img}" 
-                    class="img-fluid rounded-4 mb-3"
-                    style="max-height: 450px; object-fit: cover;"
-                    alt="post image"
-                >
-            `;
-        });
-    }
-
-    let avatarSrc = "Public/assets/img/default-avatar.png"; 
-    if (post.ProfilePictureUrl) {
-        avatarSrc = post.ProfilePictureUrl; 
-    }
-
-    if (post.ProfilePictureUrl.startsWith("http://") || post.ProfilePictureUrl.startsWith("https://")) {
-        avatarSrc = post.ProfilePictureUrl;
-    } else {
-        avatarSrc = post.ProfilePictureUrl;
-    }
-
-    const fullName = post.FullName || post.Username || "Bạn";
-
-    const newPost = document.createElement("div");
-    newPost.className = "bg-white post-card mb-3";
-
-    newPost.innerHTML = `
-        <div class="p-3">
-            <div class="d-flex gap-3">
-                <img src="${avatarSrc}" class="avatar" alt="avatar">
-
-                <div class="flex-grow-1">
-                    <div class="fw-semibold">
-                        ${escapeHTML(fullName)} • vừa xong
-                    </div>
-
-                    <p class="post-text"></p>
-
-                    ${imageHtml}
-
-                    <div class="post-actions d-flex gap-4">
-                        <button onclick="toggleLike(this)" data-post-id="${post.PostID}">
-                            <i class="bi bi-heart"></i>
-                            <span class="like-count">0</span>
-                        </button>
-
-                        <button onclick="toggleCommentBox(this)">
-                            <i class="bi bi-chat"></i>
-                            <span class="comment-count">0</span>
-                        </button>
-
-                        <button>
-                            <i class="bi bi-arrow-repeat"></i>
-                        </button>
-                    </div>
-
-                    <div class="comment-box mt-3 d-none">
-                        <div class="d-flex gap-2">
-                            <input 
-                                type="text" 
-                                class="form-control comment-input" 
-                                placeholder="Viết bình luận..."
-                            >
-
-                            <button 
-                                type="button"
-                                class="btn btn-pink"
-                                onclick="sendComment(this)"
-                                data-post-id="${post.PostID}"
-                            >
-                                Gửi
-                            </button>
-                        </div>
-
-                        <div class="comment-list mt-2"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    newPost.querySelector(".post-text").innerText = post.Content || "";
-    postsList.prepend(newPost);
-}
-
-
-// =======================
 // COMMENT BOX
 // =======================
 function toggleCommentBox(btn) {
@@ -313,46 +158,24 @@ function toggleFollow(btn) {
         alert("Có lỗi khi theo dõi.");
     });
 }
-// =======================
-// IMAGE PREVIEW
-// =======================
+document.addEventListener("DOMContentLoaded", function () {
+    const successMessage = sessionStorage.getItem("post_success");
 
-const postImagesInput = document.getElementById("postImages");
+    if (!successMessage) {
+        return;
+    }
 
-if (postImagesInput) {
+    const alertBox = document.getElementById("post-success-alert");
+    const alertMessage = document.getElementById("post-success-message");
 
-    postImagesInput.addEventListener("change", function () {
+    if (alertBox && alertMessage) {
+        alertMessage.innerText = successMessage;
+        alertBox.classList.remove("d-none");
 
-        const previewContainer = document.getElementById("preview-container");
+        setTimeout(function () {
+            alertBox.classList.add("d-none");
+        }, 3500);
+    }
 
-        previewContainer.innerHTML = "";
-
-        const files = this.files;
-
-        if (!files || files.length === 0) {
-            return;
-        }
-
-        Array.from(files).forEach(file => {
-
-            if (!file.type.startsWith("image/")) {
-                return;
-            }
-
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-
-                const img = document.createElement("img");
-
-                img.src = e.target.result;
-
-                img.className = "preview-image";
-
-                previewContainer.appendChild(img);
-            };
-
-            reader.readAsDataURL(file);
-        });
-    });
-}
+    sessionStorage.removeItem("post_success");
+});

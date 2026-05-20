@@ -19,7 +19,7 @@ $currentUserId   = $_SESSION['user_id'];
 $currentUsername = $_SESSION['username'];
 $currentFullName = $_SESSION['user_name'];
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? ''; 
-
+$createPostUrl = BASE_URL . "App/Views/create-post.php";
 require_once __DIR__ . '/../Controllers/PostController.php';
 require_once __DIR__ . '/../Controllers/FollowController.php';
 
@@ -127,7 +127,7 @@ function timeAgo($datetime) {
             </a>
 
             <a 
-                href="#"
+                href="<?= $createPostUrl ?>"
                 class="sidebar-icon"
                 id="nav-create-post"
                 title="Đăng bài"
@@ -159,44 +159,40 @@ function timeAgo($datetime) {
 
             <div class="col-lg-7 col-md-8">
                 <div class="feed-title text-center mb-4">Bảng tin</div>
+                <div 
+    id="post-success-alert" 
+    class="alert alert-success alert-dismissible fade show d-none" 
+    role="alert"
+>
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <span id="post-success-message"></span>
 
-                <form id="postForm" class="bg-white p-3 p-md-4 mb-4 post-composer" enctype="multipart/form-data">
-                    <div class="d-flex gap-3">
-                       <img src="<?= imagePath($currentAvatar) ?>" class="avatar" alt="avatar">
-                        <div class="flex-grow-1">
-                            <textarea 
-                                name="content"
-                                class="form-control composer-input" 
-                                rows="3"
-                                placeholder="Bạn đang nghĩ gì?"
-                            ></textarea>
+    <button 
+        type="button" 
+        class="btn-close" 
+        data-bs-dismiss="alert" 
+        aria-label="Close"
+    ></button>
+</div>
+                    <div class="bg-white p-3 p-md-4 mb-4 post-composer">
+                        <div class="d-flex gap-3 align-items-center">
+                            <img src="<?= imagePath($currentAvatar) ?>" class="avatar" alt="avatar">
 
-                            <div class="mt-3">
+                            <a 
+                                href="<?= $createPostUrl ?>" 
+                                class="flex-grow-1 text-decoration-none"
+                            >
+                                <div class="form-control composer-input d-flex align-items-center text-muted"
+                                    style="min-height: 52px; cursor: pointer;">
+                                    Bạn đang nghĩ gì?
+                                </div>
+                            </a>
 
-                                <label for="postImages" class="custom-upload-btn">
-                                    <i class="bi bi-image"></i>
-                                    <span>Thêm ảnh</span>
-                                </label>
-
-                                <input 
-                                    type="file" 
-                                    name="images[]" 
-                                    id="postImages"
-                                    accept="image/*"
-                                    multiple
-                                    hidden
-                                >
-
-                                <div id="preview-container" class="preview-container mt-3"></div>
-
-                            </div>
-
-                            <div class="d-flex justify-content-end">
-                                <button type="button" class="btn btn-pink px-4" onclick="createPost()">Đăng</button>
-                            </div>
+                            <a href="<?= $createPostUrl ?>" class="btn btn-pink px-4">
+                                Đăng
+                            </a>
                         </div>
                     </div>
-                </form>
 
                 <div id="posts-list">
                     <?php if (!empty($posts)): ?>
