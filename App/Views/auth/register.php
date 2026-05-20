@@ -87,7 +87,7 @@ if (!defined('BASE_URL')) {
             <p>Đã có tài khoản? <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
         </div>
 
-        <a href="<?php echo BASE_URL; ?>index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
+        <a href="<?php echo BASE_URL; ?>Public\index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
     </div>
 </body>
 </html>

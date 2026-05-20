@@ -38,7 +38,7 @@ if (isset($result['posts'])) {
     $totalComments = array_sum(array_column($posts, 'CommentCount'));
 }
 
-// 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN (Giữ nguyên bên dưới...)
+// 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
 function imagePath($path) {
     if (empty($path)) {
         return "assets/img/default-avatar.jpg";

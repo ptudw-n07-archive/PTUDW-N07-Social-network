@@ -91,6 +91,7 @@ class AuthController {
     }
 
     // Xử lý Quên/Đổi mật khẩu (Đã thêm tính năng chặn trùng mật khẩu cũ)
+    // Xử lý Quên/Đổi mật khẩu (Đã tối ưu hóa kiểm tra mật khẩu cũ chuẩn bảo mật)
     public function forgotPasswordProcess() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim($_POST['email'] ?? '');
@@ -116,16 +117,10 @@ class AuthController {
                 exit();
             }
 
-   
-            // Trường hợp hệ thống dùng password_hash:
-            $current_hash = $user['PasswordHash'] ?? '';
-            if (!empty($current_hash) && password_verify($new_password, $current_hash)) {
-                $_SESSION['error'] = "Mật khẩu mới không được trùng với mật khẩu cũ gần nhất.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
-                exit();
-            }
+            $current_db_password = $user['PasswordHash'] ?? $user['Password'] ?? '';
             
-            if ($new_password === ($user['PasswordHash'] ?? '')) {
+            // Kiểm tra xem mật khẩu mới có trùng mật khẩu cũ không (áp dụng cho cả dạng hash và dạng thô)
+            if (password_verify($new_password, $current_db_password) || $new_password === $current_db_password) {
                 $_SESSION['error'] = "Mật khẩu mới không được trùng với mật khẩu cũ gần nhất.";
                 header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
                 exit();
@@ -142,7 +137,6 @@ class AuthController {
             }
         }
     }
-
     // Đăng xuất xóa session
     public function logout() {
         session_destroy();

@@ -55,6 +55,7 @@ if (!defined('BASE_URL')) {
         <div class="extra-links">
             <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php">Quên mật khẩu?</a>
             <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php">Chưa có tài khoản? Đăng ký</a>
+            
         </div>
     </div>
 
