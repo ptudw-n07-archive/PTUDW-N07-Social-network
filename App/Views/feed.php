@@ -19,7 +19,7 @@ $currentUserId   = $_SESSION['user_id'];
 $currentUsername = $_SESSION['username'];
 $currentFullName = $_SESSION['user_name'];
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? ''; 
-$createPostUrl = BASE_URL . "App/Views/create-post.php";
+
 require_once __DIR__ . '/../Controllers/PostController.php';
 require_once __DIR__ . '/../Controllers/FollowController.php';
 
@@ -33,18 +33,103 @@ $posts = $postController->index();
 $followController = new FollowController();
 $suggestedUsers = $followController->getSuggestedUsers($currentUserId);
 
-// FIX PATH AVATAR: Sửa lại hàm xử lý đường dẫn ảnh tuyệt đối dựa trên hằng số BASE_URL
-function imagePath($path) {
+function assetPath($path, $default = '') {
+    $path = trim((string) $path);
+
     if (empty($path)) {
-        return BASE_URL . "Public/assets/img/default-avatar.jpg";
+        return $default;
     }
 
     if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
         return $path;
     }
 
-    $cleanPath = str_replace("Public/", "", $path);
-    return BASE_URL . "Public/" . ltrim($cleanPath, "/");
+    $path = ltrim($path, "/");
+
+    if (str_starts_with($path, "Public/")) {
+        return BASE_URL . $path;
+    }
+
+    if (str_starts_with($path, "uploads/") || str_starts_with($path, "assets/")) {
+        return BASE_URL . "Public/" . $path;
+    }
+
+    return BASE_URL . $path;
+}
+
+function imagePath($path) {
+    return assetPath($path, BASE_URL . "Public/assets/img/default-avatar.jpg");
+}
+
+function postMediaPath($path) {
+    $path = trim((string) $path);
+
+    if ($path === '') {
+        return '';
+    }
+
+    if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
+        return $path;
+    }
+
+    $cleanPath = ltrim($path, "/");
+    $extension = strtolower(pathinfo(parse_url($cleanPath, PHP_URL_PATH) ?: $cleanPath, PATHINFO_EXTENSION));
+    if (!in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'mp4', 'mov', 'webm'], true)) {
+        return '';
+    }
+
+    $src = assetPath($cleanPath);
+    if ($src === '') {
+        return '';
+    }
+
+    if (str_starts_with($cleanPath, "Public/")) {
+        $localPath = __DIR__ . '/../../' . $cleanPath;
+        return is_file($localPath) ? $src : '';
+    }
+
+    if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
+        $localPath = __DIR__ . '/../../Public/' . $cleanPath;
+        return is_file($localPath) ? $src : '';
+    }
+
+    $localPath = __DIR__ . '/../../' . $cleanPath;
+    return is_file($localPath) ? $src : '';
+}
+
+function postMediaType($path) {
+    $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
+
+    if (in_array($extension, ['mp4', 'mov', 'webm'], true)) {
+        return 'video';
+    }
+
+    if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+        return 'image';
+    }
+
+    if (in_array($extension, ['heic', 'heif'], true)) {
+        return 'unsupported-image';
+    }
+
+    return 'file';
+}
+
+function postMediaMimeType($path) {
+    $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
+
+    return match ($extension) {
+        'jpg', 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        'heic' => 'image/heic',
+        'heif' => 'image/heif',
+        'mp4' => 'video/mp4',
+        'mov' => 'video/quicktime',
+        'webm' => 'video/webm',
+        default => 'application/octet-stream'
+    };
 }
 
 function timeAgo($datetime) {
@@ -56,6 +141,10 @@ function timeAgo($datetime) {
     if ($diff < 86400) return floor($diff / 3600) . " giờ";
 
     return date("d/m/Y", $timestamp);
+}
+
+function profileUrl($userId) {
+    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
 }
 ?>
 
@@ -127,7 +216,7 @@ function timeAgo($datetime) {
             </a>
 
             <a 
-                href="<?= $createPostUrl ?>"
+                href="<?php echo BASE_URL; ?>App/Views/createpost.php"
                 class="sidebar-icon"
                 id="nav-create-post"
                 title="Đăng bài"
@@ -153,46 +242,73 @@ function timeAgo($datetime) {
                 <i class="bi bi-person"></i>
             </a>
 
+            <div class="more-menu-wrapper">
+                <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
+                    <i class="bi bi-list more-icon"></i>
+                    <span>More</span>
+                </button>
+
+                <div class="more-dropdown" id="moreDropdown">
+                    <button type="button" class="more-dropdown-item">Appearance</button>
+                    <button type="button" class="more-dropdown-item">Settings</button>
+                    <hr>
+                    <button type="button" class="more-dropdown-item">Liked</button>
+                    <button type="button" class="more-dropdown-item">Archive</button>
+                    <hr>
+                    <button type="button" class="more-dropdown-item">Report a problem</button>
+                    <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
+                </div>
+            </div>
+
         </aside>
 
     </div>
 
             <div class="col-lg-7 col-md-8">
                 <div class="feed-title text-center mb-4">Bảng tin</div>
-                <div 
-    id="post-success-alert" 
-    class="alert alert-success alert-dismissible fade show d-none" 
-    role="alert"
->
-    <i class="bi bi-check-circle-fill me-2"></i>
-    <span id="post-success-message"></span>
 
-    <button 
-        type="button" 
-        class="btn-close" 
-        data-bs-dismiss="alert" 
-        aria-label="Close"
-    ></button>
-</div>
-                    <div class="bg-white p-3 p-md-4 mb-4 post-composer">
-                        <div class="d-flex gap-3 align-items-center">
-                            <img src="<?= imagePath($currentAvatar) ?>" class="avatar" alt="avatar">
+                <form id="postForm" class="bg-white p-3 p-md-4 mb-4 post-composer" method="POST" enctype="multipart/form-data">
+                    <div class="d-flex gap-3">
+                       <img
+                            src="<?= htmlspecialchars(imagePath($currentAvatar), ENT_QUOTES, 'UTF-8') ?>"
+                            class="avatar"
+                            alt="avatar"
+                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                        >
+                        <div class="flex-grow-1">
+                            <textarea 
+                                name="content"
+                                class="form-control composer-input" 
+                                rows="3"
+                                placeholder="Bạn đang nghĩ gì?"
+                            ></textarea>
 
-                            <a 
-                                href="<?= $createPostUrl ?>" 
-                                class="flex-grow-1 text-decoration-none"
-                            >
-                                <div class="form-control composer-input d-flex align-items-center text-muted"
-                                    style="min-height: 52px; cursor: pointer;">
-                                    Bạn đang nghĩ gì?
-                                </div>
-                            </a>
+                            <div class="mt-3">
 
-                            <a href="<?= $createPostUrl ?>" class="btn btn-pink px-4">
-                                Đăng
-                            </a>
+                                <label for="postImages" class="custom-upload-btn">
+                                    <i class="bi bi-plus-square"></i>
+                                    <span>+ Thêm ảnh</span>
+                                </label>
+
+                                <input 
+                                    type="file" 
+                                    name="images[]" 
+                                    id="postImages"
+                                    accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.mov,.webm,image/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm"
+                                    multiple
+                                    hidden
+                                >
+
+                                <div id="preview-container" class="preview-container mt-3"></div>
+
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-pink px-4" onclick="createPost()">Đăng</button>
+                            </div>
                         </div>
                     </div>
+                </form>
 
                 <div id="posts-list">
                     <?php if (!empty($posts)): ?>
@@ -201,15 +317,20 @@ function timeAgo($datetime) {
                             <div class="bg-white post-card mb-3">
                                 <div class="p-3">
                                     <div class="d-flex gap-3">
-                                        <img 
-                                            src="<?= imagePath($post['ProfilePictureUrl'] ?? '') ?>" 
-                                            class="avatar" 
-                                            alt="avatar"
-                                        >
+                                        <a href="<?= profileUrl($post['UserID']) ?>">
+                                            <img 
+                                            src="<?= htmlspecialchars(imagePath($post['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" 
+                                                class="avatar" 
+                                                alt="avatar"
+                                                onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                                            >
+                                        </a>
 
                                         <div class="flex-grow-1">
                                             <div class="fw-semibold">
-                                                <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
+                                                <a href="<?= profileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
+                                                    <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
+                                                </a>
                                                 • <?= timeAgo($post['CreatedAt']) ?>
                                             </div>
 
@@ -220,12 +341,32 @@ function timeAgo($datetime) {
                                             <?php if (!empty($post['Images'])): ?>
                                                 <?php $images = explode(',', $post['Images']); ?>
                                                 <?php foreach ($images as $img): ?>
-                                                    <img 
-                                                        src="<?= imagePath(trim($img)) ?>" 
-                                                        class="img-fluid rounded-4 mb-3"
-                                                        style="max-height: 450px; object-fit: cover;"
-                                                        alt="post image"
-                                                    >
+                                                    <?php $postMediaSrc = postMediaPath($img); ?>
+                                                    <?php if ($postMediaSrc !== ''): ?>
+                                                        <?php $postMediaType = postMediaType($img); ?>
+                                                        <?php if ($postMediaType === 'video'): ?>
+                                                            <video
+                                                                controls
+                                                                class="img-fluid rounded-4 mb-3"
+                                                                style="max-height: 450px; object-fit: cover;"
+                                                            >
+                                                                <source src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(postMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
+                                                                Trình duyệt không hỗ trợ video này.
+                                                            </video>
+                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3">Mở file video</a>
+                                                        <?php elseif ($postMediaType === 'image'): ?>
+                                                            <img 
+                                                                src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" 
+                                                                class="img-fluid rounded-4 mb-3"
+                                                                style="max-height: 450px; object-fit: cover;"
+                                                                alt="post image"
+                                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                                            >
+                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small mb-3" style="display:none;">Mở file ảnh</a>
+                                                        <?php else: ?>
+                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3">Mở file ảnh</a>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
                                                 <?php endforeach; ?>
                                             <?php endif; ?>
 
@@ -302,9 +443,10 @@ function timeAgo($datetime) {
                                 <div class="d-flex align-items-center justify-content-between follower-item">
                                     <div class="d-flex align-items-center gap-3">
                                         <img 
-                                            src="<?= imagePath($user['ProfilePictureUrl'] ?? '') ?>" 
+                                            src="<?= htmlspecialchars(imagePath($user['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" 
                                             class="avatar" 
                                             alt="avatar"
+                                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
                                         >
 
                                         <div>
@@ -348,7 +490,7 @@ function timeAgo($datetime) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260520-media-fix"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
