@@ -84,6 +84,34 @@ class SearchModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function suggestHashtags(string $keyword, int $limit = 10): array {
+        $keywordLike = '%' . $keyword . '%';
+
+        $sql = "
+            SELECT 
+                HashtagID,
+                HashtagName,
+                UsageCount
+            FROM hashtags
+            WHERE HashtagName LIKE :keyword
+            ORDER BY UsageCount DESC, HashtagName ASC
+            LIMIT :limit
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':keyword', $keywordLike);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(function ($row) {
+            return [
+                'hashtag_id' => (int) ($row['HashtagID'] ?? 0),
+                'name' => $row['HashtagName'] ?? '',
+                'usage_count' => (int) ($row['UsageCount'] ?? 0)
+            ];
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     public function saveHistory(int $userId, string $keyword): bool {
         $keyword = $this->normalizeKeyword($keyword);
 
