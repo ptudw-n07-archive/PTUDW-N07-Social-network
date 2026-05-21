@@ -36,7 +36,7 @@
                         <span class="text-muted small fw-bold">Quản trị viên</span>
                         <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
                     </div>
-                    <button id="logoutBtn" class="header-logout-btn" onclick="window.location.href='<?php echo BASE_URL; ?>App/Views/auth/login.php'">
+                    <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
                 </div>
@@ -119,7 +119,7 @@
                         <tbody>
                             <?php if(!empty($reports)): ?>
                                 <?php foreach($reports as $r): ?>
-                                <tr>
+                                <tr id="report-row-<?php echo $r['id']; ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
@@ -134,15 +134,19 @@
                                     <td><span class="small"><?php echo htmlspecialchars($r['reason']); ?></span></td>
                                     <td class="small text-muted"><?php echo htmlspecialchars($r['time']); ?></td>
                                     <td>
-                                        <?php if (($r['status'] ?? '') === 'Chờ duyệt'): ?>
+                                        <?php if ($r['status'] === 'Chờ duyệt'): ?>
                                             <span class="badge rounded-pill bg-warning text-dark px-2.5 py-1 text-xs fw-medium">Chờ duyệt</span>
                                         <?php else: ?>
                                             <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Đã xử lý</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
-                                        <button class="btn btn-pink-admin" <?php echo ($r['status'] == 'Đã xử lý') ? 'disabled style="opacity: 0.7;"' : ''; ?>>
-                                            <?php echo ($r['status'] == 'Đã xử lý') ? '<i class="bi bi-check2-all"></i> Hoàn tất' : 'Xử lý'; ?>
+                                        <button 
+                                            class="btn btn-pink-admin" 
+                                            onclick="handleReport(<?php echo $r['id']; ?>, 'Resolved')"
+                                            <?php echo ($r['status'] === 'Đã xử lý') ? 'disabled style="opacity: 0.7;"' : ''; ?>
+                                        >
+                                            <?php echo ($r['status'] === 'Đã xử lý') ? '<i class="bi bi-check2-all"></i> Hoàn tất' : 'Xử lý'; ?>
                                         </button>
                                     </td>
                                 </tr>
@@ -202,6 +206,28 @@
         </div>
     </main>
 
+    <div id="adminModal" class="admin-modal d-none" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="admin-modal-backdrop" data-admin-modal-close></div>
+        <div class="admin-modal-container">
+            <div class="admin-modal-card">
+                <div class="admin-modal-header">
+                    <h5 class="admin-modal-title">Thông báo</h5>
+                    <button type="button" class="admin-modal-close" data-admin-modal-close aria-label="Đóng">&times;</button>
+                </div>
+                <div class="admin-modal-body">
+                    <p class="admin-modal-message">Nội dung sẽ hiển thị tại đây.</p>
+                </div>
+                <div class="admin-modal-actions">
+                    <button type="button" class="btn btn-outline-brown admin-modal-cancel" data-admin-modal-cancel>Hủy</button>
+                    <button type="button" class="btn btn-pink-admin admin-modal-confirm" data-admin-modal-confirm>Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-script.js"></script>
 </body>

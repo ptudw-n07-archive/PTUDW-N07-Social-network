@@ -193,12 +193,105 @@
 .status-pending { background-color: #d69096 !important; color: white; }
 .status-resolved { background-color: #795d4a !important; color: white; }
 
-.btn-outline-brown {
+..btn-outline-brown {
     border: 1px solid #795d4a;
     color: #795d4a;
     border-radius: 999px;
     padding: 6px 15px;
     background: transparent;
+}
+
+.admin-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(17, 17, 17, 0.48);
+}
+
+.admin-modal.d-none {
+    display: none;
+}
+
+.admin-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 17, 17, 0.45);
+}
+
+.admin-modal-container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 440px;
+}
+
+.admin-modal-card {
+    background-color: #fffaf7;
+    border-radius: 28px;
+    padding: 1.8rem;
+    border: 1px solid rgba(121, 91, 74, 0.16);
+    box-shadow: 0 24px 60px rgba(17, 17, 17, 0.16);
+    transform: translateY(24px);
+    opacity: 0;
+    transition: transform .25s ease, opacity .25s ease;
+}
+
+.admin-modal.active .admin-modal-card {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.admin-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.admin-modal-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #46332c;
+}
+
+.admin-modal-close {
+    border: none;
+    background: transparent;
+    color: #795d4a;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity .2s ease;
+}
+
+.admin-modal-close:hover {
+    opacity: 1;
+}
+
+.admin-modal-message {
+    color: #5b433e;
+    line-height: 1.8;
+    margin: 0;
+    font-size: 0.96rem;
+}
+
+.admin-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.8rem;
+    margin-top: 1.4rem;
+    flex-wrap: wrap;
+}
+
+.admin-modal-actions .btn {
+    min-width: 110px;
 }
 
 /* Làm đẹp thanh cuộn cho toàn trang hoặc riêng vùng table */
