@@ -29,6 +29,7 @@ use App\Controllers\FollowController;
 
 $postController = new PostController();
 $posts = $postController->index();
+$trendingHashtags = $postController->getTrendingHashtags(10);
 
 $followController = new FollowController();
 $suggestedUsers = $followController->getSuggestedUsers($currentUserId);
@@ -145,6 +146,27 @@ function timeAgo($datetime) {
 
 function profileUrl($userId) {
     return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+}
+
+function hashtagUrl($tag) {
+    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+}
+
+function renderPostContentWithHashtags($content) {
+    $parts = preg_split('/(#[\p{L}\p{N}_]+)/u', (string) $content, -1, PREG_SPLIT_DELIM_CAPTURE);
+    $html = '';
+
+    foreach ($parts as $part) {
+        if (preg_match('/^#([\p{L}\p{N}_]+)$/u', $part, $matches)) {
+            $tag = $matches[1];
+            $html .= '<a class="hashtag-link" href="' . htmlspecialchars(hashtagUrl($tag), ENT_QUOTES, 'UTF-8') . '">#' . htmlspecialchars($tag, ENT_QUOTES, 'UTF-8') . '</a>';
+            continue;
+        }
+
+        $html .= nl2br(htmlspecialchars($part, ENT_QUOTES, 'UTF-8'));
+    }
+
+    return $html;
 }
 ?>
 
@@ -282,6 +304,12 @@ function profileUrl($userId) {
                                 rows="3"
                                 placeholder="Bạn đang nghĩ gì?"
                             ></textarea>
+                            <div
+                                id="hashtagSuggestionBox"
+                                class="hashtag-suggestion-box"
+                                data-endpoint="<?php echo BASE_URL; ?>App/Controllers/SearchController.php?action=suggestHashtags"
+                                hidden
+                            ></div>
 
                             <div class="mt-3">
 
@@ -335,7 +363,7 @@ function profileUrl($userId) {
                                             </div>
 
                                             <p class="post-text">
-                                                <?= nl2br(htmlspecialchars($post['Content'])) ?>
+                                                <?= renderPostContentWithHashtags($post['Content']) ?>
                                             </p>
 
                                             <?php if (!empty($post['Images'])): ?>
@@ -478,11 +506,25 @@ function profileUrl($userId) {
                     </div>
                 </div>
 
-                <div class="bg-white p-4 post-card">
+                <div class="bg-white p-4 post-card trending-hashtags-card">
                     <h5>Chủ đề nổi bật</h5>
-                    <p>#MoodToday</p>
-                    <p>#DailyThought</p>
-                    <p>#MinimalUI</p>
+
+                    <?php if (!empty($trendingHashtags)): ?>
+                        <div class="d-flex flex-column gap-2">
+                            <?php foreach ($trendingHashtags as $hashtag): ?>
+                                <?php
+                                    $tagName = $hashtag['HashtagName'] ?? '';
+                                    $totalPosts = (int) ($hashtag['TotalPosts'] ?? 0);
+                                ?>
+                                <a href="<?= htmlspecialchars(hashtagUrl($tagName), ENT_QUOTES, 'UTF-8') ?>" class="trending-hashtag-item">
+                                    <span>#<?= htmlspecialchars($tagName, ENT_QUOTES, 'UTF-8') ?></span>
+                                    <small><?= $totalPosts ?> bài viết</small>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-muted mb-0">Chưa có chủ đề nổi bật.</p>
+                    <?php endif; ?>
                 </div>
             </div>
 

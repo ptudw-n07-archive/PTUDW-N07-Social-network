@@ -62,6 +62,24 @@ class SearchController {
         }
     }
 
+    public function suggestHashtags(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $this->requireLoginJson();
+            $keyword = $this->normalizeHashtagKeyword($_GET['keyword'] ?? $_POST['keyword'] ?? '');
+
+            if ($keyword === '') {
+                echo json_encode([], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+
+            echo json_encode($this->searchModel->suggestHashtags($keyword, 10), JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode([], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
     public function record(): void {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -126,6 +144,17 @@ class SearchController {
         return trim(preg_replace('/\s+/', ' ', $keyword) ?? '');
     }
 
+    private function normalizeHashtagKeyword(string $keyword): string {
+        $keyword = ltrim(trim($keyword), '#');
+        $keyword = preg_replace('/[^\p{L}\p{N}_]/u', '', $keyword) ?? '';
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($keyword, 0, 80);
+        }
+
+        return substr($keyword, 0, 80);
+    }
+
     private function keywordLength(string $keyword): int {
         return function_exists('mb_strlen') ? mb_strlen($keyword) : strlen($keyword);
     }
@@ -177,6 +206,7 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
 
     match ($_GET['action']) {
         'search' => $controller->search(),
+        'suggestHashtags' => $controller->suggestHashtags(),
         'history' => $controller->history(),
         'record' => $controller->record(),
         'delete' => $controller->delete(),
