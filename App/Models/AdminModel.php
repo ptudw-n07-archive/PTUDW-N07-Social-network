@@ -1,10 +1,9 @@
 <?php
-namespace App\Models; // ✨ Thêm dòng này vào đầu file AdminModel.php
+namespace App\Models;
 use PDO; 
 class AdminModel {
     private $conn;
 
-    // Nhận kết nối PDO từ Database truyền vào
     public function __construct($db_connection) {
         $this->conn = $db_connection;
     }
@@ -78,6 +77,16 @@ class AdminModel {
                   
         $stmt = $this->conn->query($query);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    public function updateReportStatus($reportId, $status) {
+        $sql = "UPDATE Reports SET Status = :status WHERE ReportID = :reportId";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(':status', $status, PDO::PARAM_STR);
+        $stmt->bindParam(':reportId', $reportId, PDO::PARAM_INT);
+        
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
     }
 }
 ?>
