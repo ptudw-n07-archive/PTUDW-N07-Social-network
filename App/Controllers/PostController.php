@@ -7,18 +7,22 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/../../Config/Database.php'; 
 require_once __DIR__ . '/../Models/PostModel.php';     
+require_once __DIR__ . '/../Models/NotificationModel.php';
 
 // ✨ 2. Khai báo sử dụng lớp PostModel từ bên thư mục Models và lớp Database từ gốc
 use App\Models\PostModel;
+use App\Models\NotificationModel;
 use Database;
 
 class PostController {
     private $postModel;
+    private $notificationModel;
 
     public function __construct() {
         $database = new Database();
         $db = $database->connect();
         $this->postModel = new PostModel($db);
+        $this->notificationModel = new NotificationModel($db);
     }
 
     public function index() {
@@ -175,6 +179,14 @@ class PostController {
         $status = $this->postModel->toggleLike($userId, $postId);
         $likeCount = $this->postModel->countLikes($postId);
 
+        if ($status === "liked") {
+            $receiverUserId = $this->postModel->getPostOwnerId($postId);
+
+            if ($receiverUserId && (int) $receiverUserId !== (int) $userId) {
+                $this->notificationModel->createNotification(1, $receiverUserId, $userId, $postId);
+            }
+        }
+
         echo json_encode([
             "success" => true,
             "status" => $status,
@@ -206,11 +218,20 @@ class PostController {
             return;
         }
 
-        $result = $this->postModel->createComment($userId, $postId, $content);
+        $commentId = $this->postModel->createComment($userId, $postId, $content);
+
+        if ($commentId) {
+            $receiverUserId = $this->postModel->getPostOwnerId($postId);
+
+            if ($receiverUserId && (int) $receiverUserId !== (int) $userId) {
+                $this->notificationModel->createNotification(2, $receiverUserId, $userId, $postId, $commentId);
+            }
+        }
 
         echo json_encode([
-            "success" => $result,
+            "success" => (bool) $commentId,
             "comment" => [
+                "commentId" => $commentId,
                 "content" => $content,
                 "fullName" => $_SESSION['user_name'] ?? $_SESSION['username'] ?? 'Bạn'
             ]
@@ -219,6 +240,10 @@ class PostController {
 
     public function getComments($postId) {
         return $this->postModel->getCommentsByPostId($postId);
+    }
+
+    public function detail($postId, $viewerId = null) {
+        return $this->postModel->getPostById($postId, $viewerId);
     }
 
     public function getTrendingHashtags($limit = 10) {

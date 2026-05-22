@@ -22,17 +22,19 @@ $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 
 require_once __DIR__ . '/../Controllers/PostController.php';
 require_once __DIR__ . '/../Controllers/FollowController.php';
+require_once __DIR__ . '/../Controllers/NotificationController.php';
 
-// KHAI BÁO SỬ DỤNG NAMESPACE ĐỂ KHÔNG BỊ VS CODE CHỬI VÀNG KHÈ KHỞI TẠO CONTROLLER
-use App\Controllers\PostController;
-use App\Controllers\FollowController;
-
-$postController = new PostController();
+/** @var \App\Controllers\PostController $postController */
+$postController = new \App\Controllers\PostController();
 $posts = $postController->index();
 $trendingHashtags = $postController->getTrendingHashtags(10);
 
-$followController = new FollowController();
+/** @var \App\Controllers\FollowController $followController */
+$followController = new \App\Controllers\FollowController();
 $suggestedUsers = $followController->getSuggestedUsers($currentUserId);
+
+$notificationController = new \App\Controllers\NotificationController();
+$unreadNotificationCount = $notificationController->countUnreadForCurrentUser();
 
 function assetPath($path, $default = '') {
     $path = trim((string) $path);
@@ -217,75 +219,8 @@ function renderPostContentWithHashtags($content) {
         <div class="row g-4">
 
             <div class="col-lg-1 d-none d-lg-block">
-            <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-
-            <div class="sidebar-logo"> <i class="bi bi-circle-square"></i> </div>
-
-            <a 
-                href="<?php echo BASE_URL; ?>App/Views/feed.php"
-                class="sidebar-icon active"
-                id="nav-home"
-                title="Trang chủ"
-            > <i class="bi bi-house-door-fill"></i> </a>
-
-            <a 
-                href="<?php echo BASE_URL; ?>App/Views/search.php"
-                class="sidebar-icon"
-                id="nav-search"
-                title="Tìm kiếm"
-            >
-                <i class="bi bi-search"></i>
-            </a>
-
-            <a 
-                href="<?php echo BASE_URL; ?>App/Views/createpost.php"
-                class="sidebar-icon"
-                id="nav-create-post"
-                title="Đăng bài"
-            >
-                <i class="bi bi-plus-square"></i>
-            </a>
-
-            <a 
-                href="#"
-                class="sidebar-icon"
-                id="nav-notifications"
-                title="Thông báo"
-            >
-                <i class="bi bi-heart"></i>
-            </a>
-
-            <a 
-                href="<?php echo BASE_URL; ?>App/Views/profile.php"
-                class="sidebar-icon"
-                id="nav-profile"
-                title="Hồ sơ"
-            >
-                <i class="bi bi-person"></i>
-            </a>
-
-            <div class="more-menu-wrapper">
-                <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
-                    <i class="bi bi-list more-icon"></i>
-                    <span>More</span>
-                </button>
-
-                <div class="more-dropdown" id="moreDropdown">
-                    <button type="button" class="more-dropdown-item">Appearance</button>
-                    <button type="button" class="more-dropdown-item">Settings</button>
-                    <hr>
-                    <button type="button" class="more-dropdown-item">Liked</button>
-                    <button type="button" class="more-dropdown-item">Archive</button>
-                    <hr>
-                    <button type="button" class="more-dropdown-item">Report a problem</button>
-                    <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
-                </div>
+                <?php $activePage = 'home'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
-
-        </aside>
-
-    </div>
-
             <div class="col-lg-7 col-md-8">
                 <div class="feed-title text-center mb-4">Bảng tin</div>
 
@@ -342,7 +277,7 @@ function renderPostContentWithHashtags($content) {
                     <?php if (!empty($posts)): ?>
                         <?php foreach ($posts as $post): ?>
                             <?php $comments = $postController->getComments($post['PostID']); ?>
-                            <div class="bg-white post-card mb-3">
+                            <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
                                 <div class="p-3">
                                     <div class="d-flex gap-3">
                                         <a href="<?= profileUrl($post['UserID']) ?>">

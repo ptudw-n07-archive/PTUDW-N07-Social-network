@@ -94,71 +94,7 @@ function imagePath($path) {
         <div class="row g-4">
 
             <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-
-                    <div class="sidebar-logo">
-                        <i class="bi bi-circle-square"></i>
-                    </div>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/feed.php"
-                        class="sidebar-icon"
-                        title="Trang chủ"
-                    >
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/search.php"
-                        class="sidebar-icon"
-                        title="Tìm kiếm"
-                    >
-                        <i class="bi bi-search"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/createpost.php"
-                        class="sidebar-icon active"
-                        title="Đăng bài"
-                    >
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-
-                    <a 
-                        href="#"
-                        class="sidebar-icon"
-                        title="Thông báo"
-                    >
-                        <i class="bi bi-heart"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/profile.php"
-                        class="sidebar-icon"
-                        title="Hồ sơ"
-                    >
-                        <i class="bi bi-person"></i>
-                    </a>
-
-                    <div class="more-menu-wrapper">
-                        <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
-                            <i class="bi bi-list more-icon"></i>
-                            <span>More</span>
-                        </button>
-
-                        <div class="more-dropdown" id="moreDropdown">
-                            <button type="button" class="more-dropdown-item">Appearance</button>
-                            <button type="button" class="more-dropdown-item">Settings</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Liked</button>
-                            <button type="button" class="more-dropdown-item">Archive</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Report a problem</button>
-                            <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
-                        </div>
-                    </div>
-
-                </aside>
+                <?php $activePage = 'create'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-8 mx-auto">
