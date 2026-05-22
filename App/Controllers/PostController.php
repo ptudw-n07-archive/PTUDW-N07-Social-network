@@ -92,6 +92,7 @@ class PostController {
 
         // 1. Tạo bài viết trong Database lấy ra PostID mới nhất
         $postId = $this->postModel->createPost($userId, $content);
+        $hashtags = $this->extractHashtags($content);
         
         // Mảng dùng để lưu các đường dẫn ảnh gửi về cho Front-end render tại chỗ
         $savedImages = [];
@@ -120,19 +121,24 @@ class PostController {
             }
         }
 
+        if ($postId && !empty($hashtags)) {
+            $this->postModel->syncPostHashtags($postId, $hashtags);
+        }
+
         if ($postId) {
             // 🎯 PHẢN HỒI JSON CHUẨN AJAX: Gửi toàn bộ thông tin bài viết mới tạo về cho JavaScript vẽ giao diện
             echo json_encode([
                 "success" => true,
                 "post" => [
                     "PostID" => $postId,
-                    "Content" => htmlspecialchars($content),
+                    "Content" => $content,
                     "CreatedAt" => "Vừa xong",
                     "UserID" => $userId,
                     "Username" => $_SESSION['username'] ?? '',
                     "FullName" => $_SESSION['user_name'] ?? '',
                     "ProfilePictureUrl" => $_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? $_SESSION['user_avatar'] ?? 'Public/assets/img/default-avatar.jpg',
                     "Images" => $savedImages,
+                    "Hashtags" => $hashtags,
                     "LikeCount" => 0,
                     "CommentCount" => 0
                 ],
@@ -213,6 +219,41 @@ class PostController {
 
     public function getComments($postId) {
         return $this->postModel->getCommentsByPostId($postId);
+    }
+
+    public function getTrendingHashtags($limit = 10) {
+        return $this->postModel->getTrendingHashtags($limit);
+    }
+
+    public function getPostsByHashtag($tag) {
+        return $this->postModel->getPostsByHashtag($tag);
+    }
+
+    private function extractHashtags(string $content): array {
+        preg_match_all('/#([\p{L}\p{N}_]+)/u', $content, $matches);
+        $hashtags = [];
+
+        foreach ($matches[1] ?? [] as $tag) {
+            $tag = trim($tag);
+
+            if ($tag === '') {
+                continue;
+            }
+
+            if (function_exists('mb_substr')) {
+                $tag = mb_substr($tag, 0, 80);
+                $key = mb_strtolower($tag);
+            } else {
+                $tag = substr($tag, 0, 80);
+                $key = strtolower($tag);
+            }
+
+            if (!isset($hashtags[$key])) {
+                $hashtags[$key] = $tag;
+            }
+        }
+
+        return array_values($hashtags);
     }
 
     private function saveUploadedPostMedia(string $tmpName, string $extension, string $uploadDir): array {
@@ -311,7 +352,7 @@ class PostController {
         return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
     }
 }
-if (isset($_GET['action'])) {
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
     $controller = new PostController();
 
     if ($_GET['action'] === 'create') {
@@ -320,6 +361,14 @@ if (isset($_GET['action'])) {
         $controller->like();
     } elseif ($_GET['action'] === 'comment') {
         $controller->comment();
+    } else {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            "success" => false,
+            "message" => "Action khong hop le."
+        ]);
     }
+
+    exit;
 }
 ?>

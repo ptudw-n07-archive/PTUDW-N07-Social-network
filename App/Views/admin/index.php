@@ -18,6 +18,18 @@
     
     <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
     <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/admin-style.css">
+    <style>
+        .report-action-completed {
+            color: #000;
+            background: transparent;
+            border: none;
+            font-weight: 500;
+        }
+        .report-details-text {
+            color: inherit;
+            text-decoration: none;
+        }
+    </style>
 </head>
 
 <body class="admin-body">
@@ -36,7 +48,7 @@
                         <span class="text-muted small fw-bold">Quản trị viên</span>
                         <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
                     </div>
-                    <button id="logoutBtn" class="header-logout-btn" onclick="window.location.href='<?php echo BASE_URL; ?>App/Views/auth/login.php'">
+                    <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
                 </div>
@@ -111,6 +123,7 @@
                             <tr>
                                 <th>Đối tượng bị báo cáo</th>
                                 <th>Lý do vi phạm</th>
+                                <th>Nội dung báo cáo</th>
                                 <th>Thời gian gửi</th>
                                 <th>Trạng thái</th>
                                 <th class="text-end">Hành động</th>
@@ -119,7 +132,7 @@
                         <tbody>
                             <?php if(!empty($reports)): ?>
                                 <?php foreach($reports as $r): ?>
-                                <tr>
+                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
@@ -132,23 +145,37 @@
                                         </div>
                                     </td>
                                     <td><span class="small"><?php echo htmlspecialchars($r['reason']); ?></span></td>
+                                    <td>
+                                        <?php $detailText = trim($r['details'] ?? ''); ?>
+                                        <?php if ($detailText !== ''): ?>
+                                            <span onclick="showReportDetails(<?php echo $r['id']; ?>)" class="small report-details-text text-truncate" style="max-width:220px; display:inline-block; cursor:pointer;" title="<?php echo htmlspecialchars($detailText, ENT_QUOTES); ?>"><?php echo htmlspecialchars(mb_strimwidth($detailText, 0, 80, '...')); ?></span>
+                                        <?php else: ?>
+                                            <span class="small text-muted">Không có chi tiết</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="small text-muted"><?php echo htmlspecialchars($r['time']); ?></td>
                                     <td>
-                                        <?php if (($r['status'] ?? '') === 'Chờ duyệt'): ?>
+                                        <?php if ($r['status'] === 'Chờ duyệt'): ?>
                                             <span class="badge rounded-pill bg-warning text-dark px-2.5 py-1 text-xs fw-medium">Chờ duyệt</span>
                                         <?php else: ?>
                                             <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Đã xử lý</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end">
-                                        <button class="btn btn-pink-admin" <?php echo ($r['status'] == 'Đã xử lý') ? 'disabled style="opacity: 0.7;"' : ''; ?>>
-                                            <?php echo ($r['status'] == 'Đã xử lý') ? '<i class="bi bi-check2-all"></i> Hoàn tất' : 'Xử lý'; ?>
-                                        </button>
+                                    <td class="text-end report-actions">
+                                        <?php if ($r['status'] === 'Chờ duyệt'): ?>
+                                            <div class="d-flex justify-content-end gap-2">
+                                                <button class="btn btn-outline-secondary btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'ignore')">Bỏ qua</button>
+                                                <button class="btn btn-danger btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'hide')">Ẩn nội dung</button>
+                                                <button class="btn btn-warning btn-sm text-white" onclick="handleReportAction(<?php echo $r['id']; ?>, 'warn')">Cảnh cáo</button>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Hiện tại hệ thống sạch sẽ, chưa có báo cáo vi phạm nào!</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted py-4">Hiện tại hệ thống sạch sẽ, chưa có báo cáo vi phạm nào!</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
@@ -202,6 +229,49 @@
         </div>
     </main>
 
+    <div id="adminModal" class="admin-modal d-none" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="admin-modal-backdrop" data-admin-modal-close></div>
+        <div class="admin-modal-container">
+            <div class="admin-modal-card">
+                <div class="admin-modal-header">
+                    <h5 class="admin-modal-title">Thông báo</h5>
+                    <button type="button" class="admin-modal-close" data-admin-modal-close aria-label="Đóng">&times;</button>
+                </div>
+                <div class="admin-modal-body">
+                    <p class="admin-modal-message">Nội dung sẽ hiển thị tại đây.</p>
+                </div>
+                <div class="admin-modal-actions">
+                    <button type="button" class="btn btn-outline-brown admin-modal-cancel" data-admin-modal-cancel>Hủy</button>
+                    <button type="button" class="btn btn-pink-admin admin-modal-confirm" data-admin-modal-confirm>Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adminNoteModal" tabindex="-1" aria-labelledby="adminNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adminNoteModalLabel">Ghi chú xử lý báo cáo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="adminNoteTextarea" class="form-label">Ghi chú của quản trị viên</label>
+                        <textarea id="adminNoteTextarea" class="form-control" rows="4" placeholder="Nhập ghi chú xử lý báo cáo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="adminNoteSaveBtn">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-script.js"></script>
 </body>

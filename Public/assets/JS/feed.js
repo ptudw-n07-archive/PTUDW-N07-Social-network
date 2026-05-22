@@ -218,7 +218,7 @@ function addPostToUI(post) {
         </div>
     `;
 
-    newPost.querySelector(".post-text").innerText = post.Content || "";
+    newPost.querySelector(".post-text").innerHTML = renderContentWithHashtags(post.Content || "");
     postsList.prepend(newPost);
 }
 
@@ -293,6 +293,12 @@ function escapeHTML(text) {
     const div = document.createElement("div");
     div.innerText = text;
     return div.innerHTML;
+}
+
+function renderContentWithHashtags(text) {
+    return escapeHTML(text).replace(/#([\p{L}\p{N}_]+)/gu, function (match, tag) {
+        return `<a class="hashtag-link" href="/App/Views/hashtag.php?tag=${encodeURIComponent(tag)}">#${tag}</a>`;
+    }).replace(/\n/g, "<br>");
 }
 
 function normalizeImagePath(path) {
@@ -479,6 +485,221 @@ document.addEventListener("DOMContentLoaded", function () {
 
     sessionStorage.removeItem("post_success");
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    initHashtagComposerSuggestions();
+});
+
+function initHashtagComposerSuggestions() {
+    const form = document.getElementById("postForm");
+    const textarea = form ? form.querySelector("textarea[name='content']") : null;
+    const box = document.getElementById("hashtagSuggestionBox");
+
+    if (!textarea || !box) {
+        return;
+    }
+
+    const endpoint = box.dataset.endpoint || "/App/Controllers/SearchController.php?action=suggestHashtags";
+    let debounceTimer = null;
+    let activeIndex = -1;
+    let suggestions = [];
+    let activeToken = null;
+    let lastKeyword = "";
+
+    textarea.addEventListener("input", function () {
+        window.clearTimeout(debounceTimer);
+        activeToken = getActiveHashtagToken(textarea);
+
+        if (!activeToken || activeToken.keyword.length === 0) {
+            hideHashtagSuggestions();
+            return;
+        }
+
+        debounceTimer = window.setTimeout(function () {
+            fetchHashtagSuggestions(activeToken.keyword);
+        }, 220);
+    });
+
+    textarea.addEventListener("keydown", function (event) {
+        if (box.hidden) {
+            return;
+        }
+
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            moveHashtagSelection(1);
+            return;
+        }
+
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            moveHashtagSelection(-1);
+            return;
+        }
+
+        if (event.key === "Enter") {
+            event.preventDefault();
+
+            if (activeIndex >= 0 && suggestions[activeIndex]) {
+                insertHashtagSuggestion(suggestions[activeIndex].name);
+            }
+
+            return;
+        }
+
+        if (event.key === "Escape") {
+            event.preventDefault();
+            hideHashtagSuggestions();
+        }
+    });
+
+    document.addEventListener("click", function (event) {
+        if (!box.contains(event.target) && event.target !== textarea) {
+            hideHashtagSuggestions();
+        }
+    });
+
+    function fetchHashtagSuggestions(keyword) {
+        lastKeyword = keyword;
+
+        const separator = endpoint.includes("?") ? "&" : "?";
+
+        fetch(endpoint + separator + "keyword=" + encodeURIComponent(keyword))
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (items) {
+                if (keyword !== lastKeyword) {
+                    return;
+                }
+
+                const normalizedItems = Array.isArray(items) ? items : [];
+                renderHashtagSuggestions(keyword, normalizedItems);
+            })
+            .catch(function () {
+                hideHashtagSuggestions();
+            });
+    }
+
+    function renderHashtagSuggestions(keyword, items) {
+        const keywordLower = keyword.toLowerCase();
+        const hasExact = items.some(function (item) {
+            return String(item.name || "").toLowerCase() === keywordLower;
+        });
+
+        suggestions = items.map(function (item) {
+            return {
+                name: String(item.name || ""),
+                usageCount: Number(item.usage_count || 0)
+            };
+        }).filter(function (item) {
+            return item.name !== "";
+        });
+
+        if (!hasExact) {
+            suggestions.unshift({
+                name: keyword,
+                usageCount: 0,
+                isNew: true
+            });
+        }
+
+        if (suggestions.length === 0) {
+            hideHashtagSuggestions();
+            return;
+        }
+
+        activeIndex = 0;
+        box.innerHTML = "";
+
+        suggestions.slice(0, 10).forEach(function (item, index) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "hashtag-suggestion-item" + (index === activeIndex ? " active" : "");
+            button.innerHTML = `
+                <span>#${escapeHTML(item.name)}</span>
+                <small>${item.isNew ? "Tạo hashtag mới" : item.usageCount + " bài viết"}</small>
+            `;
+
+            button.addEventListener("mousedown", function (event) {
+                event.preventDefault();
+                insertHashtagSuggestion(item.name);
+            });
+
+            box.appendChild(button);
+        });
+
+        box.hidden = false;
+    }
+
+    function moveHashtagSelection(direction) {
+        const items = box.querySelectorAll(".hashtag-suggestion-item");
+
+        if (items.length === 0) {
+            return;
+        }
+
+        activeIndex = (activeIndex + direction + items.length) % items.length;
+
+        items.forEach(function (item, index) {
+            item.classList.toggle("active", index === activeIndex);
+        });
+    }
+
+    function insertHashtagSuggestion(name) {
+        activeToken = getActiveHashtagToken(textarea);
+
+        if (!activeToken) {
+            return;
+        }
+
+        const value = textarea.value;
+        const before = value.slice(0, activeToken.start);
+        const after = value.slice(activeToken.end);
+        const inserted = "#" + name + " ";
+
+        textarea.value = before + inserted + after;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = before.length + inserted.length;
+        hideHashtagSuggestions();
+    }
+
+    function hideHashtagSuggestions() {
+        box.hidden = true;
+        box.innerHTML = "";
+        suggestions = [];
+        activeIndex = -1;
+    }
+}
+
+function getActiveHashtagToken(textarea) {
+    const value = textarea.value;
+    const caret = textarea.selectionStart || 0;
+    const beforeCaret = value.slice(0, caret);
+    const hashIndex = beforeCaret.lastIndexOf("#");
+
+    if (hashIndex < 0) {
+        return null;
+    }
+
+    const prefix = hashIndex === 0 ? "" : beforeCaret.charAt(hashIndex - 1);
+
+    if (prefix && !/\s/.test(prefix)) {
+        return null;
+    }
+
+    const keyword = beforeCaret.slice(hashIndex + 1);
+
+    if (!/^[\p{L}\p{N}_]*$/u.test(keyword)) {
+        return null;
+    }
+
+    return {
+        start: hashIndex,
+        end: caret,
+        keyword: keyword
+    };
+}
 
 const moreButton = document.getElementById("moreButton");
 const moreDropdown = document.getElementById("moreDropdown");

@@ -213,7 +213,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         <i class="bi bi-house-door-fill"></i>
                     </a>
 
-                    <a href="#" class="sidebar-icon" title="Tìm kiếm">
+                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="sidebar-icon" title="Tìm kiếm">
                         <i class="bi bi-search"></i>
                     </a>
 
