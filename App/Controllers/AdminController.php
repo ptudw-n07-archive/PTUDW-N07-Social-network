@@ -66,28 +66,82 @@ class AdminController {
             echo json_encode(["success" => false, "message" => "Bạn không có quyền quản trị viên."]);
             return;
         }
+        $reportId = isset($_POST['reportId']) ? (int) $_POST['reportId'] : null;
+        $action = $_POST['action'] ?? null; // allowed: ignore, hide, warn
+        $adminNote = $_POST['adminNote'] ?? null;
 
-        $reportId = $_POST['reportId'] ?? null;
-        $status = $_POST['status'] ?? null;
-
-        if (!$reportId || !$status) {
-            echo json_encode(["success" => false, "message" => "Thiếu thông tin ReportID hoặc Status."]);
+        if (!$reportId || !$action) {
+            echo json_encode(["success" => false, "message" => "Thiếu thông tin ReportID hoặc hành động."]);
             return;
         }
 
-        $result = $this->adminModel->updateReportStatus($reportId, $status);
+        $allowed = ['ignore', 'hide', 'warn'];
+        if (!in_array($action, $allowed, true)) {
+            echo json_encode(["success" => false, "message" => "Hành động không hợp lệ."]);
+            return;
+        }
 
-        if ($result) {
-            echo json_encode([
-                "success" => true,
-                "message" => "Xử lý báo cáo vi phạm thành công!",
-                "reportId" => $reportId,
-                "status" => $status
-            ]);
-            exit();
-        } else {
-            echo json_encode(["success" => false, "message" => "Lỗi cập nhật cơ sở dữ liệu."]);
-            exit();
+        // Lấy thông tin báo cáo
+        $report = $this->adminModel->getReportById($reportId);
+        if (!$report) {
+            echo json_encode(["success" => false, "message" => "Báo cáo không tồn tại."]);
+            return;
+        }
+
+        try {
+            $adminUserId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+            // Hành động cụ thể
+            if ($action === 'ignore') {
+                // Chỉ đánh dấu Resolved và lưu ghi chú
+                $this->adminModel->markReportResolved($reportId, $adminNote);
+                $msg = 'Báo cáo đã bị bỏ qua.';
+            } elseif ($action === 'hide') {
+                // Ẩn nội dung nếu có PostID hoặc CommentID
+                $hidden = false;
+                if (!empty($report['PostID'])) {
+                    $this->adminModel->hidePostById((int)$report['PostID']);
+                    $hidden = true;
+                }
+                if (!empty($report['CommentID'])) {
+                    $this->adminModel->hideCommentById((int)$report['CommentID']);
+                    $hidden = true;
+                }
+                $this->adminModel->markReportResolved($reportId, $adminNote);
+                if (!empty($report['ReportedUserID']) && $adminUserId) {
+                    $typeId = $this->adminModel->getNotificationTypeIdByName('ContentHidden');
+                    if ($typeId) {
+                        $this->adminModel->createNotification(
+                            (int)$report['ReportedUserID'],
+                            $adminUserId,
+                            !empty($report['PostID']) ? (int)$report['PostID'] : null,
+                            !empty($report['CommentID']) ? (int)$report['CommentID'] : null,
+                            (int)$typeId
+                        );
+                    }
+                }
+                $msg = $hidden ? 'Nội dung đã được ẩn và báo cáo được đánh dấu hoàn tất.' : 'Không có nội dung để ẩn; báo cáo đã được đánh dấu hoàn tất.';
+            } else { // warn
+                $this->adminModel->markReportResolved($reportId, $adminNote);
+                if (!empty($report['ReportedUserID']) && $adminUserId) {
+                    $typeId = $this->adminModel->getNotificationTypeIdByName('ReportWarning');
+                    if ($typeId) {
+                        $this->adminModel->createNotification(
+                            (int)$report['ReportedUserID'],
+                            $adminUserId,
+                            !empty($report['PostID']) ? (int)$report['PostID'] : null,
+                            !empty($report['CommentID']) ? (int)$report['CommentID'] : null,
+                            (int)$typeId
+                        );
+                    }
+                }
+                $msg = 'Người dùng đã được cảnh cáo; báo cáo đã xử lý.';
+            }
+
+            echo json_encode(["success" => true, "message" => $msg, "reportId" => $reportId]);
+            return;
+        } catch (Exception $e) {
+            echo json_encode(["success" => false, "message" => "Lỗi khi xử lý báo cáo."]);
+            return;
         }
     }
 }

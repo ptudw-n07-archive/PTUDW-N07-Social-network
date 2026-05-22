@@ -193,7 +193,7 @@
 .status-pending { background-color: #d69096 !important; color: white; }
 .status-resolved { background-color: #795d4a !important; color: white; }
 
-..btn-outline-brown {
+.btn-outline-brown {
     border: 1px solid #795d4a;
     color: #795d4a;
     border-radius: 999px;
