@@ -33,7 +33,7 @@ if (session_status() == PHP_SESSION_NONE) {
             </div>
         <?php endif; ?>
 
-        <form action="<?php echo BASE_URL; ?>App/Views/auth/process-forgot.php" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=forgot" method="POST">
             <div class="form-group">
                 <label for="email"><i class=\"fa-regular fa-envelope\"></i> Email đã đăng ký</label>
                 <input type="email" id="email" name="email" placeholder="Nhập địa chỉ email của bạn" required>
