@@ -8,14 +8,16 @@ class PostModel {
 
     public function __construct($db) {
         $this->conn = $db;
+        $this->ensurePostInteractionSchema();
     }
 
-    public function getAllPosts() {
+    public function getAllPosts($viewerId = null) {
         $sql = "
             SELECT 
                 p.PostID,
                 p.Content,
                 p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
                 u.UserID,
                 u.Username,
                 u.FullName,
@@ -28,11 +30,13 @@ class PostModel {
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
             LEFT JOIN comments c ON p.PostID = c.PostID
+            WHERE " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             ORDER BY p.CreatedAt DESC
         ";
 
         $stmt = $this->conn->prepare($sql);
+        $this->bindViewerParams($stmt, $viewerId);
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -47,6 +51,7 @@ class PostModel {
                 p.PostID,
                 p.Content,
                 p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
                 u.UserID,
                 u.Username,
                 u.FullName,
@@ -62,6 +67,7 @@ class PostModel {
             $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
             WHERE p.UserID = :userId
+            AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             ORDER BY p.CreatedAt DESC
         ";
@@ -71,6 +77,7 @@ class PostModel {
 
         if ($viewerId) {
             $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+            $this->bindViewerParams($stmt, $viewerId);
         }
 
         $stmt->execute();
@@ -97,6 +104,7 @@ class PostModel {
                 p.PostID,
                 p.Content,
                 p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
                 u.UserID,
                 u.Username,
                 u.FullName,
@@ -112,6 +120,7 @@ class PostModel {
             $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
             WHERE p.PostID = :postId
+            AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             LIMIT 1
         ";
@@ -121,6 +130,7 @@ class PostModel {
 
         if ($viewerId) {
             $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+            $this->bindViewerParams($stmt, $viewerId);
         }
 
         $stmt->execute();
@@ -331,12 +341,13 @@ public function getTrendingHashtags($limit = 10) {
     return $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-public function getPostsByHashtag($tag) {
+public function getPostsByHashtag($tag, $viewerId = null) {
     $sql = "
         SELECT 
             p.PostID,
             p.Content,
             p.CreatedAt,
+            COALESCE(p.Privacy, 'public') AS Privacy,
             u.UserID,
             u.Username,
             u.FullName,
@@ -352,12 +363,14 @@ public function getPostsByHashtag($tag) {
         LEFT JOIN likes l ON p.PostID = l.PostID
         LEFT JOIN comments c ON p.PostID = c.PostID
         WHERE h.HashtagName = :tag
+        AND " . $this->visibilitySql($viewerId) . "
         GROUP BY p.PostID
         ORDER BY p.CreatedAt DESC
     ";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":tag", $tag);
+    $this->bindViewerParams($stmt, $viewerId);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -411,6 +424,238 @@ private function refreshUsageCounts(array $hashtagIds) {
         $stmt->bindValue(":hashtagId", (int) $hashtagId, PDO::PARAM_INT);
         $stmt->execute();
     }
+}
+
+public function updatePostContent($postId, $userId, $content): bool {
+    $sql = "UPDATE posts SET Content = :content WHERE PostID = :postId AND UserID = :userId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":content", $content);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+public function removePostImages($postId, array $imageUrls): void {
+    if (empty($imageUrls)) {
+        return;
+    }
+
+    $sql = "DELETE FROM postimages WHERE PostID = :postId AND ImageUrl = :imageUrl";
+    $stmt = $this->conn->prepare($sql);
+
+    foreach ($imageUrls as $imageUrl) {
+        $stmt->bindValue(":postId", (int) $postId, PDO::PARAM_INT);
+        $stmt->bindValue(":imageUrl", (string) $imageUrl);
+        $stmt->execute();
+    }
+}
+
+public function replacePostHashtags($postId, array $hashtagNames): void {
+    $oldSql = "SELECT HashtagID FROM posthashtags WHERE PostID = :postId";
+    $oldStmt = $this->conn->prepare($oldSql);
+    $oldStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $oldStmt->execute();
+    $oldIds = array_map('intval', $oldStmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $deleteSql = "DELETE FROM posthashtags WHERE PostID = :postId";
+    $deleteStmt = $this->conn->prepare($deleteSql);
+    $deleteStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $deleteStmt->execute();
+
+    if (!empty($hashtagNames)) {
+        $this->syncPostHashtags($postId, $hashtagNames);
+    }
+
+    $this->refreshUsageCounts($oldIds);
+}
+
+public function deletePost($postId, $userId): bool {
+    if ((int) $this->getPostOwnerId($postId) !== (int) $userId) {
+        return false;
+    }
+
+    $this->conn->beginTransaction();
+
+    try {
+        foreach (['notifications', 'likes', 'comments', 'postimages', 'posthashtags', 'postpreferences', 'reports'] as $table) {
+            $sql = "DELETE FROM {$table} WHERE PostID = :postId";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $stmt->execute();
+        }
+
+        $stmt = $this->conn->prepare("DELETE FROM posts WHERE PostID = :postId AND UserID = :userId");
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $this->conn->commit();
+        return $stmt->rowCount() > 0;
+    } catch (\Throwable $e) {
+        $this->conn->rollBack();
+        return false;
+    }
+}
+
+public function updatePostPrivacy($postId, $userId, string $privacy): bool {
+    $allowed = ['public', 'private', 'followers'];
+    if (!in_array($privacy, $allowed, true)) {
+        return false;
+    }
+
+    $sql = "UPDATE posts SET Privacy = :privacy WHERE PostID = :postId AND UserID = :userId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":privacy", $privacy);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->rowCount() > 0;
+}
+
+public function createReport($reporterUserId, $postId, string $reason, string $details): bool {
+    $post = $this->getPostById($postId, $reporterUserId);
+    if (!$post || (int) $post['UserID'] === (int) $reporterUserId) {
+        return false;
+    }
+
+    $duplicateSql = "
+        SELECT 1
+        FROM reports
+        WHERE ReporterUserID = :reporterUserId
+        AND PostID = :postId
+        AND Reason = :reason
+        AND Details = :details
+        AND CreatedAt >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        LIMIT 1
+    ";
+    $duplicateStmt = $this->conn->prepare($duplicateSql);
+    $duplicateStmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $duplicateStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $duplicateStmt->bindParam(":reason", $reason);
+    $duplicateStmt->bindParam(":details", $details);
+    $duplicateStmt->execute();
+
+    if ($duplicateStmt->fetchColumn()) {
+        return true;
+    }
+
+    $sql = "
+        INSERT INTO reports
+            (ReporterUserID, ReportedUserID, PostID, CommentID, Reason, Details, CreatedAt, Status, AdminNote, ResolvedAt)
+        VALUES
+            (:reporterUserId, :reportedUserId, :postId, NULL, :reason, :details, NOW(), 'Pending', NULL, NULL)
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $reportedUserId = (int) $post['UserID'];
+    $stmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":reportedUserId", $reportedUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":reason", $reason);
+    $stmt->bindParam(":details", $details);
+    return $stmt->execute();
+}
+
+public function blockUser($blockerUserId, $blockedUserId): bool {
+    if ((int) $blockerUserId === (int) $blockedUserId) {
+        return false;
+    }
+
+    $checkSql = "
+        SELECT 1
+        FROM userblocks
+        WHERE BlockerUserID = :blockerUserId
+        AND BlockedUserID = :blockedUserId
+        LIMIT 1
+    ";
+    $checkStmt = $this->conn->prepare($checkSql);
+    $checkStmt->bindParam(":blockerUserId", $blockerUserId, PDO::PARAM_INT);
+    $checkStmt->bindParam(":blockedUserId", $blockedUserId, PDO::PARAM_INT);
+    $checkStmt->execute();
+
+    if ($checkStmt->fetchColumn()) {
+        return true;
+    }
+
+    $sql = "
+        INSERT INTO userblocks (BlockerUserID, BlockedUserID, CreatedAt)
+        VALUES (:blockerUserId, :blockedUserId, NOW())
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":blockerUserId", $blockerUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":blockedUserId", $blockedUserId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+public function markNotInterested($userId, $postId): bool {
+    $sql = "
+        INSERT IGNORE INTO postpreferences (UserID, PostID, PreferenceType, CreatedAt)
+        VALUES (:userId, :postId, 'not_interested', NOW())
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+private function visibilitySql($viewerId = null): string {
+    if (!$viewerId) {
+        return "COALESCE(p.Privacy, 'public') = 'public'";
+    }
+
+    return "
+        (
+            COALESCE(p.Privacy, 'public') = 'public'
+            OR p.UserID = :privacyViewerId
+            OR (
+                p.Privacy = 'followers'
+                AND EXISTS (
+                    SELECT 1 FROM follows f
+                    WHERE f.FollowerID = :followViewerId
+                    AND f.FollowedID = p.UserID
+                )
+            )
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM userblocks ub
+            WHERE ub.BlockerUserID = :blockerUserId
+            AND ub.BlockedUserID = p.UserID
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM postpreferences pp
+            WHERE pp.UserID = :preferenceUserId
+            AND pp.PostID = p.PostID
+            AND pp.PreferenceType = 'not_interested'
+        )
+    ";
+}
+
+private function bindViewerParams($stmt, $viewerId = null): void {
+    if (!$viewerId) {
+        return;
+    }
+
+    $stmt->bindValue(":privacyViewerId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":followViewerId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":blockerUserId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":preferenceUserId", (int) $viewerId, PDO::PARAM_INT);
+}
+
+private function ensurePostInteractionSchema(): void {
+    try {
+        $this->conn->exec("ALTER TABLE posts ADD COLUMN Privacy VARCHAR(20) NOT NULL DEFAULT 'public'");
+    } catch (\Throwable $e) {
+    }
+
+    $this->conn->exec("
+        CREATE TABLE IF NOT EXISTS postpreferences (
+            PreferenceID INT AUTO_INCREMENT PRIMARY KEY,
+            UserID INT NOT NULL,
+            PostID INT NOT NULL,
+            PreferenceType VARCHAR(50) NOT NULL,
+            CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_post_preference (UserID, PostID, PreferenceType)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
 }
 }
 ?>

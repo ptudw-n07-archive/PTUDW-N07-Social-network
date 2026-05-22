@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../Controllers/PostController.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 use App\Controllers\PostController;
 
@@ -26,6 +27,7 @@ if (function_exists('mb_substr')) {
 }
 
 $postController = new PostController();
+$currentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $posts = $tag === '' ? [] : $postController->getPostsByHashtag($tag);
 
 function hashtagAssetPath($path, $default = '') {
@@ -204,7 +206,14 @@ function renderHashtagPostContent($content) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($posts as $post): ?>
-                        <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
+                        <div
+                            class="bg-white post-card mb-3 hashtag-post-card"
+                            id="post-<?= (int) $post['PostID'] ?>"
+                            role="link"
+                            tabindex="0"
+                            data-detail-url="<?= BASE_URL ?>App/Views/post-detail.php?id=<?= (int) $post['PostID'] ?>"
+                            <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
+                        >
                             <div class="p-3">
                                 <div class="d-flex gap-3">
                                     <a href="<?= hashtagProfileUrl($post['UserID']) ?>">
@@ -217,11 +226,15 @@ function renderHashtagPostContent($content) {
                                     </a>
 
                                     <div class="flex-grow-1">
+                                        <div class="post-card-header">
                                         <div class="fw-semibold">
                                             <a href="<?= hashtagProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
                                                 <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                             </a>
                                             • <?= hashtagTimeAgo($post['CreatedAt']) ?>
+                                        </div>
+
+                                        <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                         </div>
 
                                         <p class="post-text">
@@ -249,11 +262,6 @@ function renderHashtagPostContent($content) {
                                         <?php endif; ?>
 
                                         <div class="post-actions d-flex gap-4">
-                                            <a href="<?= BASE_URL ?>App/Views/post-detail.php?id=<?= (int) $post['PostID'] ?>">
-                                                <i class="bi bi-chat-square-text"></i>
-                                                <span>Xem bài viết</span>
-                                            </a>
-
                                             <span>
                                                 <i class="bi bi-heart"></i>
                                                 <?= (int) ($post['LikeCount'] ?? 0) ?>
@@ -262,6 +270,10 @@ function renderHashtagPostContent($content) {
                                             <span>
                                                 <i class="bi bi-chat"></i>
                                                 <?= (int) ($post['CommentCount'] ?? 0) ?>
+                                            </span>
+
+                                            <span>
+                                                <i class="bi bi-arrow-repeat"></i>
                                             </span>
                                         </div>
                                     </div>
@@ -275,6 +287,31 @@ function renderHashtagPostContent($content) {
     </div>
 </section>
 
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-post-menu"></script>
+<script>
+document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
+    function openPost(event) {
+        if (event.target.closest("a, button, video")) {
+            return;
+        }
+
+        const detailUrl = card.dataset.detailUrl;
+        if (detailUrl) {
+            window.location.href = detailUrl;
+        }
+    }
+
+    card.addEventListener("click", openPost);
+    card.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") {
+            return;
+        }
+
+        event.preventDefault();
+        openPost(event);
+    });
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

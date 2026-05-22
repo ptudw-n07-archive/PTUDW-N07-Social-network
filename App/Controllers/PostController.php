@@ -26,7 +26,7 @@ class PostController {
     }
 
     public function index() {
-        return $this->postModel->getAllPosts();
+        return $this->postModel->getAllPosts($_SESSION['user_id'] ?? null);
     }
 
     public function create() {
@@ -250,8 +250,225 @@ class PostController {
         return $this->postModel->getTrendingHashtags($limit);
     }
 
+    public function trendingHashtags() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $limit = (int) ($_GET['limit'] ?? 10);
+        if ($limit < 1) {
+            $limit = 10;
+        }
+
+        $limit = min($limit, 20);
+        $hashtags = array_map(function ($hashtag) {
+            return [
+                "tag" => $hashtag['HashtagName'] ?? '',
+                "post_count" => (int) ($hashtag['TotalPosts'] ?? 0)
+            ];
+        }, $this->getTrendingHashtags($limit));
+
+        echo json_encode([
+            "success" => true,
+            "hashtags" => $hashtags
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
     public function getPostsByHashtag($tag) {
-        return $this->postModel->getPostsByHashtag($tag);
+        return $this->postModel->getPostsByHashtag($tag, $_SESSION['user_id'] ?? null);
+    }
+
+    public function updatePost() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $userId = $_SESSION['user_id'] ?? null;
+            $postId = (int) ($_POST['postId'] ?? 0);
+            $content = (string) ($_POST['content'] ?? '');
+            $removeImages = $_POST['removeImages'] ?? [];
+
+            if (!$userId || !$postId) {
+                $this->json(false, "Thiếu thông tin bài viết.");
+                return;
+            }
+
+            if ($this->postModel->getPostOwnerId($postId) !== (int) $userId) {
+                $this->json(false, "Bạn không có quyền chỉnh sửa bài viết này.");
+                return;
+            }
+
+            if (is_string($removeImages)) {
+                $decodedImages = json_decode($removeImages, true);
+                $removeImages = is_array($decodedImages) ? $decodedImages : [];
+            }
+
+            $validImages = [];
+            $uploadErrors = [];
+
+            if (!empty($_FILES['images']['name'][0])) {
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'mp4', 'mov', 'webm'];
+                $allowedMimeTypes = [
+                    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+                    'image/heic-sequence', 'image/heif-sequence', 'video/mp4', 'video/quicktime',
+                    'video/webm', 'application/octet-stream'
+                ];
+                $finfo = new \finfo(FILEINFO_MIME_TYPE);
+
+                foreach ($_FILES['images']['name'] as $key => $name) {
+                    if ($_FILES['images']['error'][$key] === UPLOAD_ERR_NO_FILE) {
+                        continue;
+                    }
+
+                    if ($_FILES['images']['error'][$key] !== UPLOAD_ERR_OK) {
+                        $uploadErrors[] = "Upload ảnh thất bại.";
+                        continue;
+                    }
+
+                    $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                    $mimeType = $finfo->file($_FILES['images']['tmp_name'][$key]);
+
+                    if (!in_array($extension, $allowedExtensions, true) || !in_array($mimeType, $allowedMimeTypes, true)) {
+                        $uploadErrors[] = "File upload không đúng định dạng ảnh/video.";
+                        continue;
+                    }
+
+                    $validImages[] = [
+                        'tmp_name' => $_FILES['images']['tmp_name'][$key],
+                        'extension' => $extension
+                    ];
+                }
+            }
+
+            if (trim($content) === '' && empty($validImages)) {
+                $this->json(false, "Nội dung không được để trống nếu không thêm ảnh.");
+                return;
+            }
+
+            $updated = $this->postModel->updatePostContent($postId, $userId, $content);
+            if (!$updated) {
+                $this->json(false, "Không thể cập nhật bài viết.");
+                return;
+            }
+
+            $this->postModel->removePostImages($postId, array_map('strval', $removeImages));
+
+            $savedImages = [];
+            if (!empty($validImages)) {
+                $uploadDir = __DIR__ . '/../../Public/uploads/posts/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0777, true);
+                }
+
+                foreach ($validImages as $image) {
+                    $saveResult = $this->saveUploadedPostMedia($image['tmp_name'], $image['extension'], $uploadDir);
+                    if (!$saveResult['success']) {
+                        $uploadErrors[] = $saveResult['message'];
+                        continue;
+                    }
+
+                    $dbPath = 'Public/uploads/posts/' . $saveResult['fileName'];
+                    $this->postModel->addPostImage($postId, $dbPath);
+                    $savedImages[] = $dbPath;
+                }
+            }
+
+            $this->postModel->replacePostHashtags($postId, $this->extractHashtags($content));
+            $post = $this->postModel->getPostById($postId, $userId);
+
+            $this->json(true, "Đã cập nhật bài viết.", [
+                "post" => $post,
+                "data" => [
+                    "post" => $post,
+                    "uploadErrors" => $uploadErrors,
+                    "savedImages" => $savedImages
+                ],
+                "uploadErrors" => $uploadErrors,
+                "savedImages" => $savedImages
+            ]);
+        } catch (\Throwable $e) {
+            $this->json(false, "Không thể cập nhật bài viết. Vui lòng thử lại.");
+        }
+    }
+
+    public function deletePost() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $postId = (int) ($_POST['postId'] ?? 0);
+
+        if (!$userId || !$postId) {
+            $this->json(false, "Thiếu thông tin bài viết.");
+            return;
+        }
+
+        $this->json($this->postModel->deletePost($postId, $userId), "Đã xóa bài viết.");
+    }
+
+    public function updatePostPrivacy() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $postId = (int) ($_POST['postId'] ?? 0);
+        $privacy = $_POST['privacy'] ?? 'public';
+
+        if (!$userId || !$postId) {
+            $this->json(false, "Thiếu thông tin bài viết.");
+            return;
+        }
+
+        $success = $this->postModel->updatePostPrivacy($postId, $userId, $privacy);
+        $this->json($success, $success ? "Đã cập nhật quyền riêng tư." : "Không thể cập nhật quyền riêng tư.", [
+            "data" => ["privacy" => $privacy]
+        ]);
+    }
+
+    public function createReport() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $postId = (int) ($_POST['postId'] ?? 0);
+        $reason = trim($_POST['reason'] ?? '');
+        $details = trim($_POST['details'] ?? '');
+
+        if (!$userId || !$postId || $reason === '') {
+            $this->json(false, "Thiếu thông tin báo cáo.");
+            return;
+        }
+
+        if ($details === '') {
+            $details = $reason;
+        }
+
+        $success = $this->postModel->createReport((int) $userId, $postId, $reason, $details);
+        $this->json($success, $success ? "Đã gửi báo cáo." : "Không thể gửi báo cáo.");
+    }
+
+    public function blockUser() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $blockedUserId = (int) ($_POST['userId'] ?? 0);
+
+        if (!$userId || !$blockedUserId) {
+            $this->json(false, "Thiếu thông tin người dùng.");
+            return;
+        }
+
+        $success = $this->postModel->blockUser((int) $userId, $blockedUserId);
+        $this->json($success, $success ? "Đã chặn người dùng." : "Không thể chặn người dùng.");
+    }
+
+    public function markNotInterested() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $userId = $_SESSION['user_id'] ?? null;
+        $postId = (int) ($_POST['postId'] ?? 0);
+
+        if (!$userId || !$postId) {
+            $this->json(false, "Thiếu thông tin bài viết.");
+            return;
+        }
+
+        $success = $this->postModel->markNotInterested((int) $userId, $postId);
+        $this->json($success, $success ? "Đã ẩn bài viết." : "Không thể ẩn bài viết.");
     }
 
     private function extractHashtags(string $content): array {
@@ -376,8 +593,36 @@ class PostController {
 
         return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
     }
+
+    private function json(bool $success, string $message, array $extra = []): void {
+        if (ob_get_length()) {
+            ob_clean();
+        }
+
+        echo json_encode(array_merge([
+            "success" => $success,
+            "message" => $message,
+            "data" => []
+        ], $extra), JSON_UNESCAPED_UNICODE);
+    }
 }
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
+    ini_set('display_errors', '0');
+    ob_start();
+    set_exception_handler(function (\Throwable $e) {
+        if (ob_get_length()) {
+            ob_clean();
+        }
+
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            "success" => false,
+            "message" => "Có lỗi xảy ra khi xử lý yêu cầu.",
+            "data" => []
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    });
+
     $controller = new PostController();
 
     if ($_GET['action'] === 'create') {
@@ -386,6 +631,20 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
         $controller->like();
     } elseif ($_GET['action'] === 'comment') {
         $controller->comment();
+    } elseif ($_GET['action'] === 'trendingHashtags') {
+        $controller->trendingHashtags();
+    } elseif ($_GET['action'] === 'updatePost') {
+        $controller->updatePost();
+    } elseif ($_GET['action'] === 'deletePost') {
+        $controller->deletePost();
+    } elseif ($_GET['action'] === 'updatePostPrivacy') {
+        $controller->updatePostPrivacy();
+    } elseif ($_GET['action'] === 'createReport') {
+        $controller->createReport();
+    } elseif ($_GET['action'] === 'blockUser') {
+        $controller->blockUser();
+    } elseif ($_GET['action'] === 'markNotInterested') {
+        $controller->markNotInterested();
     } else {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([

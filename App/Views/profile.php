@@ -8,6 +8,7 @@ if (!defined('BASE_URL')) {
 }
 
 require_once __DIR__ . '/../Controllers/ProfileController.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 use App\Controllers\ProfileController;
 
@@ -330,7 +331,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
             <div class="col-lg-8">
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
-                        <article class="bg-white post-card mb-3">
+                        <article class="bg-white post-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
                             <div class="p-3 p-md-4">
                                 <div class="d-flex gap-3">
                                     <img
@@ -340,12 +341,16 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                     >
 
                                     <div class="flex-grow-1">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+                                        <div class="post-card-header mb-2">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
                                             <span class="fw-semibold">
                                                 <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
                                             </span>
                                             <span class="text-muted small">@<?php echo htmlspecialchars($post['Username']); ?></span>
                                             <span class="text-muted small">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                        </div>
+
+                                        <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                         </div>
 
                                         <p class="post-text mb-3">
