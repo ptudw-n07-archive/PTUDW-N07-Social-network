@@ -76,6 +76,12 @@ class AuthController {
                 $_SESSION['username'] = $user['Username'];
                 $_SESSION['user_name'] = $user['FullName'];
                 $_SESSION['role'] = $user['RoleName']; 
+                $_SESSION['role_id'] = $user['RoleID'];
+
+                if (isset($user['IsActive']) && (int)$user['IsActive'] === 0) {
+                    header("Location: " . BASE_URL . "App/Views/auth/account_locked.php");
+                    exit();
+                }
 
                 if ($user['RoleName'] === 'Admin') {
                     header("Location: " . BASE_URL . "App/Views/admin/dashboard.php");
