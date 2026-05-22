@@ -190,21 +190,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-                    <div class="sidebar-logo"><i class="bi bi-circle-square"></i></div>
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="sidebar-icon" title="Trang chủ">
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="sidebar-icon" title="Tìm kiếm">
-                        <i class="bi bi-search"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/createpost.php" class="sidebar-icon" title="Đăng bài">
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="sidebar-icon" title="Hồ sơ">
-                        <i class="bi bi-person"></i>
-                    </a>
-                </aside>
+                <?php $activePage = 'hashtag'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">
@@ -218,7 +204,7 @@ function renderHashtagPostContent($content) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($posts as $post): ?>
-                        <div class="bg-white post-card mb-3">
+                        <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
                             <div class="p-3">
                                 <div class="d-flex gap-3">
                                     <a href="<?= hashtagProfileUrl($post['UserID']) ?>">
@@ -261,6 +247,23 @@ function renderHashtagPostContent($content) {
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
+
+                                        <div class="post-actions d-flex gap-4">
+                                            <a href="<?= BASE_URL ?>App/Views/post-detail.php?id=<?= (int) $post['PostID'] ?>">
+                                                <i class="bi bi-chat-square-text"></i>
+                                                <span>Xem bài viết</span>
+                                            </a>
+
+                                            <span>
+                                                <i class="bi bi-heart"></i>
+                                                <?= (int) ($post['LikeCount'] ?? 0) ?>
+                                            </span>
+
+                                            <span>
+                                                <i class="bi bi-chat"></i>
+                                                <?= (int) ($post['CommentCount'] ?? 0) ?>
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

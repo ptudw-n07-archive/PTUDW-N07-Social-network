@@ -160,6 +160,7 @@ function addPostToUI(post) {
 
     const newPost = document.createElement("div");
     newPost.className = "bg-white post-card mb-3";
+    newPost.id = `post-${post.PostID}`;
     newPost.innerHTML = `
         <div class="p-3">
             <div class="d-flex gap-3">
@@ -268,9 +269,28 @@ function sendComment(btn) {
             return;
         }
 
+        const emptyState = commentList.querySelector(".post-detail-empty-comments");
+        if (emptyState) {
+            emptyState.remove();
+        }
+
         const comment = document.createElement("div");
-        comment.className = "small mt-2";
-        comment.innerHTML = `<strong>${escapeHTML(data.comment.fullName)}</strong>: ${escapeHTML(data.comment.content)}`;
+        const isPostDetail = Boolean(postCard.querySelector(".post-detail-text"));
+
+        if (isPostDetail) {
+            comment.className = "post-detail-comment";
+            comment.id = data.comment.commentId ? `comment-${data.comment.commentId}` : "";
+            comment.innerHTML = `
+                <img src="/Public/assets/img/default-avatar.jpg" class="avatar" alt="avatar">
+                <div>
+                    <div class="fw-semibold">${escapeHTML(data.comment.fullName)}</div>
+                    <div>${escapeHTML(data.comment.content)}</div>
+                </div>
+            `;
+        } else {
+            comment.className = "small mt-2";
+            comment.innerHTML = `<strong>${escapeHTML(data.comment.fullName)}</strong>: ${escapeHTML(data.comment.content)}`;
+        }
 
         commentList.appendChild(comment);
         input.value = "";

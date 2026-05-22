@@ -1,22 +1,27 @@
 <?php
-namespace App\Controllers; // Thêm namespace cho Controller
+namespace App\Controllers;
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php'; // Đi lùi 2 cấp ra hẳn ngoài gốc để tìm Config
-require_once __DIR__ . '/../Models/FollowModel.php';     // Chỉ cần lùi 1 cấp là thấy anh bạn hàng xóm Models rồi
+require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../Models/FollowModel.php';
+require_once __DIR__ . '/../Models/NotificationModel.php';
 
 use App\Models\FollowModel;
+use App\Models\NotificationModel;
 use Database;
 
 class FollowController {
     private $followModel;
+    private $notificationModel;
 
     public function __construct() {
         $database = new Database();
         $db = $database->connect();
         $this->followModel = new FollowModel($db);
+        $this->notificationModel = new NotificationModel($db);
     }
 
     public function getSuggestedUsers($currentUserId) {
@@ -56,6 +61,10 @@ class FollowController {
         $status = $this->followModel->toggleFollow((int) $followerId, (int) $followingId);
         $isFollowing = $status === "followed";
         $followerCount = $this->followModel->countFollowers((int) $followingId);
+
+        if ($status === "followed") {
+            $this->notificationModel->createNotification(3, $followingId, $followerId);
+        }
 
         echo json_encode([
             "success" => true,
