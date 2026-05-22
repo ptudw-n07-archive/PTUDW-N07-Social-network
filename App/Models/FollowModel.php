@@ -43,48 +43,6 @@ class FollowModel {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-    public function getFollowingByUserId($userId) {
-        $sql = "
-            SELECT
-                u.UserID,
-                u.Username,
-                u.Email,
-                u.FullName,
-                u.ProfilePictureUrl
-            FROM follows f
-            INNER JOIN Users u ON u.UserID = f.FollowedID
-            WHERE f.FollowerID = :userId
-            ORDER BY f.CreatedAt DESC, u.FullName ASC, u.Username ASC
-        ";
-
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getFollowersByUserId($userId) {
-        $sql = "
-            SELECT
-                u.UserID,
-                u.Username,
-                u.Email,
-                u.FullName,
-                u.ProfilePictureUrl
-            FROM follows f
-            INNER JOIN Users u ON u.UserID = f.FollowerID
-            WHERE f.FollowedID = :userId
-            ORDER BY f.CreatedAt DESC, u.FullName ASC, u.Username ASC
-        ";
-
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
     public function toggleFollow($followerId, $followedId) {
 
     $checkSql = "
