@@ -27,7 +27,7 @@ class FollowController {
         header('Content-Type: application/json; charset=utf-8');
 
         $followerId = $_SESSION['user_id'] ?? null;
-        $followingId = $_POST['userId'] ?? null;
+        $followingId = filter_var($_POST['userId'] ?? null, FILTER_VALIDATE_INT);
 
         if (!$followerId) {
             echo json_encode([
@@ -37,7 +37,7 @@ class FollowController {
             return;
         }
 
-        if (!$followingId) {
+        if (!$followingId || $followingId < 1) {
             echo json_encode([
                 "success" => false,
                 "message" => "Thiếu UserID."
@@ -53,12 +53,17 @@ class FollowController {
             return;
         }
 
-        $status = $this->followModel->toggleFollow($followerId, $followingId);
+        $status = $this->followModel->toggleFollow((int) $followerId, (int) $followingId);
+        $isFollowing = $status === "followed";
+        $followerCount = $this->followModel->countFollowers((int) $followingId);
 
         echo json_encode([
             "success" => true,
-            "status" => $status
-        ]);
+            "status" => $status,
+            "isFollowing" => $isFollowing,
+            "followerCount" => $followerCount,
+            "message" => $isFollowing ? "Đã theo dõi." : "Đã bỏ theo dõi."
+        ], JSON_UNESCAPED_UNICODE);
     }
 }
 

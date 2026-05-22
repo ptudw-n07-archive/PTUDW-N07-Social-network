@@ -8,7 +8,9 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../Config/Database.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 require_once __DIR__ . '/../Models/PostModel.php';
+require_once __DIR__ . '/../Models/FollowModel.php';
 
+use App\Models\FollowModel;
 use App\Models\PostModel;
 use App\Models\UserModel;
 use Database;
@@ -17,6 +19,7 @@ use Exception;
 class ProfileController {
     private UserModel $userModel;
     private PostModel $postModel;
+    private FollowModel $followModel;
 
     public function __construct() {
         $database = new Database();
@@ -24,6 +27,7 @@ class ProfileController {
 
         $this->userModel = new UserModel($db);
         $this->postModel = new PostModel($db);
+        $this->followModel = new FollowModel($db);
     }
 
     public function index(): array {
@@ -53,6 +57,9 @@ class ProfileController {
             'profileUserId' => (int) $profileUserId,
             'isOwnProfile' => $isOwnProfile,
             'notFound' => false,
+            'isFollowingProfile' => !$isOwnProfile && $this->followModel->isFollowing($currentUserId, $profileUserId),
+            'followingUsers' => $this->followModel->getFollowingByUserId($profileUserId),
+            'followerUsers' => $this->followModel->getFollowersByUserId($profileUserId),
             'stats' => [
                 'posts' => $this->postModel->countPostsByUserId($profileUserId),
                 'following' => $this->userModel->countFollowing($profileUserId),
@@ -208,6 +215,9 @@ class ProfileController {
             'profileUserId' => $profileUserId,
             'isOwnProfile' => false,
             'notFound' => true,
+            'isFollowingProfile' => false,
+            'followingUsers' => [],
+            'followerUsers' => [],
             'stats' => [
                 'posts' => 0,
                 'following' => 0,

@@ -21,6 +21,9 @@ $currentUserId = $profileData['currentUserId'];
 $profileUserId = $profileData['profileUserId'];
 $isOwnProfile = $profileData['isOwnProfile'];
 $profileNotFound = $profileData['notFound'];
+$isFollowingProfile = $profileData['isFollowingProfile'] ?? false;
+$followingUsers = $profileData['followingUsers'] ?? [];
+$followerUsers = $profileData['followerUsers'] ?? [];
 
 function profileImagePath($path) {
     $path = trim((string) $path);
@@ -138,6 +141,10 @@ function profileFormatDate($datetime) {
 
 function profileNumber($number) {
     return number_format((int) $number, 0, '.', ',');
+}
+
+function profileUrl($userId) {
+    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
 }
 
 $profileName = $profile ? ($profile['FullName'] ?: $profile['Username']) : '';
@@ -290,6 +297,20 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 Chỉnh sửa
                             </button>
                         </div>
+                    <?php else: ?>
+                        <div class="d-flex flex-column align-items-center gap-2 mt-4">
+                            <button
+                                type="button"
+                                id="profileFollowButton"
+                                class="btn <?php echo $isFollowingProfile ? 'profile-unfollow-btn' : 'btn-pink profile-follow-btn'; ?> px-4"
+                                data-user-id="<?php echo (int) $profileUserId; ?>"
+                                data-is-following="<?php echo $isFollowingProfile ? '1' : '0'; ?>"
+                            >
+                                <i class="bi <?php echo $isFollowingProfile ? 'bi-person-check-fill' : 'bi-person-plus'; ?> me-1"></i>
+                                <span><?php echo $isFollowingProfile ? 'Đã theo dõi' : 'Theo dõi'; ?></span>
+                            </button>
+                            <div id="profileFollowAlert" class="profile-follow-alert" role="status" aria-live="polite"></div>
+                        </div>
                     <?php endif; ?>
 
                     <div class="row text-center mt-4 g-3">
@@ -301,38 +322,33 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         </div>
 
                         <div class="col-4">
-                            <div class="profile-stat-box">
+                            <button
+                                type="button"
+                                class="profile-stat-box profile-stat-action"
+                                data-bs-toggle="modal"
+                                data-bs-target="#followingModal"
+                            >
                                 <h5><?php echo profileNumber($stats['following']); ?></h5>
                                 <p>Theo dõi</p>
-                            </div>
+                            </button>
                         </div>
 
                         <div class="col-4">
-                            <div class="profile-stat-box">
-                                <h5><?php echo profileNumber($stats['followers']); ?></h5>
+                            <button
+                                type="button"
+                                class="profile-stat-box profile-stat-action"
+                                data-bs-toggle="modal"
+                                data-bs-target="#followersModal"
+                            >
+                                <h5 id="profileFollowerCount"><?php echo profileNumber($stats['followers']); ?></h5>
                                 <p>Follower</p>
-                            </div>
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-8">
-                <div class="bg-light p-4 profile-intro-card mb-4">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <div>
-                            <h3 class="profile-section-title">
-                                <?php echo $isOwnProfile ? 'Bài viết của bạn' : 'Bài viết của ' . htmlspecialchars($profileName); ?>
-                            </h3>
-                            <p class="text-muted mb-0">Dữ liệu lấy trực tiếp từ bảng posts, postimages, likes và comments.</p>
-                        </div>
-
-                        <span class="badge rounded-pill text-bg-light border px-3 py-2">
-                            <?php echo profileNumber($stats['posts']); ?> bài viết
-                        </span>
-                    </div>
-                </div>
-
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
                         <article class="bg-white post-card mb-3">
@@ -412,6 +428,104 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
         </div>
     </div>
 </section>
+
+<?php if (!$profileNotFound): ?>
+<div class="modal fade follow-modal" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="followingModalLabel">Đang theo dõi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+
+            <div class="modal-body">
+                <?php if (!empty($followingUsers)): ?>
+                    <div class="follow-user-list">
+                        <?php foreach ($followingUsers as $user): ?>
+                            <?php
+                                $followUserName = $user['FullName'] ?: $user['Username'];
+                                $followUserSecondary = !empty($user['Username']) ? '@' . $user['Username'] : ($user['Email'] ?? '');
+                            ?>
+                            <div class="follow-user-item">
+                                <img
+                                    src="<?php echo htmlspecialchars(profileImagePath($user['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="follow-user-avatar"
+                                    alt="Avatar"
+                                    onerror="this.src='<?php echo BASE_URL; ?>Public/assets/img/default-avatar.jpg';"
+                                >
+
+                                <div class="follow-user-info">
+                                    <div class="follow-user-name"><?php echo htmlspecialchars($followUserName, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php if ($followUserSecondary !== ''): ?>
+                                        <div class="follow-user-meta"><?php echo htmlspecialchars($followUserSecondary, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <a
+                                    href="<?php echo htmlspecialchars(profileUrl($user['UserID']), ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="btn btn-sm profile-outline-btn follow-profile-link"
+                                >
+                                    Xem hồ sơ
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="follow-empty-message">Chưa theo dõi ai.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade follow-modal" id="followersModal" tabindex="-1" aria-labelledby="followersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="followersModalLabel">Người theo dõi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+
+            <div class="modal-body">
+                <?php if (!empty($followerUsers)): ?>
+                    <div class="follow-user-list">
+                        <?php foreach ($followerUsers as $user): ?>
+                            <?php
+                                $followUserName = $user['FullName'] ?: $user['Username'];
+                                $followUserSecondary = !empty($user['Username']) ? '@' . $user['Username'] : ($user['Email'] ?? '');
+                            ?>
+                            <div class="follow-user-item">
+                                <img
+                                    src="<?php echo htmlspecialchars(profileImagePath($user['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="follow-user-avatar"
+                                    alt="Avatar"
+                                    onerror="this.src='<?php echo BASE_URL; ?>Public/assets/img/default-avatar.jpg';"
+                                >
+
+                                <div class="follow-user-info">
+                                    <div class="follow-user-name"><?php echo htmlspecialchars($followUserName, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php if ($followUserSecondary !== ''): ?>
+                                        <div class="follow-user-meta"><?php echo htmlspecialchars($followUserSecondary, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <a
+                                    href="<?php echo htmlspecialchars(profileUrl($user['UserID']), ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="btn btn-sm profile-outline-btn follow-profile-link"
+                                >
+                                    Xem hồ sơ
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <p class="follow-empty-message">Chưa có người theo dõi.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($isOwnProfile): ?>
 <div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
@@ -508,13 +622,17 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
 </div>
 <?php endif; ?>
 
-<?php if ($isOwnProfile): ?>
+<?php if (!$profileNotFound): ?>
 <script>
+    <?php if ($isOwnProfile): ?>
     window.PROFILE_UPDATE_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=update";
+    <?php else: ?>
+    window.PROFILE_FOLLOW_URL = "<?php echo BASE_URL; ?>App/Controllers/FollowController.php?action=toggle";
+    <?php endif; ?>
 </script>
 <?php endif; ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js"></script>
-<?php if ($isOwnProfile): ?>
+<?php if (!$profileNotFound): ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/profile.js"></script>
 <?php endif; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
