@@ -88,6 +88,46 @@ class PostModel {
         return (int) $stmt->fetchColumn();
     }
 
+    public function getPostById($postId, $viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+        $sql = "
+            SELECT
+                p.PostID,
+                p.Content,
+                p.CreatedAt,
+                u.UserID,
+                u.Username,
+                u.FullName,
+                u.ProfilePictureUrl,
+                GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                $viewerLikeSelect
+                COUNT(DISTINCT l.UserID) AS LikeCount,
+                COUNT(DISTINCT c.CommentID) AS CommentCount
+            FROM posts p
+            JOIN users u ON p.UserID = u.UserID
+            LEFT JOIN postimages pi ON p.PostID = pi.PostID
+            LEFT JOIN likes l ON p.PostID = l.PostID
+            $viewerLikeJoin
+            LEFT JOIN comments c ON p.PostID = c.PostID
+            WHERE p.PostID = :postId
+            GROUP BY p.PostID
+            LIMIT 1
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+        }
+
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     public function createPost($userId, $content) {
     $sql = "INSERT INTO posts (UserID, Content, CreatedAt)
             VALUES (:userId, :content, NOW())";
@@ -166,7 +206,22 @@ public function createComment($userId, $postId, $content) {
     $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
     $stmt->bindParam(":content", $content);
 
-    return $stmt->execute();
+    if ($stmt->execute()) {
+        return $this->conn->lastInsertId();
+    }
+
+    return false;
+}
+
+public function getPostOwnerId($postId) {
+    $sql = "SELECT UserID FROM posts WHERE PostID = :postId LIMIT 1";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    $ownerId = $stmt->fetchColumn();
+    return $ownerId ? (int) $ownerId : null;
 }
 public function getCommentsByPostId($postId) {
     $sql = "

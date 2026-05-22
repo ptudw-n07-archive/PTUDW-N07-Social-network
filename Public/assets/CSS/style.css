@@ -361,6 +361,7 @@ html {
 }
 
 .sidebar-icon {
+    position: relative;
     width: 48px;
     height: 48px;
     border-radius: 14px;
@@ -373,10 +374,32 @@ html {
     font-size: 1.25rem;
 }
 
+.sidebar-icon-with-badge {
+    overflow: visible;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #d64045;
+    color: #fff;
+    border: 2px solid #f5eee9;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+}
+
 .sidebar-icon:hover,
 .sidebar-icon.active {
     background-color: #eee2dc;
     color: #2f2420;
+    box-shadow: 0 8px 22px rgba(214, 144, 150, 0.18);
 }
 
 .more-menu-wrapper {
@@ -608,7 +631,8 @@ html {
 }
 
 .post-actions button,
-.post-actions a {
+.post-actions a,
+.post-actions span {
     border: none;
     background: transparent;
     color: #6d5448;
@@ -634,6 +658,202 @@ html {
 .post-actions button:hover,
 .more-btn:hover {
     color: #2f2420;
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.activity-subtitle {
+    color: #8a736c;
+    font-size: 0.92rem;
+}
+
+.activity-read-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid rgba(121, 91, 74, 0.18);
+    border-radius: 14px;
+    background: #fffaf7;
+    color: #2f2420;
+    font-weight: 700;
+}
+
+.activity-read-all-btn:hover {
+    background: #eee2dc;
+}
+
+.activity-list {
+    overflow: hidden;
+}
+
+.activity-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 14px;
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(121, 91, 74, 0.12);
+    transition: background-color 0.18s ease;
+}
+
+.activity-item:last-child {
+    border-bottom: 0;
+}
+
+.activity-item.unread {
+    background: #fff2f1;
+}
+
+.activity-avatar-link,
+.activity-content-link,
+.activity-thumb-link {
+    text-decoration: none;
+}
+
+.activity-content-link {
+    min-width: 0;
+    color: #3b312d;
+}
+
+.activity-content-link:hover {
+    color: #2f2420;
+}
+
+.activity-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    line-height: 1.5;
+}
+
+.activity-line strong {
+    color: #241b18;
+}
+
+.activity-post-snippet {
+    margin-top: 5px;
+    color: #6d5a54;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.activity-time {
+    margin-top: 6px;
+    color: #9a8179;
+    font-size: 0.82rem;
+}
+
+.activity-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid rgba(121, 91, 74, 0.14);
+}
+
+.activity-unread-dot {
+    position: absolute;
+    top: 20px;
+    right: 12px;
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #d64045;
+}
+
+.activity-empty {
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #8a736c;
+}
+
+.activity-empty i {
+    font-size: 2rem;
+    color: #d69096;
+}
+
+.activity-empty p {
+    margin: 0;
+    font-weight: 600;
+}
+
+.post-detail-topbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.post-detail-back {
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(121, 91, 74, 0.16);
+    border-radius: 14px;
+    background: #fffaf7;
+    color: #2f2420;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.post-detail-back:hover {
+    background: #eee2dc;
+}
+
+.post-detail-card {
+    overflow: hidden;
+}
+
+.post-detail-text {
+    margin-top: 12px;
+    font-size: 1.02rem;
+}
+
+.post-detail-media img,
+.post-detail-media video {
+    width: 100%;
+    max-height: 620px;
+    object-fit: cover;
+}
+
+.post-detail-comment {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid rgba(121, 91, 74, 0.12);
+    scroll-margin-top: 110px;
+}
+
+.post-detail-comment .avatar {
+    width: 38px;
+    height: 38px;
+}
+
+.post-detail-comment.highlight {
+    margin: 8px -10px 0;
+    padding: 12px 10px;
+    border-radius: 14px;
+    background: #fff2f1;
+}
+
+.post-detail-empty-comments {
+    padding: 14px 0 4px;
+    color: #8a736c;
+    font-weight: 600;
 }
 
 /* ===== LOGIN CARD ===== */
