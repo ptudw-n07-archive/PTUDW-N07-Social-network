@@ -21,6 +21,7 @@ $currentUserId = $profileData['currentUserId'];
 $profileUserId = $profileData['profileUserId'];
 $isOwnProfile = $profileData['isOwnProfile'];
 $profileNotFound = $profileData['notFound'];
+$isFollowingProfile = $profileData['isFollowingProfile'] ?? false;
 $followingUsers = $profileData['followingUsers'] ?? [];
 $followerUsers = $profileData['followerUsers'] ?? [];
 
@@ -296,6 +297,20 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 Chỉnh sửa
                             </button>
                         </div>
+                    <?php else: ?>
+                        <div class="d-flex flex-column align-items-center gap-2 mt-4">
+                            <button
+                                type="button"
+                                id="profileFollowButton"
+                                class="btn <?php echo $isFollowingProfile ? 'profile-unfollow-btn' : 'btn-pink profile-follow-btn'; ?> px-4"
+                                data-user-id="<?php echo (int) $profileUserId; ?>"
+                                data-is-following="<?php echo $isFollowingProfile ? '1' : '0'; ?>"
+                            >
+                                <i class="bi <?php echo $isFollowingProfile ? 'bi-person-check-fill' : 'bi-person-plus'; ?> me-1"></i>
+                                <span><?php echo $isFollowingProfile ? 'Đã theo dõi' : 'Theo dõi'; ?></span>
+                            </button>
+                            <div id="profileFollowAlert" class="profile-follow-alert" role="status" aria-live="polite"></div>
+                        </div>
                     <?php endif; ?>
 
                     <div class="row text-center mt-4 g-3">
@@ -325,7 +340,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 data-bs-toggle="modal"
                                 data-bs-target="#followersModal"
                             >
-                                <h5><?php echo profileNumber($stats['followers']); ?></h5>
+                                <h5 id="profileFollowerCount"><?php echo profileNumber($stats['followers']); ?></h5>
                                 <p>Follower</p>
                             </button>
                         </div>
@@ -334,21 +349,6 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
             </div>
 
             <div class="col-lg-8">
-                <div class="bg-light p-4 profile-intro-card mb-4">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <div>
-                            <h3 class="profile-section-title">
-                                <?php echo $isOwnProfile ? 'Bài viết của bạn' : 'Bài viết của ' . htmlspecialchars($profileName); ?>
-                            </h3>
-                            <p class="text-muted mb-0">Dữ liệu lấy trực tiếp từ bảng posts, postimages, likes và comments.</p>
-                        </div>
-
-                        <span class="badge rounded-pill text-bg-light border px-3 py-2">
-                            <?php echo profileNumber($stats['posts']); ?> bài viết
-                        </span>
-                    </div>
-                </div>
-
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
                         <article class="bg-white post-card mb-3">
@@ -622,13 +622,17 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
 </div>
 <?php endif; ?>
 
-<?php if ($isOwnProfile): ?>
+<?php if (!$profileNotFound): ?>
 <script>
+    <?php if ($isOwnProfile): ?>
     window.PROFILE_UPDATE_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=update";
+    <?php else: ?>
+    window.PROFILE_FOLLOW_URL = "<?php echo BASE_URL; ?>App/Controllers/FollowController.php?action=toggle";
+    <?php endif; ?>
 </script>
 <?php endif; ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js"></script>
-<?php if ($isOwnProfile): ?>
+<?php if (!$profileNotFound): ?>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/profile.js"></script>
 <?php endif; ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -43,6 +43,32 @@ class FollowModel {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+    public function isFollowing($followerId, $followedId): bool {
+        $sql = "
+            SELECT 1
+            FROM follows
+            WHERE FollowerID = :followerId
+            AND FollowedID = :followedId
+            LIMIT 1
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":followerId", $followerId, PDO::PARAM_INT);
+        $stmt->bindParam(":followedId", $followedId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function countFollowers($userId): int {
+        $sql = "SELECT COUNT(*) FROM follows WHERE FollowedID = :userId";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
+    }
+
     public function getFollowingByUserId($userId) {
         $sql = "
             SELECT

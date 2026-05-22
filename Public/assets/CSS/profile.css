@@ -111,6 +111,36 @@
     outline-offset: 2px;
 }
 
+.profile-page .profile-follow-btn,
+.profile-page .profile-unfollow-btn {
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.profile-page .profile-unfollow-btn {
+    background-color: #fffaf7;
+    color: #2f2420;
+    border: 1px solid rgba(121, 91, 74, 0.18);
+}
+
+.profile-page .profile-unfollow-btn:hover,
+.profile-page .profile-unfollow-btn:focus {
+    background-color: #eee2dc;
+    border-color: rgba(121, 91, 74, 0.28);
+}
+
+.profile-page .profile-follow-alert {
+    min-height: 20px;
+    color: #7a645d;
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.profile-page .profile-follow-alert.is-visible {
+    opacity: 1;
+}
+
 .profile-page .follow-modal .modal-content {
     border: 0;
     border-radius: 24px;
