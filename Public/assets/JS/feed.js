@@ -86,6 +86,7 @@ function createPost() {
         }
 
         addPostToUI(data.post);
+        refreshTrendingHashtags();
 
         if (Array.isArray(data.uploadErrors) && data.uploadErrors.length > 0) {
             alert(data.uploadErrors[0]);
@@ -157,10 +158,18 @@ function addPostToUI(post) {
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
     const fullName = post.FullName || post.Username || "Bạn";
     const profileHref = `/App/Views/profile.php?id=${encodeURIComponent(post.UserID || "")}`;
+    const imagesJson = JSON.stringify(images);
+    const privacy = post.Privacy || "public";
 
     const newPost = document.createElement("div");
     newPost.className = "bg-white post-card mb-3";
     newPost.id = `post-${post.PostID}`;
+    newPost.dataset.postId = post.PostID || "";
+    newPost.dataset.ownerId = post.UserID || "";
+    newPost.dataset.isOwner = "1";
+    newPost.dataset.postContent = post.Content || "";
+    newPost.dataset.postImages = imagesJson;
+    newPost.dataset.postPrivacy = privacy;
     newPost.innerHTML = `
         <div class="p-3">
             <div class="d-flex gap-3">
@@ -169,9 +178,12 @@ function addPostToUI(post) {
                 </a>
 
                 <div class="flex-grow-1">
-                    <div class="fw-semibold">
+                    <div class="post-card-header">
+                        <div class="fw-semibold">
                         <a href="${profileHref}" class="text-decoration-none text-dark">${escapeHTML(fullName)}</a>
                         • vừa xong
+                        </div>
+                        ${renderPostMenu(post.PostID, post.UserID, true)}
                     </div>
 
                     <p class="post-text"></p>
@@ -221,6 +233,78 @@ function addPostToUI(post) {
 
     newPost.querySelector(".post-text").innerHTML = renderContentWithHashtags(post.Content || "");
     postsList.prepend(newPost);
+}
+
+function refreshTrendingHashtags() {
+    const container = document.getElementById("trendingHashtagsContainer");
+
+    if (!container) {
+        return;
+    }
+
+    const card = container.closest(".trending-hashtags-card");
+    const endpoint = card && card.dataset.trendingEndpoint
+        ? card.dataset.trendingEndpoint
+        : "/App/Controllers/PostController.php?action=trendingHashtags";
+
+    fetch(endpoint, {
+        headers: {
+            "Accept": "application/json"
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Khong the tai chu de noi bat.");
+        }
+
+        return response.json();
+    })
+    .then(data => {
+        if (!data.success || !Array.isArray(data.hashtags)) {
+            return;
+        }
+
+        renderTrendingHashtags(data.hashtags);
+    })
+    .catch(error => {
+        console.error(error);
+    });
+}
+
+function renderTrendingHashtags(hashtags) {
+    const container = document.getElementById("trendingHashtagsContainer");
+
+    if (!container) {
+        return;
+    }
+
+    const validHashtags = hashtags.filter(item => String(item.tag || "").trim() !== "");
+
+    if (validHashtags.length === 0) {
+        container.innerHTML = '<p class="text-muted mb-0">Chưa có chủ đề nổi bật.</p>';
+        return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "d-flex flex-column gap-2";
+
+    validHashtags.forEach(item => {
+        const tag = String(item.tag || "").trim();
+        const postCount = Number(item.post_count || 0);
+        const link = document.createElement("a");
+
+        link.href = `/App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`;
+        link.className = "trending-hashtag-item";
+        link.innerHTML = `
+            <span>#${escapeHTML(tag)}</span>
+            <small>${postCount} bài viết</small>
+        `;
+
+        list.appendChild(link);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(list);
 }
 
 
@@ -319,6 +403,26 @@ function renderContentWithHashtags(text) {
     return escapeHTML(text).replace(/#([\p{L}\p{N}_]+)/gu, function (match, tag) {
         return `<a class="hashtag-link" href="/App/Views/hashtag.php?tag=${encodeURIComponent(tag)}">#${tag}</a>`;
     }).replace(/\n/g, "<br>");
+}
+
+function renderPostMenu(postId, ownerId, isOwner) {
+    const ownerItems = `
+        <button type="button" class="post-menu-item" data-post-action="edit"><i class="bi bi-pencil-square"></i><span>Chỉnh sửa bài viết</span></button>
+        <button type="button" class="post-menu-item text-danger" data-post-action="delete"><i class="bi bi-trash3"></i><span>Xóa bài viết</span></button>
+        <button type="button" class="post-menu-item" data-post-action="privacy"><i class="bi bi-shield-lock"></i><span>Quyền riêng tư</span></button>
+    `;
+    const otherItems = `
+        <button type="button" class="post-menu-item" data-post-action="block"><i class="bi bi-person-slash"></i><span>Chặn người dùng</span></button>
+        <button type="button" class="post-menu-item" data-post-action="report"><i class="bi bi-flag"></i><span>Báo cáo bài viết</span></button>
+        <button type="button" class="post-menu-item" data-post-action="notInterested"><i class="bi bi-eye-slash"></i><span>Không quan tâm</span></button>
+    `;
+
+    return `
+        <div class="post-menu" data-post-id="${escapeHTML(postId)}" data-owner-id="${escapeHTML(ownerId)}">
+            <button type="button" class="post-menu-toggle" aria-label="Mở menu bài viết"><i class="bi bi-three-dots-vertical"></i></button>
+            <div class="post-menu-dropdown" hidden>${isOwner ? ownerItems : otherItems}</div>
+        </div>
+    `;
 }
 
 function normalizeImagePath(path) {
@@ -508,7 +612,443 @@ document.addEventListener("DOMContentLoaded", function () {
 
 document.addEventListener("DOMContentLoaded", function () {
     initHashtagComposerSuggestions();
+    initPostMenu();
 });
+
+function initPostMenu() {
+    ensurePostActionModals();
+
+    document.addEventListener("click", function (event) {
+        const toggle = event.target.closest(".post-menu-toggle");
+        const actionButton = event.target.closest("[data-post-action]");
+
+        if (toggle) {
+            event.preventDefault();
+            event.stopPropagation();
+            closePostMenus(toggle.closest(".post-menu"));
+            const dropdown = toggle.closest(".post-menu").querySelector(".post-menu-dropdown");
+            dropdown.hidden = !dropdown.hidden;
+            return;
+        }
+
+        if (actionButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            handlePostAction(actionButton.dataset.postAction, actionButton.closest(".post-card"));
+            closePostMenus();
+            return;
+        }
+
+        if (!event.target.closest(".post-menu")) {
+            closePostMenus();
+        }
+    });
+}
+
+function closePostMenus(exceptMenu) {
+    document.querySelectorAll(".post-menu-dropdown").forEach(function (dropdown) {
+        if (!exceptMenu || !exceptMenu.contains(dropdown)) {
+            dropdown.hidden = true;
+        }
+    });
+}
+
+function handlePostAction(action, card) {
+    if (!card) {
+        return;
+    }
+
+    if (action === "report") {
+        openReportModal(card);
+        return;
+    }
+
+    if (action === "block") {
+        openConfirmModal("Bạn có chắc muốn chặn người dùng này không?", function () {
+            postForm("/App/Controllers/PostController.php?action=blockUser", { userId: card.dataset.ownerId })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.message || "Không thể chặn người dùng.");
+                    document.querySelectorAll(`.post-card[data-owner-id="${card.dataset.ownerId}"]`).forEach(hidePostCard);
+                    showPostToast("Đã chặn người dùng.");
+                })
+                .catch(showPostError);
+        });
+        return;
+    }
+
+    if (action === "notInterested") {
+        postForm("/App/Controllers/PostController.php?action=markNotInterested", { postId: card.dataset.postId })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.message || "Không thể ẩn bài viết.");
+                hidePostCard(card);
+            })
+            .catch(showPostError);
+        return;
+    }
+
+    if (action === "delete") {
+        openConfirmModal("Bạn có chắc muốn xóa bài viết này không?", function () {
+            postForm("/App/Controllers/PostController.php?action=deletePost", { postId: card.dataset.postId })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.message || "Không thể xóa bài viết.");
+                    hidePostCard(card);
+                    refreshTrendingHashtags();
+                    showPostToast("Đã xóa bài viết.");
+                })
+                .catch(showPostError);
+        });
+        return;
+    }
+
+    if (action === "edit") {
+        openEditPostModal(card);
+        return;
+    }
+
+    if (action === "privacy") {
+        openPrivacyModal(card);
+    }
+}
+
+function postForm(url, values) {
+    const formData = new FormData();
+    Object.keys(values).forEach(function (key) {
+        formData.append(key, values[key]);
+    });
+
+    return fetch(url, { method: "POST", body: formData }).then(function (response) {
+        return response.json();
+    });
+}
+
+function hidePostCard(card) {
+    card.style.transition = "opacity 0.2s ease, transform 0.2s ease";
+    card.style.opacity = "0";
+    card.style.transform = "translateY(6px)";
+    window.setTimeout(function () {
+        card.remove();
+    }, 220);
+}
+
+function ensurePostActionModals() {
+    if (document.getElementById("postActionModalLayer")) {
+        return;
+    }
+
+    const layer = document.createElement("div");
+    layer.id = "postActionModalLayer";
+    layer.className = "post-action-modal-layer";
+    layer.hidden = true;
+    layer.innerHTML = `
+        <div class="post-action-modal" role="dialog" aria-modal="true">
+            <div class="post-action-modal-header">
+                <button type="button" class="post-action-back" hidden><i class="bi bi-arrow-left"></i></button>
+                <h3 class="post-action-title"></h3>
+                <button type="button" class="post-action-close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="post-action-modal-body"></div>
+        </div>
+    `;
+    document.body.appendChild(layer);
+
+    layer.addEventListener("click", function (event) {
+        if (event.target === layer || event.target.closest(".post-action-close")) {
+            closePostActionModal();
+        }
+    });
+}
+
+function openBaseModal(title, bodyHtml, options) {
+    ensurePostActionModals();
+    const layer = document.getElementById("postActionModalLayer");
+    const modal = layer.querySelector(".post-action-modal");
+    layer.querySelector("h3").innerText = title;
+    layer.querySelector(".post-action-modal-body").innerHTML = bodyHtml;
+    modal.className = "post-action-modal";
+    if (options && options.modalClass) {
+        modal.classList.add(options.modalClass);
+    }
+    const back = layer.querySelector(".post-action-back");
+    const hasBack = Boolean(options && options.onBack);
+    back.hidden = !hasBack;
+    back.onclick = hasBack ? options.onBack : null;
+    layer.querySelector(".post-action-modal-header").classList.toggle("has-back", hasBack);
+    layer.hidden = false;
+}
+
+function closePostActionModal() {
+    const layer = document.getElementById("postActionModalLayer");
+    if (layer) {
+        layer.hidden = true;
+    }
+}
+
+function openConfirmModal(message, onConfirm) {
+    openBaseModal("Xác nhận", `
+        <p class="post-action-confirm-text">${escapeHTML(message)}</p>
+        <div class="post-action-modal-actions">
+            <button type="button" class="btn post-action-secondary">Hủy</button>
+            <button type="button" class="btn btn-pink post-action-confirm">Xác nhận</button>
+        </div>
+    `);
+
+    const layer = document.getElementById("postActionModalLayer");
+    layer.querySelector(".post-action-secondary").onclick = closePostActionModal;
+    layer.querySelector(".post-action-confirm").onclick = function () {
+        closePostActionModal();
+        onConfirm();
+    };
+}
+
+const REPORT_DETAIL_OPTIONS = {
+    "Bắt nạt hoặc quấy rối": [
+        "Quấy rối tôi",
+        "Quấy rối người khác",
+        "Lời nói xúc phạm hoặc hạ thấp người khác",
+        "Đe dọa hoặc làm phiền"
+    ],
+    "Nội dung nhạy cảm hoặc gây hại": [
+        "Nội dung gây khó chịu hoặc không phù hợp",
+        "Nội dung liên quan đến hành vi gây hại",
+        "Nội dung sức khỏe nhạy cảm"
+    ],
+    "Bạo lực, thù ghét hoặc bóc lột": [
+        "Đe dọa an toàn",
+        "Thù ghét hoặc biểu tượng thù ghét",
+        "Kêu gọi bạo lực",
+        "Bóc lột hoặc hành vi nguy hiểm"
+    ],
+    "Thông tin sai lệch": [
+        "Thông tin sai sự thật",
+        "Gây hiểu nhầm",
+        "Giả mạo hoặc lừa đảo"
+    ]
+};
+
+function openReportModal(card) {
+    const reasons = [
+        "Tôi không thích nội dung này",
+        "Bắt nạt hoặc quấy rối",
+        "Nội dung nhạy cảm hoặc gây hại",
+        "Bạo lực, thù ghét hoặc bóc lột",
+        "Spam",
+        "Thông tin sai lệch",
+        "Vấn đề khác"
+    ];
+
+    function renderReasons() {
+        openBaseModal("Báo cáo", `
+
+            <div class="post-action-option-list">
+                ${reasons.map(reason => `<button type="button" class="post-action-option" data-reason="${escapeHTML(reason)}"><span>${escapeHTML(reason)}</span><i class="bi bi-chevron-right"></i></button>`).join("")}
+            </div>
+        `);
+
+        document.querySelectorAll(".post-action-option[data-reason]").forEach(function (button) {
+            button.onclick = function () {
+                const reason = button.dataset.reason;
+                const details = REPORT_DETAIL_OPTIONS[reason];
+                if (!details) {
+                    submitReport(card, reason, reason);
+                    return;
+                }
+
+                renderDetails(reason, details);
+            };
+        });
+    }
+
+    function renderDetails(reason, details) {
+        openBaseModal("Báo cáo", `
+            <div class="post-action-question">${escapeHTML(reason)}</div>
+            <div class="post-action-option-list">
+                ${details.map(detail => `<button type="button" class="post-action-option" data-detail="${escapeHTML(detail)}"><span>${escapeHTML(detail)}</span><i class="bi bi-chevron-right"></i></button>`).join("")}
+            </div>
+        `, { onBack: renderReasons });
+
+        document.querySelectorAll(".post-action-option[data-detail]").forEach(function (button) {
+            button.onclick = function () {
+                submitReport(card, reason, button.dataset.detail);
+            };
+        });
+    }
+
+    renderReasons();
+}
+
+function submitReport(card, reason, details) {
+    postForm("/App/Controllers/PostController.php?action=createReport", {
+        postId: card.dataset.postId,
+        reason: reason,
+        details: details
+    })
+    .then(function (data) {
+        if (!data.success) throw new Error(data.message || "Không thể gửi báo cáo.");
+        openBaseModal("Báo cáo", `
+            <div class="post-action-success">
+                <i class="bi bi-check-circle-fill"></i>
+                <p>Cảm ơn bạn đã báo cáo. Báo cáo của bạn đã được gửi đến quản trị viên để xem xét.</p>
+            </div>
+        `);
+    })
+    .catch(showPostError);
+}
+
+function openPrivacyModal(card) {
+    const current = card.dataset.postPrivacy || "public";
+    const options = [
+        { value: "public", label: "Công khai", icon: "bi-globe2" },
+        { value: "private", label: "Chỉ mình tôi", icon: "bi-lock-fill" },
+        { value: "followers", label: "Người theo dõi", icon: "bi-people-fill" }
+    ];
+
+    openBaseModal("Quyền riêng tư", `
+        <div class="post-action-option-list">
+            ${options.map(option => `
+                <button type="button" class="post-action-option" data-privacy="${option.value}">
+                    <span><i class="bi ${option.icon} me-2"></i>${option.label}</span>
+                    ${option.value === current ? '<i class="bi bi-check2"></i>' : ""}
+                </button>
+            `).join("")}
+        </div>
+    `);
+
+    document.querySelectorAll("[data-privacy]").forEach(function (button) {
+        button.onclick = function () {
+            const privacy = button.dataset.privacy;
+            postForm("/App/Controllers/PostController.php?action=updatePostPrivacy", {
+                postId: card.dataset.postId,
+                privacy: privacy
+            })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.message || "Không thể cập nhật quyền riêng tư.");
+                card.dataset.postPrivacy = privacy;
+                closePostActionModal();
+                showPostToast("Đã cập nhật quyền riêng tư.");
+            })
+            .catch(showPostError);
+        };
+    });
+}
+
+function openEditPostModal(card) {
+    const images = safeJsonParse(card.dataset.postImages, []);
+    openBaseModal("Chỉnh sửa bài viết", `
+        <form id="editPostForm" class="post-edit-form">
+            <textarea id="editPostContent" class="form-control post-edit-textarea" name="content" rows="8" maxlength="5000"></textarea>
+            <div class="post-edit-images">
+                ${images.map(image => `
+                    <label class="post-edit-image-item">
+                        <input type="checkbox" name="removeImage" value="${escapeHTML(image)}">
+                        <span>Xóa</span>
+                        <small>${escapeHTML(image.split("/").pop())}</small>
+                    </label>
+                `).join("")}
+            </div>
+            <label class="post-edit-upload">
+                <i class="bi bi-image"></i>
+                <span>Thêm ảnh</span>
+                <input type="file" name="images[]" accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.mov,.webm,image/*,video/*" multiple>
+            </label>
+            <div class="post-action-modal-actions">
+                <button type="button" class="btn post-action-secondary">Hủy</button>
+                <button type="submit" class="btn btn-pink">Lưu</button>
+            </div>
+        </form>
+    `, { modalClass: "edit-post-modal" });
+
+    const layer = document.getElementById("postActionModalLayer");
+    const form = layer.querySelector("#editPostForm");
+    const textarea = layer.querySelector("#editPostContent");
+    textarea.value = normalizeRawPostContent(card.dataset.postContent || "");
+    layer.querySelector(".post-action-secondary").onclick = closePostActionModal;
+    form.onsubmit = function (event) {
+        event.preventDefault();
+        const formData = new FormData(form);
+        const removeImages = Array.from(form.querySelectorAll("input[name='removeImage']:checked")).map(input => input.value);
+        formData.append("postId", card.dataset.postId);
+        formData.append("removeImages", JSON.stringify(removeImages));
+
+        fetch("/App/Controllers/PostController.php?action=updatePost", {
+            method: "POST",
+            body: formData
+        })
+        .then(parseJsonResponse)
+        .then(function (data) {
+            if (!data.success) throw new Error(data.message || "Không thể cập nhật bài viết.");
+            const post = data.post || (data.data && data.data.post ? data.data.post : null);
+            const newContent = formData.get("content") || "";
+            card.dataset.postContent = newContent;
+            card.querySelector(".post-text").innerHTML = renderContentWithHashtags(newContent);
+            if (post && typeof post.Images === "string") {
+                card.dataset.postImages = JSON.stringify(post.Images ? post.Images.split(",").filter(Boolean) : []);
+            }
+            closePostActionModal();
+            refreshTrendingHashtags();
+            showPostToast("Đã cập nhật bài viết.");
+        })
+        .catch(showPostError);
+    };
+}
+
+function normalizeRawPostContent(text) {
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = String(text || "");
+    let value = textarea.value;
+
+    value = value
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>\s*<p>/gi, "\n")
+        .replace(/<\/?p[^>]*>/gi, "")
+        .replace(/<\/?a[^>]*>/gi, "")
+        .replace(/&nbsp;/gi, " ");
+
+    const scratch = document.createElement("div");
+    scratch.innerHTML = value;
+    value = scratch.textContent || scratch.innerText || value;
+
+    return value.replace(/\r\n/g, "\n");
+}
+
+function parseJsonResponse(response) {
+    return response.text().then(function (text) {
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            throw new Error("Phản hồi từ server không phải JSON hợp lệ.");
+        }
+    });
+}
+
+function safeJsonParse(text, fallback) {
+    try {
+        return JSON.parse(text || "[]");
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function showPostToast(message) {
+    let toast = document.getElementById("postActionToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "postActionToast";
+        toast.className = "post-action-toast";
+        document.body.appendChild(toast);
+    }
+
+    toast.innerText = message;
+    toast.classList.add("show");
+    window.clearTimeout(toast._timer);
+    toast._timer = window.setTimeout(function () {
+        toast.classList.remove("show");
+    }, 2600);
+}
+
+function showPostError(error) {
+    console.error(error);
+    showPostToast(error.message || "Có lỗi xảy ra.");
+}
 
 function initHashtagComposerSuggestions() {
     const form = document.getElementById("postForm");

@@ -13,6 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../Controllers/PostController.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 $postId = (int) ($_GET['id'] ?? 0);
 $highlightCommentId = (int) ($_GET['comment'] ?? 0);
@@ -219,7 +220,7 @@ function renderDetailPostContent($content) {
                         Không tìm thấy bài viết.
                     </div>
                 <?php else: ?>
-                    <article class="bg-white post-card post-detail-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
+                    <article class="bg-white post-card post-detail-card mb-3" id="post-<?= (int) $post['PostID'] ?>" <?= archivePostCardAttributes($post, (int) $currentUserId) ?>>
                         <div class="p-3 p-md-4">
                             <div class="d-flex gap-3">
                                 <a href="<?= detailProfileUrl($post['UserID']) ?>">
@@ -232,11 +233,15 @@ function renderDetailPostContent($content) {
                                 </a>
 
                                 <div class="flex-grow-1">
+                                    <div class="post-card-header">
                                     <div class="fw-semibold">
                                         <a href="<?= detailProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
                                             <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                         </a>
                                         <span class="text-muted">• <?= htmlspecialchars(detailTimeAgo($post['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
+                                    </div>
+
+                                    <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                     </div>
 
                                     <p class="post-text post-detail-text">
@@ -285,9 +290,6 @@ function renderDetailPostContent($content) {
                                             <i class="bi bi-arrow-repeat"></i>
                                         </button>
 
-                                        <button type="button">
-                                            <i class="bi bi-send"></i>
-                                        </button>
                                     </div>
 
                                     <div class="comment-box mt-3">

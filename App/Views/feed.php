@@ -23,6 +23,7 @@ $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 require_once __DIR__ . '/../Controllers/PostController.php';
 require_once __DIR__ . '/../Controllers/FollowController.php';
 require_once __DIR__ . '/../Controllers/NotificationController.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
@@ -277,7 +278,7 @@ function renderPostContentWithHashtags($content) {
                     <?php if (!empty($posts)): ?>
                         <?php foreach ($posts as $post): ?>
                             <?php $comments = $postController->getComments($post['PostID']); ?>
-                            <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
+                            <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>" <?= archivePostCardAttributes($post, (int) $currentUserId) ?>>
                                 <div class="p-3">
                                     <div class="d-flex gap-3">
                                         <a href="<?= profileUrl($post['UserID']) ?>">
@@ -290,11 +291,15 @@ function renderPostContentWithHashtags($content) {
                                         </a>
 
                                         <div class="flex-grow-1">
+                                            <div class="post-card-header">
                                             <div class="fw-semibold">
                                                 <a href="<?= profileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
                                                     <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
                                                 </a>
                                                 • <?= timeAgo($post['CreatedAt']) ?>
+                                            </div>
+
+                                            <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                             </div>
 
                                             <p class="post-text">
@@ -441,9 +446,13 @@ function renderPostContentWithHashtags($content) {
                     </div>
                 </div>
 
-                <div class="bg-white p-4 post-card trending-hashtags-card">
+                <div
+                    class="bg-white p-4 post-card trending-hashtags-card"
+                    data-trending-endpoint="<?php echo BASE_URL; ?>App/Controllers/PostController.php?action=trendingHashtags"
+                >
                     <h5>Chủ đề nổi bật</h5>
 
+                    <div id="trendingHashtagsContainer">
                     <?php if (!empty($trendingHashtags)): ?>
                         <div class="d-flex flex-column gap-2">
                             <?php foreach ($trendingHashtags as $hashtag): ?>
@@ -460,6 +469,7 @@ function renderPostContentWithHashtags($content) {
                     <?php else: ?>
                         <p class="text-muted mb-0">Chưa có chủ đề nổi bật.</p>
                     <?php endif; ?>
+                    </div>
                 </div>
             </div>
 
@@ -467,7 +477,7 @@ function renderPostContentWithHashtags($content) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260520-media-fix"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-trending-hashtags"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
