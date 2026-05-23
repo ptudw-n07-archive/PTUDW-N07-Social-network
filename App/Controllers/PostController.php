@@ -102,7 +102,7 @@ class PostController {
         $savedImages = [];
 
         if ($postId && !empty($validImages)) {
-            $uploadDir = __DIR__ . '/../../Public/uploads/posts/';
+            $uploadDir = app_uploads_root('posts/');
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
@@ -352,7 +352,7 @@ class PostController {
 
             $savedImages = [];
             if (!empty($validImages)) {
-                $uploadDir = __DIR__ . '/../../Public/uploads/posts/';
+                $uploadDir = app_uploads_root('posts/');
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0777, true);
                 }
