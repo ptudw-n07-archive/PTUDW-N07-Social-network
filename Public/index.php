@@ -4,21 +4,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/../Config/Database.php';
+
 // 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
 require_once __DIR__ . '/../App/Controllers/PostController.php';
 
 // ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
 use App\Controllers\PostController;
 
-// 3. Khai báo BASE_URL nếu chưa định nghĩa
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
-
 // Chỉnh lại link dẫn vào Views vì nó đã chui vào trong App/Views/
-$loginUrl    = BASE_URL . "App/Views/auth/login.php";
-$registerUrl = BASE_URL . "App/Views/auth/register.php";
-$homeUrl     = BASE_URL . "Public/index.php";
+$loginUrl    = app_url('App/Views/auth/login.php');
+$registerUrl = app_url('App/Views/auth/register.php');
+$homeUrl     = BASE_URL;
 
 // 4. Khởi tạo đối tượng Controller
 $postController = new PostController();

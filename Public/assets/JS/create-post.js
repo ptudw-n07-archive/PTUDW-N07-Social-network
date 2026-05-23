@@ -1,3 +1,9 @@
+const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+
+function appUrl(path = "") {
+    return APP_BASE_URL + String(path).replace(/^\/+/, "");
+}
+
 function createPost() {
     const form = document.getElementById("postForm");
 
@@ -16,7 +22,7 @@ function createPost() {
         return;
     }
 
-    fetch("/App/Controllers/PostController.php?action=create", {
+    fetch(appUrl("App/Controllers/PostController.php?action=create"), {
         method: "POST",
         body: formData
     })
@@ -38,7 +44,7 @@ function createPost() {
         }
 
         sessionStorage.setItem("post_success", "Đăng bài thành công!");
-        window.location.href = "/App/Views/feed.php";
+        window.location.href = appUrl("App/Views/feed.php");
     })
     .catch(error => {
         console.error(error);

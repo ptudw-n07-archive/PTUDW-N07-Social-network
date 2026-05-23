@@ -86,7 +86,7 @@ class AdminController {
 
     public function index() {
         if (!$this->isAdmin()) {
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
+            header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 

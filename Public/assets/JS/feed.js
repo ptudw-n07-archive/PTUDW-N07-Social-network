@@ -1,3 +1,9 @@
+const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+
+function appUrl(path = "") {
+    return APP_BASE_URL + String(path).replace(/^\/+/, "");
+}
+
 // =======================
 // LIKE BUTTON - AJAX THẬT
 // =======================
@@ -37,7 +43,7 @@ function toggleLike(btn) {
     const formData = new FormData();
     formData.append("postId", postId);
 
-    fetch("/App/Controllers/PostController.php?action=like", {
+    fetch(appUrl("App/Controllers/PostController.php?action=like"), {
         method: "POST",
         body: formData
     })
@@ -95,7 +101,7 @@ function createPost() {
         return;
     }
 
-    fetch("/App/Controllers/PostController.php?action=create", {
+    fetch(appUrl("App/Controllers/PostController.php?action=create"), {
         method: "POST",
         body: formData
     })
@@ -202,7 +208,7 @@ function addPostToUI(post) {
         <div class="p-3">
             <div class="d-flex gap-3">
                 <a href="${profileHref}">
-                    <img src="${escapeHTML(avatarSrc)}" class="avatar" alt="avatar" onerror="this.src='/Public/assets/img/default-avatar.jpg';">
+                    <img src="${escapeHTML(avatarSrc)}" class="avatar" alt="avatar" onerror="this.src='${appUrl("Public/assets/img/default-avatar.jpg")}';">
                 </a>
 
                 <div class="flex-grow-1">
@@ -281,7 +287,7 @@ function refreshTrendingHashtags() {
     const card = container.closest(".trending-hashtags-card");
     const endpoint = card && card.dataset.trendingEndpoint
         ? card.dataset.trendingEndpoint
-        : "/App/Controllers/PostController.php?action=trendingHashtags";
+        : appUrl("App/Controllers/PostController.php?action=trendingHashtags");
 
     fetch(endpoint, {
         headers: {
@@ -329,7 +335,7 @@ function renderTrendingHashtags(hashtags) {
         const postCount = Number(item.post_count || 0);
         const link = document.createElement("a");
 
-        link.href = `/App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`;
+        link.href = appUrl(`App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`);
         link.className = "trending-hashtag-item";
         link.innerHTML = `
             <span>#${escapeHTML(tag)}</span>
@@ -378,7 +384,7 @@ function sendComment(btn) {
     formData.append("postId", postId);
     formData.append("content", content);
 
-    fetch("/App/Controllers/PostController.php?action=comment", {
+    fetch(appUrl("App/Controllers/PostController.php?action=comment"), {
         method: "POST",
         body: formData
     })
@@ -401,7 +407,7 @@ function sendComment(btn) {
             comment.className = "post-detail-comment";
             comment.id = data.comment.commentId ? `comment-${data.comment.commentId}` : "";
             comment.innerHTML = `
-                <img src="/Public/assets/img/default-avatar.jpg" class="avatar" alt="avatar">
+                <img src="${appUrl("Public/assets/img/default-avatar.jpg")}" class="avatar" alt="avatar">
                 <div>
                     <div class="fw-semibold">${escapeHTML(data.comment.fullName)}</div>
                     <div>${escapeHTML(data.comment.content)}</div>
@@ -446,7 +452,7 @@ function escapeHTML(text) {
 
 function renderContentWithHashtags(text) {
     return escapeHTML(text).replace(/#([\p{L}\p{N}_]+)/gu, function (match, tag) {
-        return `<a class="hashtag-link" href="/App/Views/hashtag.php?tag=${encodeURIComponent(tag)}">#${tag}</a>`;
+        return `<a class="hashtag-link" href="${appUrl(`App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`)}">#${tag}</a>`;
     }).replace(/\n/g, "<br>");
 }
 
@@ -472,7 +478,7 @@ function renderPostMenu(postId, ownerId, isOwner) {
 
 function normalizeImagePath(path) {
     if (!path) {
-        return "/Public/assets/img/default-avatar.jpg";
+        return appUrl("Public/assets/img/default-avatar.jpg");
     }
 
     path = String(path).trim();
@@ -484,14 +490,14 @@ function normalizeImagePath(path) {
     const cleanPath = path.replace(/^\/+/, "");
 
     if (cleanPath.startsWith("Public/")) {
-        return "/" + cleanPath;
+        return appUrl(cleanPath);
     }
 
     if (cleanPath.startsWith("uploads/") || cleanPath.startsWith("assets/")) {
-        return "/Public/" + cleanPath;
+        return appUrl("Public/" + cleanPath);
     }
 
-    return "/" + cleanPath;
+    return appUrl(cleanPath);
 }
 
 function getMediaExtension(path) {
@@ -550,7 +556,7 @@ function toggleFollow(btn) {
     const formData = new FormData();
     formData.append("userId", userId);
 
-    fetch("/App/Controllers/FollowController.php?action=toggle", {
+    fetch(appUrl("App/Controllers/FollowController.php?action=toggle"), {
         method: "POST",
         body: formData
     })
@@ -710,7 +716,7 @@ function handlePostAction(action, card) {
 
     if (action === "block") {
         openConfirmModal("Bạn có chắc muốn chặn người dùng này không?", function () {
-            postForm("/App/Controllers/PostController.php?action=blockUser", { userId: card.dataset.ownerId })
+            postForm(appUrl("App/Controllers/PostController.php?action=blockUser"), { userId: card.dataset.ownerId })
                 .then(function (data) {
                     if (!data.success) throw new Error(data.message || "Không thể chặn người dùng.");
                     document.querySelectorAll(`.post-card[data-owner-id="${card.dataset.ownerId}"]`).forEach(hidePostCard);
@@ -722,7 +728,7 @@ function handlePostAction(action, card) {
     }
 
     if (action === "notInterested") {
-        postForm("/App/Controllers/PostController.php?action=markNotInterested", { postId: card.dataset.postId })
+        postForm(appUrl("App/Controllers/PostController.php?action=markNotInterested"), { postId: card.dataset.postId })
             .then(function (data) {
                 if (!data.success) throw new Error(data.message || "Không thể ẩn bài viết.");
                 hidePostCard(card);
@@ -733,7 +739,7 @@ function handlePostAction(action, card) {
 
     if (action === "delete") {
         openConfirmModal("Bạn có chắc muốn xóa bài viết này không?", function () {
-            postForm("/App/Controllers/PostController.php?action=deletePost", { postId: card.dataset.postId })
+            postForm(appUrl("App/Controllers/PostController.php?action=deletePost"), { postId: card.dataset.postId })
                 .then(function (data) {
                     if (!data.success) throw new Error(data.message || "Không thể xóa bài viết.");
                     hidePostCard(card);
@@ -922,7 +928,7 @@ function openReportModal(card) {
 }
 
 function submitReport(card, reason, details) {
-    postForm("/App/Controllers/PostController.php?action=createReport", {
+    postForm(appUrl("App/Controllers/PostController.php?action=createReport"), {
         postId: card.dataset.postId,
         reason: reason,
         details: details
@@ -961,7 +967,7 @@ function openPrivacyModal(card) {
     document.querySelectorAll("[data-privacy]").forEach(function (button) {
         button.onclick = function () {
             const privacy = button.dataset.privacy;
-            postForm("/App/Controllers/PostController.php?action=updatePostPrivacy", {
+            postForm(appUrl("App/Controllers/PostController.php?action=updatePostPrivacy"), {
                 postId: card.dataset.postId,
                 privacy: privacy
             })
@@ -1014,7 +1020,7 @@ function openEditPostModal(card) {
         formData.append("postId", card.dataset.postId);
         formData.append("removeImages", JSON.stringify(removeImages));
 
-        fetch("/App/Controllers/PostController.php?action=updatePost", {
+        fetch(appUrl("App/Controllers/PostController.php?action=updatePost"), {
             method: "POST",
             body: formData
         })
@@ -1104,7 +1110,7 @@ function initHashtagComposerSuggestions() {
         return;
     }
 
-    const endpoint = box.dataset.endpoint || "/App/Controllers/SearchController.php?action=suggestHashtags";
+    const endpoint = box.dataset.endpoint || appUrl("App/Controllers/SearchController.php?action=suggestHashtags");
     let debounceTimer = null;
     let activeIndex = -1;
     let suggestions = [];

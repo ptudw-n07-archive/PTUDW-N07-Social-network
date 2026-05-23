@@ -3,9 +3,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -59,7 +57,7 @@ if (!defined('BASE_URL')) {
             </div>
 
             <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
-                <a href="<?php echo BASE_URL; ?>Public/index.php" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+                <a href="<?php echo BASE_URL; ?>" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
                     <i class="fa-solid fa-house"></i>
                 </a>
             </div>

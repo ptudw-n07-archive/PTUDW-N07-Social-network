@@ -24,7 +24,7 @@ class NotificationController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
+            header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 
@@ -93,41 +93,41 @@ class NotificationController {
         $notificationId = $_GET['id'] ?? null;
 
         if (!$userId) {
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
+            header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 
         if (!$notificationId) {
-            header("Location: " . BASE_URL . "App/Views/notifications.php");
+            header('Location: ' . app_url('App/Views/notifications.php'));
             exit();
         }
 
         $notification = $this->notificationModel->getNotificationByUser($notificationId, $userId);
 
         if (!$notification) {
-            header("Location: " . BASE_URL . "App/Views/notifications.php");
+            header('Location: ' . app_url('App/Views/notifications.php'));
             exit();
         }
 
         $this->notificationModel->markAsRead($notificationId, $userId);
 
         if (!empty($notification['PostID'])) {
-            $url = BASE_URL . "App/Views/post-detail.php?id=" . urlencode((string) $notification['PostID']);
+            $url = app_url('App/Views/post-detail.php?id=' . urlencode((string) $notification['PostID']));
 
             if (!empty($notification['CommentID'])) {
                 $url .= "&comment=" . urlencode((string) $notification['CommentID']) . "#comment-" . urlencode((string) $notification['CommentID']);
             }
 
-            header("Location: " . $url);
+            header('Location: ' . $url);
             exit();
         }
 
         if (!empty($notification['SenderUserID'])) {
-            header("Location: " . BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $notification['SenderUserID']));
+            header('Location: ' . app_url('App/Views/profile.php?id=' . urlencode((string) $notification['SenderUserID'])));
             exit();
         }
 
-        header("Location: " . BASE_URL . "App/Views/notifications.php");
+        header('Location: ' . app_url('App/Views/notifications.php'));
         exit();
     }
 }

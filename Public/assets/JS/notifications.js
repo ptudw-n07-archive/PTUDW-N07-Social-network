@@ -1,9 +1,15 @@
+const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+
+function appUrl(path = "") {
+    return APP_BASE_URL + String(path).replace(/^\/+/, "");
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const markAllReadBtn = document.getElementById("markAllReadBtn");
 
     if (markAllReadBtn) {
         markAllReadBtn.addEventListener("click", function () {
-            fetch("/App/Controllers/NotificationController.php?action=markAllAsRead", {
+            fetch(appUrl("App/Controllers/NotificationController.php?action=markAllAsRead"), {
                 method: "POST"
             })
                 .then(response => response.json())
@@ -45,7 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const formData = new FormData();
             formData.append("notificationId", notificationId);
 
-            fetch("/App/Controllers/NotificationController.php?action=markAsRead", {
+            fetch(appUrl("App/Controllers/NotificationController.php?action=markAsRead"), {
                 method: "POST",
                 body: formData
             })
