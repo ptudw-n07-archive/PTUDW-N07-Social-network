@@ -5,16 +5,13 @@ if (!defined('BASE_URL')) {
 
 $activePage = $activePage ?? '';
 $showMoreMenu = $showMoreMenu ?? true;
-$showAppearanceMenuItem = $showAppearanceMenuItem ?? true;
-$showMoreButtonText = $showMoreButtonText ?? true;
-$moreButtonTitle = $moreButtonTitle ?? 'More';
+$moreButtonTitle = $moreButtonTitle ?? 'Menu';
 $moreMenuLabels = array_merge([
-    'appearance' => 'Appearance',
-    'settings' => 'Settings',
-    'liked' => 'Liked',
-    'archive' => 'Archive',
-    'report' => 'Report a problem',
-    'logout' => 'Log out'
+    'settings' => 'Cài đặt',
+    'liked' => 'Đã thích',
+    'archive' => 'Lưu trữ',
+    'report' => 'Báo cáo sự cố',
+    'logout' => 'Đăng xuất'
 ], $moreMenuLabels ?? []);
 $unreadNotificationCount = $unreadNotificationCount ?? null;
 
@@ -81,15 +78,9 @@ function sidebarActiveClass($page, $activePage) {
         <div class="more-menu-wrapper">
             <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown" title="<?= htmlspecialchars($moreButtonTitle, ENT_QUOTES, 'UTF-8') ?>">
                 <i class="bi bi-list more-icon"></i>
-                <?php if ($showMoreButtonText): ?>
-                    <span>More</span>
-                <?php endif; ?>
             </button>
 
             <div class="more-dropdown" id="moreDropdown">
-                <?php if ($showAppearanceMenuItem): ?>
-                    <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['appearance'], ENT_QUOTES, 'UTF-8') ?></button>
-                <?php endif; ?>
                 <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['settings'], ENT_QUOTES, 'UTF-8') ?></button>
                 <hr>
                 <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['liked'], ENT_QUOTES, 'UTF-8') ?></button>

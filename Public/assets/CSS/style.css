@@ -485,6 +485,33 @@ html {
     color: #c92a2a;
 }
 
+.left-sidebar .more-button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    justify-content: center;
+    gap: 0;
+    border: 0;
+    border-radius: 14px;
+    padding: 0;
+    background: transparent;
+    color: #7c6660;
+    box-shadow: none;
+    font-size: 1.25rem;
+}
+
+.left-sidebar .more-button:hover,
+.left-sidebar .more-button[aria-expanded="true"] {
+    background: #eee2dc;
+    color: #2f2420;
+    box-shadow: 0 8px 22px rgba(214, 144, 150, 0.18);
+}
+
+.left-sidebar .more-icon {
+    font-size: 1.25rem;
+}
+
 .feed-page .more-button {
     width: 48px;
     height: 48px;
