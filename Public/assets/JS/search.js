@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+    const appUrl = path => APP_BASE_URL + String(path || "").replace(/^\/+/, "");
     const config = window.SEARCH_CONFIG || {};
-    const searchUrl = config.searchUrl || "/App/Controllers/SearchController.php";
-    const followUrl = config.followUrl || "/App/Controllers/FollowController.php?action=toggle";
-    const baseUrl = config.baseUrl || "/";
+    const searchUrl = config.searchUrl || appUrl("App/Controllers/SearchController.php");
+    const followUrl = config.followUrl || appUrl("App/Controllers/FollowController.php?action=toggle");
+    const baseUrl = config.baseUrl || APP_BASE_URL;
 
     const form = document.getElementById("searchForm");
     const input = document.getElementById("searchInput");

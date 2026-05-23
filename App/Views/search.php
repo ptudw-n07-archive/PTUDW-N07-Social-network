@@ -3,12 +3,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: " . BASE_URL . "App/Views/auth/login.php");
+    header('Location: ' . app_url('App/Views/auth/login.php'));
     exit();
 }
 ?>
