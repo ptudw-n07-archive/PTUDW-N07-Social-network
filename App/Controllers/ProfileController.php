@@ -146,7 +146,7 @@ class ProfileController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
+            header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 
@@ -192,7 +192,7 @@ class ProfileController {
             throw new Exception("File avatar không đúng định dạng ảnh hợp lệ.");
         }
 
-        $uploadDir = __DIR__ . '/../../Public/uploads/avatars/';
+        $uploadDir = app_uploads_root('avatars/');
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }

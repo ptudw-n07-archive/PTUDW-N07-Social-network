@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+    const appUrl = path => APP_BASE_URL + String(path || "").replace(/^\/+/, "");
     const form = document.getElementById("updateProfileForm");
     const avatarInput = document.getElementById("avatarInput");
     const avatarModalPreview = document.getElementById("avatarModalPreview");
@@ -23,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const formData = new FormData();
             formData.append("userId", userId);
 
-            fetch(window.PROFILE_FOLLOW_URL || "/App/Controllers/FollowController.php?action=toggle", {
+            fetch(window.PROFILE_FOLLOW_URL || appUrl("App/Controllers/FollowController.php?action=toggle"), {
                 method: "POST",
                 body: formData
             })
@@ -83,7 +85,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu';
             }
 
-            fetch(window.PROFILE_UPDATE_URL || "/App/Controllers/ProfileController.php?action=update", {
+            fetch(window.PROFILE_UPDATE_URL || appUrl("App/Controllers/ProfileController.php?action=update"), {
                 method: "POST",
                 body: new FormData(form)
             })
