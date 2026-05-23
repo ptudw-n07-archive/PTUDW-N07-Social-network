@@ -485,6 +485,61 @@ html {
     color: #c92a2a;
 }
 
+.feed-page .more-button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    justify-content: center;
+    gap: 0;
+    border: 0;
+    border-radius: 14px;
+    padding: 0;
+    background: transparent;
+    color: #7c6660;
+    box-shadow: none;
+    font-size: 1.25rem;
+}
+
+.feed-page .more-button:hover,
+.feed-page .more-button[aria-expanded="true"] {
+    background: #eee2dc;
+    color: #2f2420;
+    box-shadow: 0 8px 22px rgba(214, 144, 150, 0.18);
+}
+
+.feed-page .more-icon {
+    font-size: 1.25rem;
+}
+
+.feed-page .more-dropdown {
+    border-color: rgba(121, 91, 74, 0.14);
+    border-radius: 18px;
+    background: #fffaf7;
+}
+
+.feed-page .more-dropdown-item:hover {
+    background: #f4e5e7;
+}
+
+.feed-page .feed-section {
+    padding-top: 34px !important;
+    padding-bottom: 42px !important;
+}
+
+.feed-page .feed-section .row.g-4 {
+    --bs-gutter-x: 1.25rem;
+    --bs-gutter-y: 1.25rem;
+}
+
+.feed-page .feed-title {
+    margin-bottom: 18px !important;
+    color: #2f2420;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.95rem;
+    font-weight: 800;
+}
+
 .post-composer,
 .post-card,
 .login-card {
@@ -493,6 +548,64 @@ html {
 
 .post-composer .flex-grow-1 {
     position: relative;
+}
+
+.feed-page .post-composer {
+    padding-top: 28px !important;
+    padding-bottom: 28px !important;
+    box-shadow: 0 14px 34px rgba(47, 36, 32, 0.07);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.feed-page .post-composer:hover {
+    box-shadow: 0 18px 42px rgba(47, 36, 32, 0.09);
+}
+
+.feed-page .composer-layout {
+    align-items: flex-start;
+}
+
+.feed-page .composer-avatar {
+    width: 54px;
+    height: 54px;
+    margin-top: 2px;
+}
+
+.feed-page .composer-input {
+    min-height: 126px;
+    padding: 18px 20px;
+    border-radius: 20px;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.feed-page .composer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.feed-page .custom-upload-btn {
+    margin: 0;
+    border: 1px solid rgba(183, 110, 121, 0.16);
+    border-radius: 16px;
+    padding: 10px 15px;
+    background: #f4e5e7;
+    color: #b76e79;
+    font-weight: 700;
+}
+
+.feed-page .custom-upload-btn:hover {
+    background: #ead4d8;
+    color: #9f5e68;
+}
+
+.feed-page .composer-submit-btn {
+    min-width: 104px;
+    border-radius: 16px;
+    font-weight: 700;
 }
 
 .avatar {
@@ -518,6 +631,77 @@ html {
     line-height: 1.7;
 }
 
+.feed-page .post-card,
+.feed-page .login-card,
+.feed-page .trending-hashtags-card {
+    box-shadow: 0 12px 30px rgba(47, 36, 32, 0.06);
+}
+
+.feed-page .post-card {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.feed-page #posts-list .post-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(121, 91, 74, 0.24);
+    box-shadow: 0 18px 42px rgba(47, 36, 32, 0.09);
+}
+
+.feed-page .post-card > .p-3 {
+    padding: 18px !important;
+}
+
+.feed-page .post-avatar {
+    width: 54px;
+    height: 54px;
+}
+
+.feed-page .post-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.feed-page .post-author-link {
+    color: #2f2420;
+    font-weight: 800;
+}
+
+.feed-page .post-author-link:hover {
+    color: #8e5963;
+}
+
+.feed-page .post-time {
+    color: #927b74;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.feed-page .post-text {
+    margin-bottom: 16px;
+    color: #3b312d;
+    font-size: 1rem;
+    line-height: 1.78;
+}
+
+.feed-page .post-actions {
+    padding-top: 4px;
+}
+
+.feed-page .post-actions button,
+.feed-page .post-actions a,
+.feed-page .post-actions span {
+    color: #7c6660;
+    font-weight: 600;
+}
+
+.feed-page .post-actions button:hover,
+.feed-page .post-actions a:hover {
+    color: #b76e79;
+}
+
 .hashtag-link {
     color: #243447;
     font-weight: 600;
@@ -529,6 +713,14 @@ html {
     color: #111827;
     text-decoration: underline;
     text-underline-offset: 3px;
+}
+
+.feed-page .hashtag-link {
+    color: #9f5e68;
+}
+
+.feed-page .hashtag-link:hover {
+    color: #7e4852;
 }
 
 .hashtag-suggestion-box {
@@ -587,6 +779,23 @@ html {
     margin-bottom: 14px;
 }
 
+.feed-page .login-card-title,
+.feed-page .trending-hashtags-card h5 {
+    color: #2f2420;
+    font-family: 'Playfair Display', serif;
+    font-weight: 800;
+}
+
+.feed-page .login-card-title {
+    font-size: 1.55rem;
+    margin-bottom: 18px !important;
+}
+
+.feed-page .trending-hashtags-card h5 {
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+}
+
 .trending-hashtag-item {
     display: flex;
     align-items: center;
@@ -622,6 +831,58 @@ html {
     color: #8a736c;
     flex-shrink: 0;
     font-size: 0.82rem;
+}
+
+.feed-page .follower-item {
+    align-items: center !important;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 4px 0;
+}
+
+.feed-page .follower-item > .d-flex:first-child {
+    min-width: 0;
+    flex: 1 1 180px;
+}
+
+.feed-page .suggested-user-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.feed-page .suggested-user-actions .btn {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.feed-page .suggested-user-avatar-link {
+    display: inline-flex;
+    border-radius: 50%;
+    text-decoration: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.feed-page .suggested-user-avatar-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(58, 42, 33, 0.12);
+}
+
+.feed-page .suggested-avatar {
+    width: 46px;
+    height: 46px;
+}
+
+.feed-page .follower-item .fw-semibold {
+    color: #2f2420;
+    font-weight: 800;
+}
+
+.feed-page .follower-item .text-muted {
+    color: #8a736c !important;
+    font-size: 0.88rem;
 }
 
 .hashtag-page-title {

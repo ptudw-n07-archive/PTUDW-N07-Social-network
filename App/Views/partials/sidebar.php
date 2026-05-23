@@ -5,6 +5,17 @@ if (!defined('BASE_URL')) {
 
 $activePage = $activePage ?? '';
 $showMoreMenu = $showMoreMenu ?? true;
+$showAppearanceMenuItem = $showAppearanceMenuItem ?? true;
+$showMoreButtonText = $showMoreButtonText ?? true;
+$moreButtonTitle = $moreButtonTitle ?? 'More';
+$moreMenuLabels = array_merge([
+    'appearance' => 'Appearance',
+    'settings' => 'Settings',
+    'liked' => 'Liked',
+    'archive' => 'Archive',
+    'report' => 'Report a problem',
+    'logout' => 'Log out'
+], $moreMenuLabels ?? []);
 $unreadNotificationCount = $unreadNotificationCount ?? null;
 
 if ($unreadNotificationCount === null && isset($_SESSION['user_id'])) {
@@ -68,20 +79,24 @@ function sidebarActiveClass($page, $activePage) {
 
     <?php if ($showMoreMenu): ?>
         <div class="more-menu-wrapper">
-            <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
+            <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown" title="<?= htmlspecialchars($moreButtonTitle, ENT_QUOTES, 'UTF-8') ?>">
                 <i class="bi bi-list more-icon"></i>
-                <span>More</span>
+                <?php if ($showMoreButtonText): ?>
+                    <span>More</span>
+                <?php endif; ?>
             </button>
 
             <div class="more-dropdown" id="moreDropdown">
-                <button type="button" class="more-dropdown-item">Appearance</button>
-                <button type="button" class="more-dropdown-item">Settings</button>
+                <?php if ($showAppearanceMenuItem): ?>
+                    <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['appearance'], ENT_QUOTES, 'UTF-8') ?></button>
+                <?php endif; ?>
+                <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['settings'], ENT_QUOTES, 'UTF-8') ?></button>
                 <hr>
-                <button type="button" class="more-dropdown-item">Liked</button>
-                <button type="button" class="more-dropdown-item">Archive</button>
+                <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['liked'], ENT_QUOTES, 'UTF-8') ?></button>
+                <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['archive'], ENT_QUOTES, 'UTF-8') ?></button>
                 <hr>
-                <button type="button" class="more-dropdown-item">Report a problem</button>
-                <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
+                <button type="button" class="more-dropdown-item"><?= htmlspecialchars($moreMenuLabels['report'], ENT_QUOTES, 'UTF-8') ?></button>
+                <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item"><?= htmlspecialchars($moreMenuLabels['logout'], ENT_QUOTES, 'UTF-8') ?></a>
             </div>
         </div>
     <?php endif; ?>
