@@ -190,8 +190,11 @@ class PostController {
         echo json_encode([
             "success" => true,
             "status" => $status,
-            "likeCount" => $likeCount
-        ]);
+            "liked" => $status === "liked",
+            "isLiked" => $status === "liked",
+            "likeCount" => (int) $likeCount,
+            "message" => $status === "liked" ? "Đã thích bài viết." : "Đã bỏ thích bài viết."
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     public function comment() {

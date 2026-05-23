@@ -150,6 +150,10 @@ function profileUrl($userId) {
     return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
 }
 
+function postDetailUrl($postId) {
+    return BASE_URL . "App/Views/post-detail.php?id=" . urlencode((string) $postId);
+}
+
 function hashtagUrl($tag) {
     return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
 }
@@ -276,6 +280,7 @@ function renderPostContentWithHashtags($content) {
                     <?php if (!empty($posts)): ?>
                         <?php foreach ($posts as $post): ?>
                             <?php $comments = $postController->getComments($post['PostID']); ?>
+                            <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
                             <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
                                 <div class="p-3">
                                     <div class="d-flex gap-3">
@@ -296,61 +301,76 @@ function renderPostContentWithHashtags($content) {
                                                 <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
                                             </div>
 
-                                            <p class="post-text">
-                                                <?= renderPostContentWithHashtags($post['Content']) ?>
-                                            </p>
+                                            <div
+                                                class="post-clickable"
+                                                role="link"
+                                                tabindex="0"
+                                                data-post-url="<?= htmlspecialchars(postDetailUrl($post['PostID']), ENT_QUOTES, 'UTF-8') ?>"
+                                                onclick="openPostDetail(this, event)"
+                                                onkeydown="handlePostClickableKeydown(this, event)"
+                                            >
+                                                <p class="post-text">
+                                                    <?= renderPostContentWithHashtags($post['Content']) ?>
+                                                </p>
 
-                                            <?php if (!empty($post['Images'])): ?>
-                                                <?php $images = explode(',', $post['Images']); ?>
-                                                <?php foreach ($images as $img): ?>
-                                                    <?php $postMediaSrc = postMediaPath($img); ?>
-                                                    <?php if ($postMediaSrc !== ''): ?>
-                                                        <?php $postMediaType = postMediaType($img); ?>
-                                                        <?php if ($postMediaType === 'video'): ?>
-                                                            <video
-                                                                controls
-                                                                class="img-fluid rounded-4 mb-3"
-                                                                style="max-height: 450px; object-fit: cover;"
-                                                            >
-                                                                <source src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(postMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
-                                                                Trình duyệt không hỗ trợ video này.
-                                                            </video>
-                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3">Mở file video</a>
-                                                        <?php elseif ($postMediaType === 'image'): ?>
-                                                            <img 
-                                                                src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" 
-                                                                class="img-fluid rounded-4 mb-3"
-                                                                style="max-height: 450px; object-fit: cover;"
-                                                                alt="post image"
-                                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                                            >
-                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small mb-3" style="display:none;">Mở file ảnh</a>
-                                                        <?php else: ?>
-                                                            <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3">Mở file ảnh</a>
+                                                <?php if (!empty($post['Images'])): ?>
+                                                    <?php $images = explode(',', $post['Images']); ?>
+                                                    <?php foreach ($images as $img): ?>
+                                                        <?php $postMediaSrc = postMediaPath($img); ?>
+                                                        <?php if ($postMediaSrc !== ''): ?>
+                                                            <?php $postMediaType = postMediaType($img); ?>
+                                                            <?php if ($postMediaType === 'video'): ?>
+                                                                <video
+                                                                    controls
+                                                                    class="img-fluid rounded-4 mb-3 no-post-nav"
+                                                                    style="max-height: 450px; object-fit: cover;"
+                                                                >
+                                                                    <source src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(postMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
+                                                                    Trình duyệt không hỗ trợ video này.
+                                                                </video>
+                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3 no-post-nav">Mở file video</a>
+                                                            <?php elseif ($postMediaType === 'image'): ?>
+                                                                <img
+                                                                    src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>"
+                                                                    class="img-fluid rounded-4 mb-3"
+                                                                    style="max-height: 450px; object-fit: cover;"
+                                                                    alt="post image"
+                                                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                                                >
+                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small mb-3 no-post-nav" style="display:none;">Mở file ảnh</a>
+                                                            <?php else: ?>
+                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3 no-post-nav">Mở file ảnh</a>
+                                                            <?php endif; ?>
                                                         <?php endif; ?>
-                                                    <?php endif; ?>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
+                                                    <?php endforeach; ?>
+                                                <?php endif; ?>
+                                            </div>
 
                                             <div class="post-actions d-flex gap-4">
-                                                <button onclick="toggleLike(this)" data-post-id="<?= $post['PostID'] ?>">
-                                                    <i class="bi bi-heart"></i>
-                                                    <span class="like-count"><?= $post['LikeCount'] ?? 0 ?></span>
+                                                <button
+                                                    type="button"
+                                                    class="feed-like-btn no-post-nav <?= $isLiked ? 'liked' : '' ?>"
+                                                    onclick="toggleLike(this)"
+                                                    data-post-id="<?= (int) $post['PostID'] ?>"
+                                                    aria-pressed="<?= $isLiked ? 'true' : 'false' ?>"
+                                                >
+                                                    <i class="bi <?= $isLiked ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
+                                                    <span class="like-count"><?= (int) ($post['LikeCount'] ?? 0) ?></span>
                                                 </button>
 
-                                                 <button onclick="toggleCommentBox(this)">
+                                                 <button type="button" class="no-post-nav" onclick="toggleCommentBox(this)">
                                                     <i class="bi bi-chat"></i>
                                                     <span class="comment-count">
                                                         <?= $post['CommentCount'] ?? 0 ?>
                                                     </span>
                                                 </button>
 
-                                                <button>
+                                                <button type="button" class="no-post-nav">
                                                     <i class="bi bi-arrow-repeat"></i>
                                                 </button>
                                             </div>
-                                            <div class="comment-box mt-3 d-none">
-                                            <div class="d-flex gap-2">
+                                            <div class="comment-box mt-3 d-none no-post-nav">
+                                            <div class="comment-form d-flex gap-2">
                                                 <input 
                                                     type="text" 
                                                     class="form-control comment-input" 
@@ -359,7 +379,7 @@ function renderPostContentWithHashtags($content) {
 
                                                 <button 
                                                 type="button"
-                                                    class="btn btn-pink"
+                                                    class="btn btn-pink comment-submit"
                                                     onclick="sendComment(this)"
                                                     data-post-id="<?= $post['PostID'] ?>"
                                                 >
@@ -367,14 +387,25 @@ function renderPostContentWithHashtags($content) {
                                                 </button>
                                             </div>
 
-                                                <div class="comment-list mt-2">
+                                                <div class="comment-list">
     <?php if (!empty($comments)): ?>
         <?php foreach ($comments as $comment): ?>
-            <div class="small mt-2">
-                <strong>
-                    <?= htmlspecialchars($comment['FullName'] ?: $comment['Username']) ?>
-                </strong>:
-                <?= htmlspecialchars($comment['Content']) ?>
+            <div class="comment-item">
+                <img
+                    src="<?= htmlspecialchars(imagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                    class="comment-avatar"
+                    alt="avatar"
+                    onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                >
+                <div class="comment-bubble">
+                    <div class="comment-meta">
+                        <strong class="comment-author">
+                            <?= htmlspecialchars($comment['FullName'] ?: $comment['Username']) ?>
+                        </strong>
+                        <span class="comment-time">• <?= timeAgo($comment['CreatedAt'] ?? '') ?></span>
+                    </div>
+                    <div class="comment-content"><?= htmlspecialchars($comment['Content']) ?></div>
+                </div>
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
@@ -474,7 +505,7 @@ function renderPostContentWithHashtags($content) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260520-media-fix"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260524-post-click-comment"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
