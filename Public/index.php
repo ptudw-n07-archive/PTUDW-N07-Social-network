@@ -1,62 +1,83 @@
 <?php
-require_once __DIR__ . '/../Controllers/PostController.php';
+// 1. Khởi động Session hệ thống nếu chưa có
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
+// 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
+require_once __DIR__ . '/../App/Controllers/PostController.php';
+
+// ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
+use App\Controllers\PostController;
+
+// 3. Khai báo BASE_URL nếu chưa định nghĩa
 if (!defined('BASE_URL')) {
     define("BASE_URL", "http://localhost:3000/");
 }
 
-$loginUrl = BASE_URL . "Views/auth/login.php";
-$registerUrl = BASE_URL . "Views/auth/register.php";
-$homeUrl = BASE_URL . "Public/index.php";
+// Chỉnh lại link dẫn vào Views vì nó đã chui vào trong App/Views/
+$loginUrl    = BASE_URL . "App/Views/auth/login.php";
+$registerUrl = BASE_URL . "App/Views/auth/register.php";
+$homeUrl     = BASE_URL . "Public/index.php";
 
+// 4. Khởi tạo đối tượng Controller
 $postController = new PostController();
+
+// 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
 $result = $postController->index();
 
 if (isset($result['posts'])) {
-    $posts = $result['posts'];
-    $totalPosts = $result['totalPosts'];
-    $totalUsers = $result['totalUsers'];
+    $posts         = $result['posts'];
+    $totalPosts    = $result['totalPosts'];
+    $totalUsers    = $result['totalUsers'];
     $totalComments = $result['totalComments'];
 } else {
-    $posts = $result;
-    $totalPosts = count($posts);
-    $totalUsers = count(array_unique(array_column($posts, 'UserID')));
+    $posts         = $result;
+    $totalPosts    = count($posts);
+    $totalUsers    = count(array_unique(array_column($posts, 'UserID')));
     $totalComments = array_sum(array_column($posts, 'CommentCount'));
 }
 
+// 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
 function imagePath($path) {
     if (empty($path)) {
         return "assets/img/default-avatar.jpg";
     }
-
     if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
         return $path;
     }
-
     return str_replace("Public/", "", $path);
 }
 
 function timeAgo($datetime) {
-    $timestamp = strtotime($datetime);
-    $diff = time() - $timestamp;
-
-    if ($diff < 60) {
-        return "vừa xong";
-    } elseif ($diff < 3600) {
-        return floor($diff / 60) . " phút";
-    } elseif ($diff < 86400) {
-        return floor($diff / 3600) . " giờ";
-    } else {
-        return date("d/m/Y", $timestamp);
+    if (empty($datetime)) return "Không rõ thời gian";
+    
+    $time = strtotime($datetime);
+    $now  = time();
+    $diff = $now - $time;
+    
+    if ($diff < 60) return "vừa xong";
+    
+    $intervals = [
+        31536000 => 'năm',
+        2592000  => 'tháng',
+        604800   => 'tuần',
+        86400    => 'ngày',
+        3600     => 'giờ',
+        60       => 'phút'
+    ];
+    
+    foreach ($intervals as $secs => $str) {
+        $d = $diff / $secs;
+        if ($d >= 1) {
+            return round($d) . ' ' . $str . ' trước';
+        }
     }
+    return $datetime;
 }
 
 function formatNumber($number) {
-    if ($number >= 1000) {
-        return number_format($number, 0, ',', '.');
-    }
-
-    return $number;
+    return number_format((float)$number, 0, '.', ',');
 }
 ?>
 
