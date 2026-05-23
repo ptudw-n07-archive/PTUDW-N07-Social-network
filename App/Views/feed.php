@@ -221,16 +221,6 @@ function renderPostContentWithHashtags($content) {
             <div class="col-lg-1 d-none d-lg-block">
                 <?php
                     $activePage = 'home';
-                    $showAppearanceMenuItem = false;
-                    $showMoreButtonText = false;
-                    $moreButtonTitle = 'Menu';
-                    $moreMenuLabels = [
-                        'settings' => 'Cài đặt',
-                        'liked' => 'Đã thích',
-                        'archive' => 'Lưu trữ',
-                        'report' => 'Báo cáo sự cố',
-                        'logout' => 'Đăng xuất'
-                    ];
                     include __DIR__ . '/partials/sidebar.php';
                 ?>
             </div>
