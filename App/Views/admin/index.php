@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../../../Config/Database.php';
+
 /** @var array $stats */
 /** @var array $reports */
 /** @var array $members */

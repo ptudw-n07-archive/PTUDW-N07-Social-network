@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+    const appUrl = path => APP_BASE_URL + String(path || '').replace(/^\/+/, '');
     const adminModal = document.getElementById('adminModal');
     const adminModalTitle = adminModal ? adminModal.querySelector('.admin-modal-title') : null;
     const adminModalMessage = adminModal ? adminModal.querySelector('.admin-modal-message') : null;
@@ -142,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const normalizeAssetPath = path => {
         if (!path) return '';
         if (/^https?:\/\//i.test(path)) return path;
-        return `${window.ADMIN_BASE_URL || ''}${path}`;
+        return `${window.ADMIN_BASE_URL || APP_BASE_URL}${String(path).replace(/^\/+/, '')}`;
     };
 
     const normalizeMember = member => {
@@ -164,9 +166,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const avatarSrc = member => {
         const avatar = member.avatar || member.ProfilePictureUrl || '';
-        if (!avatar) return `${window.ADMIN_BASE_URL || ''}Public/assets/images/default-avatar.png`;
+        if (!avatar) return appUrl('Public/assets/img/default-avatar.jpg');
         if (/^https?:\/\//i.test(avatar)) return avatar;
-        return `${window.ADMIN_BASE_URL || ''}${avatar}`;
+        return `${window.ADMIN_BASE_URL || APP_BASE_URL}${String(avatar).replace(/^\/+/, '')}`;
     };
 
     const statusBadgeHtml = isActive => Number(isActive) === 1
