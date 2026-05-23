@@ -8,6 +8,7 @@ if (!defined('BASE_URL')) {
 }
 
 require_once __DIR__ . '/../Controllers/ProfileController.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 use App\Controllers\ProfileController;
 
@@ -175,6 +176,26 @@ $profileAvatar = $profile['ProfilePictureUrl'] ?? '';
 $profileEmail = $profile['Email'] ?? '';
 $profileRole = $profile['RoleName'] ?? 'Thành viên';
 $profileCreatedAt = $profile['CreatedAt'] ?? null;
+$profilePhotoItems = [];
+
+foreach ($posts as $post) {
+    if (empty($post['Images'])) {
+        continue;
+    }
+
+    foreach (explode(',', $post['Images']) as $image) {
+        $photoSrc = profilePostMediaPath($image);
+
+        if ($photoSrc === '' || profilePostMediaType($image) !== 'image') {
+            continue;
+        }
+
+        $profilePhotoItems[$photoSrc] = [
+            'src' => $photoSrc,
+            'alt' => 'Ảnh từ bài viết của ' . $profileName
+        ];
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -292,15 +313,15 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         </div>
                     <?php endif; ?>
 
-                    <div class="row text-center mt-4 g-3">
-                        <div class="col-4">
+                    <div class="profile-stats-grid mt-4">
+                        <div class="profile-stat-cell">
                             <div class="profile-stat-box">
                                 <h5><?php echo profileNumber($stats['posts']); ?></h5>
                                 <p>Bài viết</p>
                             </div>
                         </div>
 
-                        <div class="col-4">
+                        <div class="profile-stat-cell">
                             <button
                                 type="button"
                                 class="profile-stat-box profile-stat-action"
@@ -308,11 +329,11 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 data-bs-target="#followingModal"
                             >
                                 <h5><?php echo profileNumber($stats['following']); ?></h5>
-                                <p>Theo dõi</p>
+                                <p>Đang theo dõi</p>
                             </button>
                         </div>
 
-                        <div class="col-4">
+                        <div class="profile-stat-cell">
                             <button
                                 type="button"
                                 class="profile-stat-box profile-stat-action"
@@ -320,7 +341,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 data-bs-target="#followersModal"
                             >
                                 <h5 id="profileFollowerCount"><?php echo profileNumber($stats['followers']); ?></h5>
-                                <p>Follower</p>
+                                <p>Người theo dõi</p>
                             </button>
                         </div>
                     </div>
@@ -328,27 +349,81 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
             </div>
 
             <div class="col-lg-8">
+                <div class="profile-content-tabs mb-3" role="tablist" aria-label="Nội dung hồ sơ">
+                    <button
+                        type="button"
+                        class="profile-content-tab active"
+                        id="profile-posts-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#profile-posts-pane"
+                        role="tab"
+                        aria-controls="profile-posts-pane"
+                        aria-selected="true"
+                    >
+                        <i class="bi bi-grid-3x3-gap me-1"></i>
+                        Bài viết
+                    </button>
+                    <button
+                        type="button"
+                        class="profile-content-tab"
+                        id="profile-photos-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#profile-photos-pane"
+                        role="tab"
+                        aria-controls="profile-photos-pane"
+                        aria-selected="false"
+                    >
+                        <i class="bi bi-images me-1"></i>
+                        Ảnh
+                    </button>
+                    <button
+                        type="button"
+                        class="profile-content-tab"
+                        id="profile-reposts-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#profile-reposts-pane"
+                        role="tab"
+                        aria-controls="profile-reposts-pane"
+                        aria-selected="false"
+                    >
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        Đã đăng lại
+                    </button>
+                </div>
+
+                <div class="tab-content profile-tab-content">
+                    <div
+                        class="tab-pane fade show active"
+                        id="profile-posts-pane"
+                        role="tabpanel"
+                        aria-labelledby="profile-posts-tab"
+                        tabindex="0"
+                    >
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
-                        <article class="bg-white post-card mb-3">
-                            <div class="p-3 p-md-4">
+                        <article class="bg-white post-card profile-post-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
+                            <div class="profile-post-body">
                                 <div class="d-flex gap-3">
                                     <img
                                         src="<?php echo profileImagePath($post['ProfilePictureUrl'] ?? $profileAvatar); ?>"
-                                        class="avatar"
+                                        class="avatar profile-post-avatar"
                                         alt="Avatar"
                                     >
 
                                     <div class="flex-grow-1">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
-                                            <span class="fw-semibold">
-                                                <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
-                                            </span>
-                                            <span class="text-muted small">@<?php echo htmlspecialchars($post['Username']); ?></span>
-                                            <span class="text-muted small">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                        <div class="post-card-header profile-post-header mb-2">
+                                            <div class="profile-post-meta">
+                                                <span class="profile-post-author">
+                                                    <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
+                                                </span>
+                                                <span class="profile-post-username">@<?php echo htmlspecialchars($post['Username']); ?></span>
+                                                <span class="profile-post-time">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                            </div>
+
+                                            <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                         </div>
 
-                                        <p class="post-text mb-3">
+                                        <p class="post-text profile-post-content mb-3">
                                             <?php echo renderProfilePostContentWithHashtags($post['Content']); ?>
                                         </p>
 
@@ -380,7 +455,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                             </div>
                                         <?php endif; ?>
 
-                                        <div class="post-actions d-flex gap-4">
+                                        <div class="post-actions profile-post-actions d-flex gap-4">
                                             <button type="button" onclick="toggleLike(this)" data-post-id="<?php echo (int) $post['PostID']; ?>">
                                                 <i class="bi bi-heart"></i>
                                                 <span class="like-count"><?php echo (int) ($post['LikeCount'] ?? 0); ?></span>
@@ -397,11 +472,62 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         </article>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="alert alert-light border text-center py-5" role="alert">
-                        <i class="bi bi-file-earmark-text fs-2 d-block mb-2 text-muted"></i>
-                        <?php echo $isOwnProfile ? 'Bạn chưa có bài viết nào.' : 'Người dùng này chưa có bài viết nào.'; ?>
+                    <div class="bg-white profile-empty-state" role="status">
+                        <div class="profile-empty-icon">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <h4><?php echo $isOwnProfile ? 'Bạn chưa có bài viết nào.' : 'Chưa có bài viết nào.'; ?></h4>
+                        <p><?php echo $isOwnProfile ? 'Hãy chia sẻ điều đầu tiên của bạn.' : 'Người dùng này chưa chia sẻ nội dung.'; ?></p>
                     </div>
                 <?php endif; ?>
+                    </div>
+
+                    <div
+                        class="tab-pane fade"
+                        id="profile-photos-pane"
+                        role="tabpanel"
+                        aria-labelledby="profile-photos-tab"
+                        tabindex="0"
+                    >
+                        <?php if (!empty($profilePhotoItems)): ?>
+                            <div class="profile-photo-grid">
+                                <?php foreach ($profilePhotoItems as $photo): ?>
+                                    <a href="<?php echo htmlspecialchars($photo['src'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="profile-photo-item">
+                                        <img
+                                            src="<?php echo htmlspecialchars($photo['src'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            alt="<?php echo htmlspecialchars($photo['alt'], ENT_QUOTES, 'UTF-8'); ?>"
+                                            loading="lazy"
+                                        >
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="bg-white profile-empty-state" role="status">
+                                <div class="profile-empty-icon">
+                                    <i class="bi bi-images"></i>
+                                </div>
+                                <h4>Chưa có ảnh để hiển thị.</h4>
+                                <p><?php echo $isOwnProfile ? 'Hãy đăng thêm ảnh.' : 'Người dùng này chưa có ảnh để hiển thị.'; ?></p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div
+                        class="tab-pane fade"
+                        id="profile-reposts-pane"
+                        role="tabpanel"
+                        aria-labelledby="profile-reposts-tab"
+                        tabindex="0"
+                    >
+                        <div class="bg-white profile-empty-state" role="status">
+                            <div class="profile-empty-icon">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </div>
+                            <h4>Chưa có bài đăng lại.</h4>
+                            <p>Tính năng đăng lại sẽ được hoàn thiện sau.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             <?php endif; ?>
         </div>
