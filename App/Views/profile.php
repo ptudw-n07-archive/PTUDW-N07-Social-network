@@ -309,7 +309,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 data-bs-target="#followingModal"
                             >
                                 <h5><?php echo profileNumber($stats['following']); ?></h5>
-                                <p>Theo dõi</p>
+                                <p>Đang theo dõi</p>
                             </button>
                         </div>
 
@@ -321,7 +321,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                 data-bs-target="#followersModal"
                             >
                                 <h5 id="profileFollowerCount"><?php echo profileNumber($stats['followers']); ?></h5>
-                                <p>Follower</p>
+                                <p>Người theo dõi</p>
                             </button>
                         </div>
                     </div>
@@ -329,31 +329,46 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
             </div>
 
             <div class="col-lg-8">
+                <div class="profile-content-tabs mb-3" role="tablist" aria-label="Nội dung hồ sơ">
+                    <button type="button" class="profile-content-tab active" role="tab" aria-selected="true">
+                        <i class="bi bi-grid-3x3-gap me-1"></i>
+                        Bài viết
+                    </button>
+                    <button type="button" class="profile-content-tab" role="tab" aria-selected="false" disabled>
+                        <i class="bi bi-images me-1"></i>
+                        Ảnh
+                    </button>
+                    <button type="button" class="profile-content-tab" role="tab" aria-selected="false" disabled>
+                        <i class="bi bi-heart me-1"></i>
+                        Đã thích
+                    </button>
+                </div>
+
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
-                        <article class="bg-white post-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
-                            <div class="p-3 p-md-4">
+                        <article class="bg-white post-card profile-post-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
+                            <div class="profile-post-body">
                                 <div class="d-flex gap-3">
                                     <img
                                         src="<?php echo profileImagePath($post['ProfilePictureUrl'] ?? $profileAvatar); ?>"
-                                        class="avatar"
+                                        class="avatar profile-post-avatar"
                                         alt="Avatar"
                                     >
 
                                     <div class="flex-grow-1">
-                                        <div class="post-card-header mb-2">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <span class="fw-semibold">
-                                                <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
-                                            </span>
-                                            <span class="text-muted small">@<?php echo htmlspecialchars($post['Username']); ?></span>
-                                            <span class="text-muted small">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                        <div class="post-card-header profile-post-header mb-2">
+                                            <div class="profile-post-meta">
+                                                <span class="profile-post-author">
+                                                    <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
+                                                </span>
+                                                <span class="profile-post-username">@<?php echo htmlspecialchars($post['Username']); ?></span>
+                                                <span class="profile-post-time">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                            </div>
+
+                                            <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                         </div>
 
-                                        <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
-                                        </div>
-
-                                        <p class="post-text mb-3">
+                                        <p class="post-text profile-post-content mb-3">
                                             <?php echo renderProfilePostContentWithHashtags($post['Content']); ?>
                                         </p>
 
@@ -385,7 +400,7 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                                             </div>
                                         <?php endif; ?>
 
-                                        <div class="post-actions d-flex gap-4">
+                                        <div class="post-actions profile-post-actions d-flex gap-4">
                                             <button type="button" onclick="toggleLike(this)" data-post-id="<?php echo (int) $post['PostID']; ?>">
                                                 <i class="bi bi-heart"></i>
                                                 <span class="like-count"><?php echo (int) ($post['LikeCount'] ?? 0); ?></span>
@@ -402,9 +417,12 @@ $profileCreatedAt = $profile['CreatedAt'] ?? null;
                         </article>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="alert alert-light border text-center py-5" role="alert">
-                        <i class="bi bi-file-earmark-text fs-2 d-block mb-2 text-muted"></i>
-                        <?php echo $isOwnProfile ? 'Bạn chưa có bài viết nào.' : 'Người dùng này chưa có bài viết nào.'; ?>
+                    <div class="bg-white profile-empty-state" role="status">
+                        <div class="profile-empty-icon">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <h4><?php echo $isOwnProfile ? 'Bạn chưa có bài viết nào.' : 'Chưa có bài viết nào.'; ?></h4>
+                        <p><?php echo $isOwnProfile ? 'Hãy chia sẻ điều đầu tiên của bạn.' : 'Người dùng này chưa chia sẻ nội dung.'; ?></p>
                     </div>
                 <?php endif; ?>
             </div>
