@@ -57,6 +57,7 @@ class ProfileController {
             'profileUserId' => (int) $profileUserId,
             'isOwnProfile' => $isOwnProfile,
             'notFound' => false,
+            'isFollowingProfile' => !$isOwnProfile && $this->followModel->isFollowing($currentUserId, $profileUserId),
             'followingUsers' => $this->followModel->getFollowingByUserId($profileUserId),
             'followerUsers' => $this->followModel->getFollowersByUserId($profileUserId),
             'stats' => [
@@ -214,6 +215,7 @@ class ProfileController {
             'profileUserId' => $profileUserId,
             'isOwnProfile' => false,
             'notFound' => true,
+            'isFollowingProfile' => false,
             'followingUsers' => [],
             'followerUsers' => [],
             'stats' => [
