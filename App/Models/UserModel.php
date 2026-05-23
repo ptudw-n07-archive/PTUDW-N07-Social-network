@@ -5,7 +5,7 @@ use PDO;
 
 class UserModel {
     private PDO $conn;
-    private string $table = "Users";
+    private string $table = "users";
 
     public function __construct($db_connection) {
         $this->conn = $db_connection;
@@ -38,7 +38,7 @@ class UserModel {
     public function findByCredentials($loginInput) {
         $query = "SELECT u.*, r.RoleName
                   FROM " . $this->table . " u
-                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
                   WHERE u.Username = :input OR u.Email = :input
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
@@ -51,7 +51,7 @@ class UserModel {
     public function findById($userId) {
         $query = "SELECT u.*, r.RoleName
                   FROM " . $this->table . " u
-                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
                   WHERE u.UserID = :userId
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
@@ -73,7 +73,7 @@ class UserModel {
                     u.CreatedAt,
                     r.RoleName
                   FROM " . $this->table . " u
-                  LEFT JOIN Roles r ON u.RoleID = r.RoleID
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
                   WHERE u.UserID = :userId
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
