@@ -3,9 +3,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">

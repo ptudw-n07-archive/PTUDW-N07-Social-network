@@ -3,9 +3,7 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -87,7 +85,7 @@ if (!defined('BASE_URL')) {
             <p>Đã có tài khoản? <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
         </div>
 
-        <a href="<?php echo BASE_URL; ?>Public\index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
+        <a href="<?php echo BASE_URL; ?>" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
     </div>
 </body>
 </html>

@@ -35,23 +35,23 @@ class AuthController {
 
             if (empty($name) || empty($username) || empty($email) || empty($password)) {
                 $_SESSION['error'] = "Vui lòng nhập đầy đủ tất cả các trường.";
-                header("Location: " . BASE_URL . "App/Views/auth/register.php");
+                header('Location: ' . app_url('App/Views/auth/register.php'));
                 exit();
             }
 
             if ($password !== $confirm_password) {
                 $_SESSION['error'] = "Mật khẩu xác nhận không trùng khớp.";
-                header("Location: " . BASE_URL . "App/Views/auth/register.php");
+                header('Location: ' . app_url('App/Views/auth/register.php'));
                 exit();
             }
 
             if ($this->userModel->register($name, $username, $email, $password)) {
                 $_SESSION['success'] = "Đăng ký thành công! Vui lòng đăng nhập.";
-                header("Location: " . BASE_URL . "App/Views/auth/login.php");
+                header('Location: ' . app_url('App/Views/auth/login.php'));
                 exit();
             } else {
                 $_SESSION['error'] = "Tài khoản hoặc Email đã tồn tại trên hệ thống.";
-                header("Location: " . BASE_URL . "App/Views/auth/register.php");
+                header('Location: ' . app_url('App/Views/auth/register.php'));
                 exit();
             }
         }
@@ -65,7 +65,7 @@ class AuthController {
 
             if (empty($username) || empty($password)) {
                 $_SESSION['error'] = "Vui lòng điền đầy đủ tài khoản và mật khẩu.";
-                header("Location: " . BASE_URL . "App/Views/auth/login.php");
+                header('Location: ' . app_url('App/Views/auth/login.php'));
                 exit();
             }
 
@@ -79,19 +79,19 @@ class AuthController {
                 $_SESSION['role_id'] = $user['RoleID'];
 
                 if (isset($user['IsActive']) && (int)$user['IsActive'] === 0) {
-                    header("Location: " . BASE_URL . "App/Views/auth/account_locked.php");
+                    header('Location: ' . app_url('App/Views/auth/account_locked.php'));
                     exit();
                 }
 
                 if ($user['RoleName'] === 'Admin') {
-                    header("Location: " . BASE_URL . "App/Views/admin/dashboard.php");
+                    header('Location: ' . app_url('App/Views/admin/dashboard.php'));
                 } else {
-                    header("Location: " . BASE_URL . "App/Views/feed.php");
+                    header('Location: ' . app_url('App/Views/feed.php'));
                 }
                 exit();
             } else {
                 $_SESSION['error'] = "Tài khoản hoặc mật khẩu không chính xác.";
-                header("Location: " . BASE_URL . "App/Views/auth/login.php");
+                header('Location: ' . app_url('App/Views/auth/login.php'));
                 exit();
             }
         }
@@ -107,20 +107,20 @@ class AuthController {
 
             if (empty($email) || empty($new_password)) {
                 $_SESSION['error'] = "Vui lòng nhập đầy đủ thông tin.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
 
             if ($new_password !== $confirm_password) {
                 $_SESSION['error'] = "Mật khẩu mới xác nhận không khớp.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
 
             $user = $this->userModel->findByCredentials($email);
             if (!$user) {
                 $_SESSION['error'] = "Không tìm thấy tài khoản nào liên kết với Email này.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
 
@@ -129,17 +129,17 @@ class AuthController {
             // Kiểm tra xem mật khẩu mới có trùng mật khẩu cũ không (áp dụng cho cả dạng hash và dạng thô)
             if (password_verify($new_password, $current_db_password) || $new_password === $current_db_password) {
                 $_SESSION['error'] = "Mật khẩu mới không được trùng với mật khẩu cũ gần nhất.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
 
             if ($this->userModel->updatePassword($email, $new_password)) {
                 $_SESSION['success'] = "Đổi mật khẩu thành công! Hãy đăng nhập lại bằng mật khẩu mới.";
-                header("Location: " . BASE_URL . "App/Views/auth/login.php");
+                header('Location: ' . app_url('App/Views/auth/login.php'));
                 exit();
             } else {
                 $_SESSION['error'] = "Không thể cập nhật mật khẩu lúc này.";
-                header("Location: " . BASE_URL . "App/Views/auth/forgotpassword.php");
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
         }
@@ -147,7 +147,7 @@ class AuthController {
     // Đăng xuất xóa session
     public function logout() {
         session_destroy();
-        header("Location: " . BASE_URL . "App/Views/auth/login.php");
+        header('Location: ' . app_url('App/Views/auth/login.php'));
         exit();
     }
 }
