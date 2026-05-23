@@ -3,14 +3,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 1. Định nghĩa hằng số đường dẫn gốc hệ thống nếu chưa có
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../Config/Database.php';
 
 // 2. CHẶN LỖI: Nếu chưa đăng nhập, bắt buộc đá về trang login ngay lập tức
 if (!isset($_SESSION['user_id'])) {
-    header("Location: " . BASE_URL . "App/Views/auth/login.php");
+    header('Location: ' . app_url('App/Views/auth/login.php'));
     exit();
 }
 
