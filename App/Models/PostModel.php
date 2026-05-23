@@ -12,6 +12,9 @@ class PostModel {
     }
 
     public function getAllPosts($viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
         $sql = "
             SELECT 
                 p.PostID,
@@ -23,12 +26,14 @@ class PostModel {
                 u.FullName,
                 u.ProfilePictureUrl,
                 GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                $viewerLikeSelect
                 COUNT(DISTINCT l.UserID) AS LikeCount,
                 COUNT(DISTINCT c.CommentID) AS CommentCount
             FROM posts p
             JOIN users u ON p.UserID = u.UserID
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
+            $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
             WHERE " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
@@ -36,6 +41,9 @@ class PostModel {
         ";
 
         $stmt = $this->conn->prepare($sql);
+        if ($viewerId) {
+            $stmt->bindValue(":viewerId", (int) $viewerId, PDO::PARAM_INT);
+        }
         $this->bindViewerParams($stmt, $viewerId);
         $stmt->execute();
 
@@ -197,7 +205,7 @@ public function toggleLike($userId, $postId) {
 }
 
 public function countLikes($postId) {
-    $sql = "SELECT COUNT(*) AS total FROM likes WHERE PostID = :postId";
+    $sql = "SELECT COUNT(DISTINCT UserID) AS total FROM likes WHERE PostID = :postId";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);

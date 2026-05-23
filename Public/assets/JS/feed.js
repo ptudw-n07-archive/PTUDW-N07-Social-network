@@ -7,6 +7,31 @@ function appUrl(path = "") {
 // =======================
 // LIKE BUTTON - AJAX THẬT
 // =======================
+function openPostDetail(element, event) {
+    if (event) {
+        const interactiveTarget = event.target.closest("a, button, input, textarea, select, label, video, .no-post-nav");
+
+        if (interactiveTarget) {
+            return;
+        }
+    }
+
+    const url = element.dataset.postUrl;
+
+    if (url) {
+        window.location.href = url;
+    }
+}
+
+function handlePostClickableKeydown(element, event) {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    event.preventDefault();
+    openPostDetail(element, event);
+}
+
 function toggleLike(btn) {
     const postId = btn.dataset.postId;
 
@@ -32,18 +57,20 @@ function toggleLike(btn) {
         const icon = btn.querySelector("i");
         const count = btn.querySelector(".like-count");
 
+        const isLiked = Boolean(data.isLiked ?? data.liked ?? data.status === "liked");
+
         count.innerText = data.likeCount;
 
-        if (data.status === "liked") {
+        if (isLiked) {
             icon.classList.remove("bi-heart");
             icon.classList.add("bi-heart-fill");
             btn.classList.add("liked");
-            btn.style.color = "red";
+            btn.setAttribute("aria-pressed", "true");
         } else {
             icon.classList.remove("bi-heart-fill");
             icon.classList.add("bi-heart");
             btn.classList.remove("liked");
-            btn.style.color = "";
+            btn.setAttribute("aria-pressed", "false");
         }
     })
     .catch(error => {
@@ -163,7 +190,8 @@ function addPostToUI(post) {
 
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
     const fullName = post.FullName || post.Username || "Bạn";
-    const profileHref = appUrl(`App/Views/profile.php?id=${encodeURIComponent(post.UserID || "")}`);
+    const profileHref = `/App/Views/profile.php?id=${encodeURIComponent(post.UserID || "")}`;
+    const postDetailHref = `/App/Views/post-detail.php?id=${encodeURIComponent(post.PostID || "")}`;
     const imagesJson = JSON.stringify(images);
     const privacy = post.Privacy || "public";
 
@@ -192,28 +220,36 @@ function addPostToUI(post) {
                         ${renderPostMenu(post.PostID, post.UserID, true)}
                     </div>
 
-                    <p class="post-text"></p>
-
-                    ${imageHtml}
+                    <div
+                        class="post-clickable"
+                        role="link"
+                        tabindex="0"
+                        data-post-url="${postDetailHref}"
+                        onclick="openPostDetail(this, event)"
+                        onkeydown="handlePostClickableKeydown(this, event)"
+                    >
+                        <p class="post-text"></p>
+                        ${imageHtml}
+                    </div>
 
                     <div class="post-actions d-flex gap-4">
-                        <button onclick="toggleLike(this)" data-post-id="${post.PostID}">
+                        <button type="button" class="feed-like-btn no-post-nav" onclick="toggleLike(this)" data-post-id="${post.PostID}" aria-pressed="false">
                             <i class="bi bi-heart"></i>
                             <span class="like-count">0</span>
                         </button>
 
-                        <button onclick="toggleCommentBox(this)">
+                        <button type="button" class="no-post-nav" onclick="toggleCommentBox(this)">
                             <i class="bi bi-chat"></i>
                             <span class="comment-count">0</span>
                         </button>
 
-                        <button>
+                        <button type="button" class="no-post-nav">
                             <i class="bi bi-arrow-repeat"></i>
                         </button>
                     </div>
 
-                    <div class="comment-box mt-3 d-none">
-                        <div class="d-flex gap-2">
+                    <div class="comment-box mt-3 d-none no-post-nav">
+                        <div class="comment-form d-flex gap-2">
                             <input
                                 type="text"
                                 class="form-control comment-input"
@@ -222,7 +258,7 @@ function addPostToUI(post) {
 
                             <button
                                 type="button"
-                                class="btn btn-pink"
+                                class="btn btn-pink comment-submit"
                                 onclick="sendComment(this)"
                                 data-post-id="${post.PostID}"
                             >
@@ -230,7 +266,7 @@ function addPostToUI(post) {
                             </button>
                         </div>
 
-                        <div class="comment-list mt-2"></div>
+                        <div class="comment-list"></div>
                     </div>
                 </div>
             </div>
@@ -378,8 +414,17 @@ function sendComment(btn) {
                 </div>
             `;
         } else {
-            comment.className = "small mt-2";
-            comment.innerHTML = `<strong>${escapeHTML(data.comment.fullName)}</strong>: ${escapeHTML(data.comment.content)}`;
+            comment.className = "comment-item";
+            comment.innerHTML = `
+                <img src="/Public/assets/img/default-avatar.jpg" class="comment-avatar" alt="avatar">
+                <div class="comment-bubble">
+                    <div class="comment-meta">
+                        <strong class="comment-author">${escapeHTML(data.comment.fullName)}</strong>
+                        <span class="comment-time">• vừa xong</span>
+                    </div>
+                    <div class="comment-content">${escapeHTML(data.comment.content)}</div>
+                </div>
+            `;
         }
 
         commentList.appendChild(comment);
