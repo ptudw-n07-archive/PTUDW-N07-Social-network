@@ -120,6 +120,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const memberRoleFilter = document.getElementById('memberRoleFilter');
     const printMembersBtn = document.getElementById('printMembersBtn');
     const exportMembersCsvBtn = document.getElementById('exportMembersCsvBtn');
+    const printOverviewBtn = document.getElementById('printOverviewBtn');
+    const exportOverviewCsvBtn = document.getElementById('exportOverviewCsvBtn');
+    const printStatisticsBtn = document.getElementById('printStatisticsBtn');
+    const exportStatisticsCsvBtn = document.getElementById('exportStatisticsCsvBtn');
+    const reportSearchInput = document.getElementById('reportSearchInput');
+    const reportStatusFilter = document.getElementById('reportStatusFilter');
+    const printReportsBtn = document.getElementById('printReportsBtn');
+    const exportReportsCsvBtn = document.getElementById('exportReportsCsvBtn');
+    const printContentPostsBtn = document.getElementById('printContentPostsBtn');
+    const exportContentPostsCsvBtn = document.getElementById('exportContentPostsCsvBtn');
+    const printContentCommentsBtn = document.getElementById('printContentCommentsBtn');
+    const exportContentCommentsCsvBtn = document.getElementById('exportContentCommentsCsvBtn');
+    const printContentHashtagsBtn = document.getElementById('printContentHashtagsBtn');
+    const exportContentHashtagsCsvBtn = document.getElementById('exportContentHashtagsCsvBtn');
     const editRoleModalEl = document.getElementById('editRoleModal');
     const editRoleSelect = document.getElementById('editRoleSelect');
     const editRoleSaveBtn = document.getElementById('editRoleSaveBtn');
@@ -140,6 +154,52 @@ document.addEventListener('DOMContentLoaded', function() {
         '"': '&quot;',
         "'": '&#039;'
     }[char]));
+
+    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const downloadCsv = (filename, headers, rows) => {
+        const csv = [
+            headers.join(','),
+            ...rows.map(row => headers.map(header => csvCell(row[header])).join(','))
+        ].join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const reportDateSlug = () => new Date().toISOString().slice(0, 10);
+    const ensurePrintArea = () => {
+        let printArea = document.getElementById('adminPrintArea');
+        if (!printArea) {
+            printArea = document.createElement('div');
+            printArea.id = 'adminPrintArea';
+            document.body.appendChild(printArea);
+        }
+        return printArea;
+    };
+
+    const printTableReport = (title, headers, rows, introHtml = '') => {
+        const printArea = ensurePrintArea();
+        printArea.innerHTML = `
+            <h1>${escapeHtml(title)}</h1>
+            <p>Thời gian xuất báo cáo: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</p>
+            ${introHtml}
+            <table>
+                <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+                <tbody>
+                    ${rows.length
+                        ? rows.map(row => `<tr>${headers.map(header => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')
+                        : `<tr><td colspan="${headers.length}">Không có dữ liệu phù hợp</td></tr>`}
+                </tbody>
+            </table>
+        `;
+        window.print();
+    };
 
     const normalizeAssetPath = path => {
         if (!path) return '';
@@ -423,47 +483,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportMembersCsv = () => {
         const rows = currentReportRows();
         const headers = ['UserID', 'Username', 'FullName', 'Email', 'RoleName', 'IsActive', 'CreatedAt', 'PostCount', 'ReportCount'];
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => headers.map(header => `"${String(row[header] ?? '').replace(/"/g, '""')}"`).join(','))
-        ].join('\r\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `archive-members-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        downloadCsv(`archive-members-${reportDateSlug()}.csv`, headers, rows);
     };
 
     const printMembersReport = () => {
         const rows = currentReportRows();
-        let printArea = document.getElementById('membersPrintArea');
-        if (!printArea) {
-            printArea = document.createElement('div');
-            printArea.id = 'membersPrintArea';
-            document.body.appendChild(printArea);
-        }
-
-        printArea.innerHTML = `
-            <h1>Báo cáo quản lý thành viên - Archive</h1>
-            <p>Thời gian xuất báo cáo: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</p>
-            <table>
-                <thead>
-                    <tr>
-                        ${Object.keys(currentReportRows()[0] || {
-                            UserID: '', Username: '', FullName: '', Email: '', RoleName: '', IsActive: '', CreatedAt: '', PostCount: '', ReportCount: ''
-                        }).map(key => `<th>${escapeHtml(key)}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows.map(row => `<tr>${Object.values(row).map(value => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')}
-                </tbody>
-            </table>
-        `;
-        window.print();
+        const headers = ['UserID', 'Username', 'FullName', 'Email', 'RoleName', 'IsActive', 'CreatedAt', 'PostCount', 'ReportCount'];
+        printTableReport('Báo cáo quản lý thành viên - Archive', headers, rows);
     };
 
     if (membersTableBody) {
@@ -727,6 +753,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
+            const cachedReport = currentReports.find(report => Number(report.ReportID) === Number(reportIdValue));
+            if (cachedReport && reportElement) {
+                cachedReport.Status = 'Đã xử lý';
+                cachedReport.StatusKey = 'resolved';
+                cachedReport.row = reportElement;
+                reportElement.dataset.report = JSON.stringify({
+                    ReportID: cachedReport.ReportID,
+                    Reporter: cachedReport.Reporter || '',
+                    ReportedUser: cachedReport.ReportedUser || '',
+                    ReportType: cachedReport.ReportType || '',
+                    Reason: cachedReport.Reason || '',
+                    Status: cachedReport.Status,
+                    StatusKey: 'resolved',
+                    CreatedAt: cachedReport.CreatedAt || ''
+                });
+            }
+            applyReportFilters();
+
             const reportStatElement = document.querySelector('#overview .stat-value.text-danger');
             if (reportStatElement) {
                 const currentCount = parseInt(reportStatElement.textContent, 10) || 0;
@@ -743,6 +787,60 @@ document.addEventListener('DOMContentLoaded', function() {
     function showReportDetails(reportId) {
         openReportDetail(reportId);
     }
+
+    let currentReports = Array.from(document.querySelectorAll('#reports tbody tr[data-report]')).map(row => {
+        try {
+            return { ...JSON.parse(row.dataset.report || '{}'), row };
+        } catch (err) {
+            return { row };
+        }
+    });
+
+    const filteredReportRows = () => {
+        const keyword = reportSearchInput ? reportSearchInput.value.trim().toLowerCase() : '';
+        const status = reportStatusFilter ? reportStatusFilter.value : '';
+
+        return currentReports.filter(report => {
+            const rowText = [
+                report.ReportID,
+                report.Reporter,
+                report.ReportedUser,
+                report.ReportType,
+                report.Reason,
+                report.Status,
+                report.CreatedAt
+            ].join(' ').toLowerCase();
+            const matchesKeyword = keyword === '' || rowText.includes(keyword);
+            const matchesStatus = status === '' || report.StatusKey === status;
+            return matchesKeyword && matchesStatus;
+        });
+    };
+
+    const applyReportFilters = () => {
+        const visible = new Set(filteredReportRows().map(report => String(report.ReportID)));
+        currentReports.forEach(report => {
+            if (report.row) report.row.classList.toggle('d-none', !visible.has(String(report.ReportID)));
+        });
+    };
+
+    const reportExportRows = () => filteredReportRows().map(report => ({
+        ReportID: report.ReportID || '',
+        Reporter: report.Reporter || '',
+        ReportedUser: report.ReportedUser || '',
+        ReportType: report.ReportType || '',
+        Reason: report.Reason || '',
+        Status: report.Status || '',
+        CreatedAt: report.CreatedAt || ''
+    }));
+
+    const reportHeaders = ['ReportID', 'Reporter', 'ReportedUser', 'ReportType', 'Reason', 'Status', 'CreatedAt'];
+    const exportReportsCsv = () => downloadCsv(`archive-reports-${reportDateSlug()}.csv`, reportHeaders, reportExportRows());
+    const printReportsReport = () => printTableReport('Báo cáo kiểm duyệt - Archive', reportHeaders, reportExportRows());
+
+    if (reportSearchInput) reportSearchInput.addEventListener('input', applyReportFilters);
+    if (reportStatusFilter) reportStatusFilter.addEventListener('change', applyReportFilters);
+    if (exportReportsCsvBtn) exportReportsCsvBtn.addEventListener('click', exportReportsCsv);
+    if (printReportsBtn) printReportsBtn.addEventListener('click', printReportsReport);
 
     const contentPostsTableBody = document.getElementById('contentPostsTableBody');
     const contentCommentsTableBody = document.getElementById('contentCommentsTableBody');
@@ -764,6 +862,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let contentCommentTimer = null;
     let contentHashtagTimer = null;
     let contentLoaded = false;
+    let currentContentPosts = [];
+    let currentContentComments = [];
+    let currentContentHashtags = [];
 
     const contentEmptyRow = colspan => `<tr><td colspan="${colspan}" class="text-center text-muted py-4">Không tìm thấy dữ liệu phù hợp</td></tr>`;
     const compactText = (value, max = 120) => {
@@ -807,12 +908,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const formatNumber = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
     const rosePalette = ['#d69096', '#795d4a', '#e8b4c3', '#8aa889', '#f0c88a', '#c75d72'];
+    let currentOverviewStats = {};
     let statisticsLoaded = false;
+    let currentStatisticsRankings = {
+        topPostsByLikes: [],
+        topUsersByFollowers: [],
+        topHashtags: [],
+        topReportedUsers: []
+    };
+    let currentStatisticsCharts = {};
+    let currentStatisticsInsights = {
+        mostActiveUsers: [],
+        peakPostHour: null,
+        recentHotHashtags: [],
+        latestReports: []
+    };
     const chartInstances = {};
     const statisticsRankingLimit = document.getElementById('statisticsRankingLimit');
 
     const updateOverviewStats = stats => {
         if (!stats) return;
+        currentOverviewStats = { ...currentOverviewStats, ...stats };
         document.querySelectorAll('[data-overview-stat]').forEach(element => {
             const key = element.dataset.overviewStat;
             if (Object.prototype.hasOwnProperty.call(stats, key)) {
@@ -835,6 +951,21 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Overview stats error:', err);
         }
     };
+
+    const overviewRows = () => Array.from(document.querySelectorAll('.overview-stat-card')).map(card => ({
+        Metric: card.querySelector('.stat-label') ? card.querySelector('.stat-label').textContent.trim() : '',
+        Value: card.querySelector('.stat-value') ? card.querySelector('.stat-value').textContent.trim() : ''
+    })).filter(row => row.Metric !== '');
+
+    const exportOverviewCsv = () => downloadCsv(`archive-overview-${reportDateSlug()}.csv`, ['Metric', 'Value'], overviewRows());
+    const printOverviewReport = () => printTableReport(
+        'Báo cáo tổng quan hệ thống - Archive',
+        ['Metric', 'Value'],
+        overviewRows()
+    );
+
+    if (exportOverviewCsvBtn) exportOverviewCsvBtn.addEventListener('click', exportOverviewCsv);
+    if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverviewReport);
 
     const statisticsEmpty = message => `<div class="statistics-empty">${escapeHtml(message || 'Không có dữ liệu phù hợp')}</div>`;
     const visibilityBadge = isHidden => Number(isHidden) === 1
@@ -1098,6 +1229,12 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('limit', statisticsRankingLimit ? statisticsRankingLimit.value : '5');
         const data = await fetchJson(url.toString());
         const rankings = data.data || {};
+        currentStatisticsRankings = {
+            topPostsByLikes: rankings.topPostsByLikes || [],
+            topUsersByFollowers: rankings.topUsersByFollowers || [],
+            topHashtags: rankings.topHashtags || [],
+            topReportedUsers: rankings.topReportedUsers || []
+        };
         renderTopPosts(rankings.topPostsByLikes || []);
         renderTopUsers(rankings.topUsersByFollowers || []);
         renderTopHashtags(rankings.topHashtags || []);
@@ -1108,6 +1245,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadStatisticsCharts = async () => {
         const data = await fetchJson(window.ADMIN_STATISTICS_CHARTS_URL);
         const charts = data.data || {};
+        currentStatisticsCharts = charts;
         createOrUpdateChart('postsByDayChart', 'line', charts.postsByDay, 'Bài viết');
         createOrUpdateChart('usersByDayChart', 'line', charts.usersByDay, 'Người dùng');
         createOrUpdateChart('reportStatusChart', 'doughnut', charts.reportStatus, 'Report');
@@ -1117,6 +1255,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadStatisticsInsights = async () => {
         const data = await fetchJson(window.ADMIN_STATISTICS_INSIGHTS_URL);
         const insights = data.data || {};
+        currentStatisticsInsights = {
+            mostActiveUsers: insights.mostActiveUsers || [],
+            peakPostHour: insights.peakPostHour || null,
+            recentHotHashtags: insights.recentHotHashtags || [],
+            latestReports: insights.latestReports || []
+        };
         renderMostActiveUsers(insights.mostActiveUsers || []);
         renderPeakHour(insights.peakPostHour || null);
         renderRecentHotHashtags(insights.recentHotHashtags || []);
@@ -1139,6 +1283,112 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     };
+
+    const statisticsCsvRows = () => {
+        const rows = [];
+        currentStatisticsRankings.topPostsByLikes.forEach((post, index) => rows.push({
+            Section: 'Top Posts',
+            Rank: index + 1,
+            ID: post.PostID || '',
+            Name: compactText(post.Content, 120) || '',
+            Username: post.Username || '',
+            Metric: 'LikeCount',
+            Value: post.LikeCount || 0,
+            Extra: `CommentCount: ${post.CommentCount || 0}`
+        }));
+        currentStatisticsRankings.topUsersByFollowers.forEach((user, index) => rows.push({
+            Section: 'Top Users',
+            Rank: index + 1,
+            ID: user.UserID || '',
+            Name: personDisplayName(user),
+            Username: user.Username || '',
+            Metric: 'FollowerCount',
+            Value: user.FollowerCount || 0,
+            Extra: `PostCount: ${user.PostCount || 0}`
+        }));
+        currentStatisticsRankings.topHashtags.forEach((hashtag, index) => rows.push({
+            Section: 'Top Hashtags',
+            Rank: index + 1,
+            ID: hashtag.HashtagID || '',
+            Name: hashtag.HashtagName || '',
+            Username: '',
+            Metric: 'UsageCount',
+            Value: hashtag.UsageCount || 0,
+            Extra: `PostCount: ${hashtag.PostCount || 0}`
+        }));
+        currentStatisticsRankings.topReportedUsers.forEach((user, index) => rows.push({
+            Section: 'Top Reported Users',
+            Rank: index + 1,
+            ID: user.UserID || '',
+            Name: personDisplayName(user),
+            Username: user.Username || '',
+            Metric: 'ReportCount',
+            Value: user.ReportCount || 0,
+            Extra: user.RoleName || ''
+        }));
+        return rows;
+    };
+
+    const statisticsInsightRows = () => {
+        const rows = [];
+        currentStatisticsInsights.mostActiveUsers.forEach((user, index) => rows.push({
+            Section: 'Most Active Users',
+            Item: `${index + 1}. ${personDisplayName(user)} (@${user.Username || ''})`,
+            Detail: `${user.PostCount || 0} bài, ${user.CommentCount || 0} bình luận, ${user.LikeCount || 0} like, ${user.ActivityScore || 0} điểm`
+        }));
+        if (currentStatisticsInsights.peakPostHour) {
+            rows.push({
+                Section: 'Peak Post Hour',
+                Item: currentStatisticsInsights.peakPostHour.label || '',
+                Detail: `${currentStatisticsInsights.peakPostHour.postCount || 0} bài viết`
+            });
+        }
+        currentStatisticsInsights.recentHotHashtags.forEach(hashtag => rows.push({
+            Section: 'Recent Hot Hashtags',
+            Item: `#${hashtag.HashtagName || ''}`,
+            Detail: `${hashtag.RecentPostCount || 0} bài trong 7 ngày, UsageCount ${hashtag.UsageCount || 0}`
+        }));
+        currentStatisticsInsights.latestReports.forEach(report => rows.push({
+            Section: 'Latest Reports',
+            Item: report.Reason || '',
+            Detail: `${report.ReporterFullName || report.ReporterUsername || ''} -> ${report.ReportedFullName || report.ReportedUsername || ''} (${report.Status || ''}) ${report.CreatedAt || ''}`
+        }));
+        return rows;
+    };
+
+    const chartSummaryRows = () => Object.entries(currentStatisticsCharts || {}).flatMap(([section, chart]) => {
+        const labels = Array.isArray(chart && chart.labels) ? chart.labels : [];
+        const values = Array.isArray(chart && chart.values) ? chart.values : [];
+        return labels.map((label, index) => ({
+            Section: section,
+            Item: label,
+            Detail: values[index] || 0
+        }));
+    });
+
+    const exportStatisticsCsv = async () => {
+        await loadStatistics();
+        const headers = ['Section', 'Rank', 'ID', 'Name', 'Username', 'Metric', 'Value', 'Extra'];
+        downloadCsv(`archive-statistics-${reportDateSlug()}.csv`, headers, statisticsCsvRows());
+    };
+
+    const printStatisticsReport = async () => {
+        await loadStatistics();
+        const rankingHeaders = ['Section', 'Rank', 'ID', 'Name', 'Username', 'Metric', 'Value', 'Extra'];
+        const insightHeaders = ['Section', 'Item', 'Detail'];
+        const introHtml = `
+            <h2>Activity Insights</h2>
+            <table>
+                <thead><tr>${insightHeaders.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+                <tbody>${[...statisticsInsightRows(), ...chartSummaryRows()].map(row => `<tr>${insightHeaders.map(header => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table>
+            <h2>Top Ranking</h2>
+        `;
+        printTableReport('Báo cáo thống kê - Archive', rankingHeaders, statisticsCsvRows(), introHtml);
+    };
+
+    if (exportStatisticsCsvBtn) exportStatisticsCsvBtn.addEventListener('click', exportStatisticsCsv);
+    if (printStatisticsBtn) printStatisticsBtn.addEventListener('click', printStatisticsReport);
 
     if (statisticsRankingLimit) {
         statisticsRankingLimit.addEventListener('change', async () => {
@@ -1220,6 +1470,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const posts = (data.data && data.data.posts) || [];
+            currentContentPosts = posts;
             contentPostsTableBody.innerHTML = posts.length ? posts.map(renderContentPostRow).join('') : contentEmptyRow(9);
         } catch (err) {
             contentPostsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1234,6 +1485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const comments = (data.data && data.data.comments) || [];
+            currentContentComments = comments;
             contentCommentsTableBody.innerHTML = comments.length ? comments.map(renderContentCommentRow).join('') : contentEmptyRow(9);
         } catch (err) {
             contentCommentsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1248,6 +1500,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const hashtags = (data.data && data.data.hashtags) || [];
+            currentContentHashtags = hashtags;
             contentHashtagsTableBody.innerHTML = hashtags.length ? hashtags.map(renderContentHashtagRow).join('') : contentEmptyRow(7);
         } catch (err) {
             contentHashtagsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1260,6 +1513,77 @@ document.addEventListener('DOMContentLoaded', function() {
         loadContentComments();
         loadContentHashtags();
     };
+
+    const contentStatusText = isHidden => Number(isHidden) === 1 ? 'Đã ẩn' : 'Hiển thị';
+    const contentPostRows = () => currentContentPosts.map(post => ({
+        PostID: post.PostID || '',
+        Username: post.Username || '',
+        Content: post.Content || '',
+        LikeCount: post.LikeCount || 0,
+        CommentCount: post.CommentCount || 0,
+        IsHidden: contentStatusText(post.IsHidden),
+        CreatedAt: post.CreatedAt || ''
+    }));
+    const contentCommentRows = () => currentContentComments.map(comment => ({
+        CommentID: comment.CommentID || '',
+        Username: comment.Username || '',
+        CommentContent: comment.Content || '',
+        PostContent: comment.PostContent || '',
+        IsHidden: contentStatusText(comment.IsHidden),
+        CreatedAt: comment.CreatedAt || ''
+    }));
+    const contentHashtagRows = () => currentContentHashtags.map(hashtag => ({
+        HashtagID: hashtag.HashtagID || '',
+        HashtagName: hashtag.HashtagName || '',
+        UsageCount: hashtag.UsageCount || 0,
+        IsHidden: contentStatusText(hashtag.IsHidden),
+        CreatedAt: hashtag.CreatedAt || ''
+    }));
+
+    const ensureContentLoaded = async loader => {
+        if (!contentLoaded) {
+            contentLoaded = true;
+            await loader();
+        }
+    };
+
+    const exportContentPostsCsv = async () => {
+        await ensureContentLoaded(loadContentPosts);
+        const headers = ['PostID', 'Username', 'Content', 'LikeCount', 'CommentCount', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-posts-${reportDateSlug()}.csv`, headers, contentPostRows());
+    };
+    const printContentPostsReport = async () => {
+        await ensureContentLoaded(loadContentPosts);
+        const headers = ['PostID', 'Username', 'Content', 'LikeCount', 'CommentCount', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo bài viết - Archive', headers, contentPostRows());
+    };
+    const exportContentCommentsCsv = async () => {
+        await ensureContentLoaded(loadContentComments);
+        const headers = ['CommentID', 'Username', 'CommentContent', 'PostContent', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-comments-${reportDateSlug()}.csv`, headers, contentCommentRows());
+    };
+    const printContentCommentsReport = async () => {
+        await ensureContentLoaded(loadContentComments);
+        const headers = ['CommentID', 'Username', 'CommentContent', 'PostContent', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo bình luận - Archive', headers, contentCommentRows());
+    };
+    const exportContentHashtagsCsv = async () => {
+        await ensureContentLoaded(loadContentHashtags);
+        const headers = ['HashtagID', 'HashtagName', 'UsageCount', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-hashtags-${reportDateSlug()}.csv`, headers, contentHashtagRows());
+    };
+    const printContentHashtagsReport = async () => {
+        await ensureContentLoaded(loadContentHashtags);
+        const headers = ['HashtagID', 'HashtagName', 'UsageCount', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo hashtag - Archive', headers, contentHashtagRows());
+    };
+
+    if (exportContentPostsCsvBtn) exportContentPostsCsvBtn.addEventListener('click', exportContentPostsCsv);
+    if (printContentPostsBtn) printContentPostsBtn.addEventListener('click', printContentPostsReport);
+    if (exportContentCommentsCsvBtn) exportContentCommentsCsvBtn.addEventListener('click', exportContentCommentsCsv);
+    if (printContentCommentsBtn) printContentCommentsBtn.addEventListener('click', printContentCommentsReport);
+    if (exportContentHashtagsCsvBtn) exportContentHashtagsCsvBtn.addEventListener('click', exportContentHashtagsCsv);
+    if (printContentHashtagsBtn) printContentHashtagsBtn.addEventListener('click', printContentHashtagsReport);
 
     const detailGridItem = (label, value) => `<div class="report-detail-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || value === 0 ? value : '-')}</strong></div>`;
     const contentBox = (title, value) => `<div class="report-detail-panel"><h6>${escapeHtml(title)}</h6><div class="report-content-box">${escapeHtml(value || '-')}</div></div>`;
@@ -1318,6 +1642,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const rowId = type === 'post' ? `content-post-row-${item.PostID}` : type === 'comment' ? `content-comment-row-${item.CommentID}` : `content-hashtag-row-${item.HashtagID}`;
         const row = document.getElementById(rowId);
         if (!row) return;
+        if (type === 'post') {
+            currentContentPosts = currentContentPosts.map(post => Number(post.PostID) === Number(item.PostID) ? item : post);
+        } else if (type === 'comment') {
+            currentContentComments = currentContentComments.map(comment => Number(comment.CommentID) === Number(item.CommentID) ? item : comment);
+        } else {
+            currentContentHashtags = currentContentHashtags.map(hashtag => Number(hashtag.HashtagID) === Number(item.HashtagID) ? item : hashtag);
+        }
         row.outerHTML = type === 'post' ? renderContentPostRow(item) : type === 'comment' ? renderContentCommentRow(item) : renderContentHashtagRow(item);
     };
 
@@ -1363,9 +1694,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     const row = document.getElementById(`content-comment-row-${commentId}`);
                     if (row) row.remove();
                 });
+                currentContentComments = currentContentComments.filter(comment => !data.data.DeletedCommentIDs.map(Number).includes(Number(comment.CommentID)));
             } else {
                 const row = document.getElementById(rowId);
                 if (row) row.remove();
+                if (type === 'post') {
+                    currentContentPosts = currentContentPosts.filter(post => Number(post.PostID) !== id);
+                } else if (type === 'comment') {
+                    currentContentComments = currentContentComments.filter(comment => Number(comment.CommentID) !== id);
+                } else {
+                    currentContentHashtags = currentContentHashtags.filter(hashtag => Number(hashtag.HashtagID) !== id);
+                }
             }
         } catch (err) {
             await showAlertModal(err.message || `Không thể xóa ${labelMap[type]}.`, 'Lỗi', 'Đóng');

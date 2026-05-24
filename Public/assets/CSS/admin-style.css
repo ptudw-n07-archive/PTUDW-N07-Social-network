@@ -178,6 +178,26 @@
     font-size: 0.84rem;
 }
 
+.admin-tab-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.admin-report-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.admin-tab-toolbar > .content-toolbar {
+    flex: 1 1 520px;
+}
+
 .overview-stat-grid {
     width: min(100%, 1380px);
     margin-left: auto;
@@ -1532,6 +1552,7 @@
     min-width: 860px;
 }
 
+#adminPrintArea,
 #membersPrintArea {
     display: none;
 }
@@ -1547,7 +1568,8 @@
     }
 
     .overview-header,
-    .statistics-section-heading {
+    .statistics-section-heading,
+    .admin-tab-toolbar {
         align-items: flex-start;
         flex-direction: column;
     }
@@ -1611,11 +1633,14 @@
         visibility: hidden !important;
     }
 
+    #adminPrintArea,
+    #adminPrintArea *,
     #membersPrintArea,
     #membersPrintArea * {
         visibility: visible !important;
     }
 
+    #adminPrintArea,
     #membersPrintArea {
         display: block !important;
         position: absolute;
@@ -1626,21 +1651,32 @@
         font-family: Arial, sans-serif;
     }
 
+    #adminPrintArea h1,
     #membersPrintArea h1 {
         font-size: 22px;
         margin-bottom: 8px;
     }
 
+    #adminPrintArea h2 {
+        font-size: 16px;
+        margin: 18px 0 8px;
+    }
+
+    #adminPrintArea p,
     #membersPrintArea p {
         margin-bottom: 18px;
     }
 
+    #adminPrintArea table,
     #membersPrintArea table {
         width: 100%;
         border-collapse: collapse;
         font-size: 11px;
+        margin-bottom: 14px;
     }
 
+    #adminPrintArea th,
+    #adminPrintArea td,
     #membersPrintArea th,
     #membersPrintArea td {
         border: 1px solid #999;
@@ -1648,6 +1684,7 @@
         text-align: left;
     }
 
+    #adminPrintArea th,
     #membersPrintArea th {
         background: #f0f0f0;
     }

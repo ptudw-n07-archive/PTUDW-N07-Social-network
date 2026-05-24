@@ -101,7 +101,11 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                     <div>
                         <h5>Tổng quan hệ thống</h5>
                     </div>
-                    <small>Cập nhật lần cuối: <strong id="overviewLastUpdated"><?php echo htmlspecialchars($stats['lastUpdated'] ?? ''); ?></strong></small>
+                    <div class="admin-report-actions">
+                        <small>Cập nhật lần cuối: <strong id="overviewLastUpdated"><?php echo htmlspecialchars($stats['lastUpdated'] ?? ''); ?></strong></small>
+                        <button type="button" class="btn btn-outline-brown btn-sm" id="printOverviewBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                        <button type="button" class="btn btn-pink-admin btn-sm" id="exportOverviewCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                    </div>
                 </div>
                 <div class="row g-3 d-flex align-items-stretch overview-stat-grid" id="overviewStatsGrid">
                     <?php foreach ($overviewCards as $card): ?>
@@ -118,17 +122,23 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
 
             <div class="tab-pane fade" id="statistics" role="tabpanel">
                 <div class="statistics-shell">
-                    <ul class="nav nav-pills statistics-subtabs" id="statisticsSubTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#statistics-ranking" type="button" role="tab">Top Ranking</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-charts" type="button" role="tab">Biểu đồ</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-insights" type="button" role="tab">Activity Insights</button>
-                        </li>
-                    </ul>
+                    <div class="admin-tab-toolbar">
+                        <ul class="nav nav-pills statistics-subtabs" id="statisticsSubTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#statistics-ranking" type="button" role="tab">Top Ranking</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-charts" type="button" role="tab">Biểu đồ</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-insights" type="button" role="tab">Activity Insights</button>
+                            </li>
+                        </ul>
+                        <div class="admin-report-actions">
+                            <button type="button" class="btn btn-outline-brown btn-sm" id="printStatisticsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="exportStatisticsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                        </div>
+                    </div>
 
                     <div class="tab-content statistics-subtab-content">
                         <div class="tab-pane fade show active" id="statistics-ranking" role="tabpanel">
@@ -228,6 +238,23 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
 
             <div class="tab-pane fade" id="reports" role="tabpanel">
                 <div class="admin-table-container report-table-container">
+                    <div class="admin-tab-toolbar mb-3">
+                        <div class="content-toolbar mb-0">
+                            <div class="content-search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input type="search" id="reportSearchInput" class="form-control admin-control" placeholder="Tìm ReportID, người báo cáo, đối tượng, lý do">
+                            </div>
+                            <select id="reportStatusFilter" class="form-select admin-control content-filter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending">Chờ duyệt</option>
+                                <option value="resolved">Đã xử lý</option>
+                            </select>
+                        </div>
+                        <div class="admin-report-actions">
+                            <button type="button" class="btn btn-outline-brown btn-sm" id="printReportsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="exportReportsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                        </div>
+                    </div>
                     <div class="table-responsive report-table-responsive">
                     <table class="table align-middle report-table">
                         <colgroup>
@@ -251,7 +278,19 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                         <tbody>
                             <?php if(!empty($reports)): ?>
                                 <?php foreach($reports as $r): ?>
-                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
+                                <?php
+                                    $reportExportData = [
+                                        'ReportID' => $r['id'],
+                                        'Reporter' => $r['reporter'] ?? '',
+                                        'ReportedUser' => $r['user'] ?? '',
+                                        'ReportType' => $r['type'] ?? '',
+                                        'Reason' => $r['reason'] ?? '',
+                                        'Status' => $r['status'] ?? '',
+                                        'StatusKey' => $r['statusKey'] ?? '',
+                                        'CreatedAt' => $r['time'] ?? ''
+                                    ];
+                                ?>
+                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-report='<?php echo htmlspecialchars(json_encode($reportExportData, JSON_UNESCAPED_UNICODE), ENT_QUOTES); ?>' data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
@@ -337,6 +376,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="public">public</option>
                                     <option value="private">private</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentPostsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentPostsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table">
@@ -371,6 +414,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="0">Hiển thị</option>
                                     <option value="1">Đã ẩn</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentCommentsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentCommentsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table">
@@ -405,6 +452,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="0">Hiển thị</option>
                                     <option value="1">Đã ẩn</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentHashtagsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentHashtagsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table hashtag-admin-table">

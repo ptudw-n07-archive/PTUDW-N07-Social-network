@@ -297,6 +297,8 @@ class AdminModel {
 
     public function getReportsList() {
         $query = "SELECT r.ReportID AS id, u.FullName AS user, u.ProfilePictureUrl AS avatar,
+                         reporter.Username AS ReporterUsername,
+                         reporter.FullName AS ReporterFullName,
                          CASE
                              WHEN r.PostID IS NOT NULL THEN 'Bài viết'
                              WHEN r.CommentID IS NOT NULL THEN 'Bình luận'
@@ -304,16 +306,24 @@ class AdminModel {
                          END AS type,
                          r.Reason AS reason, r.Details AS details, r.PostID, r.CommentID, r.ReportedUserID,
                          r.CreatedAt AS time,
-                         CASE
-                             WHEN r.Status = 'Pending' THEN 'Chờ duyệt'
-                             ELSE 'Đã xử lý'
-                         END AS status
+                          CASE
+                              WHEN r.Status = 'Pending' THEN 'Chờ duyệt'
+                              ELSE 'Đã xử lý'
+                          END AS status,
+                          CASE
+                              WHEN r.Status = 'Pending' THEN 'pending'
+                              ELSE 'resolved'
+                          END AS statusKey
                   FROM reports r
                   LEFT JOIN users u ON r.ReportedUserID = u.UserID
+                  LEFT JOIN users reporter ON r.ReporterUserID = reporter.UserID
                   ORDER BY r.CreatedAt DESC";
 
         $stmt = $this->conn->query($query);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(function ($row) {
+            $row['reporter'] = $row['ReporterFullName'] ?: ($row['ReporterUsername'] ?: '');
+            return $row;
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     public function getMembersList($keyword = '', $roleId = '') {
