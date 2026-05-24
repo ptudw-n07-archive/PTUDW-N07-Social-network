@@ -55,7 +55,7 @@ if (isset($result['posts'])) {
 }
 
 // 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
-function imagePath($path) {
+function homepageImagePath($path) {
     if (empty($path)) {
         return "assets/img/default-avatar.jpg";
     }
@@ -65,7 +65,7 @@ function imagePath($path) {
     return str_replace("Public/", "", $path);
 }
 
-function timeAgo($datetime) {
+function homepageTimeAgo($datetime) {
     if (empty($datetime)) return "Không rõ thời gian";
     
     $time = strtotime($datetime);
@@ -92,7 +92,7 @@ function timeAgo($datetime) {
     return $datetime;
 }
 
-function formatNumber($number) {
+function homepageFormatNumber($number) {
     return number_format((float)$number, 0, '.', ',');
 }
 ?>
@@ -186,19 +186,19 @@ function formatNumber($number) {
                             <div class="row g-0">
                                 <div class="col-4">
                                     <div class="stat-box">
-                                        <h4><?= formatNumber($totalUsers) ?>+</h4>
+                                        <h4><?= homepageFormatNumber($totalUsers) ?>+</h4>
                                         <p>người dùng</p>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="stat-box">
-                                        <h4><?= formatNumber($totalPosts) ?>+</h4>
+                                        <h4><?= homepageFormatNumber($totalPosts) ?>+</h4>
                                         <p>bài viết</p>
                                     </div>
                                 </div>
                                 <div class="col-4">
                                     <div class="stat-box">
-                                        <h4><?= formatNumber($totalComments) ?>+</h4>
+                                        <h4><?= homepageFormatNumber($totalComments) ?>+</h4>
                                         <p>bình luận</p>
                                     </div>
                                 </div>
@@ -286,7 +286,7 @@ function formatNumber($number) {
                                     <div class="d-flex gap-3">
                                         <a href="<?= $loginUrl ?>">
                                             <img 
-                                                src="<?= imagePath($post['ProfilePictureUrl'] ?? '') ?>" 
+                                                src="<?= homepageImagePath($post['ProfilePictureUrl'] ?? '') ?>" 
                                                 class="avatar" 
                                                 alt="avatar"
                                             >
@@ -302,7 +302,7 @@ function formatNumber($number) {
                                                 </a>
 
                                                 <span class="text-muted small">
-                                                    <?= timeAgo($post['CreatedAt']) ?>
+                                                    <?= homepageTimeAgo($post['CreatedAt']) ?>
                                                 </span>
                                             </div>
 
@@ -316,7 +316,7 @@ function formatNumber($number) {
                                                 <?php foreach ($images as $img): ?>
                                                     <a href="<?= $loginUrl ?>">
                                                         <img 
-                                                            src="<?= imagePath(trim($img)) ?>" 
+                                                            src="<?= homepageImagePath(trim($img)) ?>" 
                                                             class="img-fluid rounded-4 mb-3"
                                                             style="max-height: 450px; object-fit: cover;"
                                                             alt="post image"
