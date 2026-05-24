@@ -1,6 +1,15 @@
 <?php
 require_once __DIR__ . '/../../../Config/Database.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
+    header('Location: ' . app_url('App/Views/auth/login.php'));
+    exit();
+}
+
 /** @var array $stats */
 /** @var array $reports */
 /** @var array $members */
