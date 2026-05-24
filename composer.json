@@ -1,0 +1,8 @@
+{
+  "require": {
+    "php": "^8.4",
+    "ext-pdo_mysql": "*",
+    "ext-fileinfo": "*",
+    "ext-mbstring": "*"
+  }
+}
