@@ -185,7 +185,7 @@ document.addEventListener("DOMContentLoaded", function () {
         userSection.classList.toggle("d-none", users.length === 0);
 
         users.forEach(user => {
-            const profileHref = baseUrl + "App/Views/profile.php?id=" + encodeURIComponent(user.UserID);
+            const profileHref = baseUrl + "App/Views/profile/profile.php?id=" + encodeURIComponent(user.UserID);
             const fullName = user.FullName || user.Username || "Người dùng";
             const username = user.Username || "";
             const bio = user.Bio || "Chưa cập nhật bio.";
@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
         postSection.classList.toggle("d-none", posts.length === 0);
 
         posts.forEach(post => {
-            const profileHref = baseUrl + "App/Views/profile.php?id=" + encodeURIComponent(post.UserID);
+            const profileHref = baseUrl + "App/Views/profile/profile.php?id=" + encodeURIComponent(post.UserID);
             const avatar = normalizeImagePath(post.ProfilePictureUrl);
             const fullName = post.FullName || post.Username || "Người dùng";
 

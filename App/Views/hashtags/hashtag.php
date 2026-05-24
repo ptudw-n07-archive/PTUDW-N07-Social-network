@@ -3,15 +3,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('App/Views/auth/login.php'));
     exit();
 }
 
-require_once __DIR__ . '/../Controllers/PostController.php';
-require_once __DIR__ . '/partials/post-menu.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
+require_once __DIR__ . '/../auth/partials/post-menu.php';
 
 use App\Controllers\PostController;
 
@@ -118,11 +118,11 @@ function hashtagTimeAgo($datetime) {
 }
 
 function hashtagProfileUrl($userId) {
-    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
 }
 
 function hashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
 }
 
 function renderHashtagPostContent($content) {
@@ -162,7 +162,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -173,10 +173,10 @@ function renderHashtagPostContent($content) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Bảng tin">
+                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Bảng tin">
                         <i class="bi bi-house-door"></i>
                     </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
+                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -190,7 +190,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'hashtag'; include __DIR__ . '/partials/sidebar.php'; ?>
+                <?php $activePage = 'hashtag'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">
@@ -209,7 +209,7 @@ function renderHashtagPostContent($content) {
                             id="post-<?= (int) $post['PostID'] ?>"
                             role="link"
                             tabindex="0"
-                            data-detail-url="<?= BASE_URL ?>App/Views/post-detail.php?id=<?= (int) $post['PostID'] ?>"
+                            data-detail-url="<?= BASE_URL ?>App/Views/post/post-detail.php?id=<?= (int) $post['PostID'] ?>"
                             <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
                         >
                             <div class="p-3">

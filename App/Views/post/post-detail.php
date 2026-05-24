@@ -3,15 +3,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('App/Views/auth/login.php'));
     exit();
 }
 
-require_once __DIR__ . '/../Controllers/PostController.php';
-require_once __DIR__ . '/partials/post-menu.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
+require_once __DIR__ . '/../auth/partials/post-menu.php';
 
 $postId = (int) ($_GET['id'] ?? 0);
 $highlightCommentId = (int) ($_GET['comment'] ?? 0);
@@ -73,7 +73,7 @@ function detailPostMediaPath($path) {
     }
 
     if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
-        $localPath = __DIR__ . '/../../Public/' . $cleanPath;
+        $localPath = __DIR__ . '/../../../Public/' . $cleanPath;
         return is_file($localPath) ? BASE_URL . "Public/" . $cleanPath : '';
     }
 
@@ -133,11 +133,11 @@ function detailTimeAgo($datetime) {
 }
 
 function detailProfileUrl($userId) {
-    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
 }
 
 function detailHashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
 }
 
 function renderDetailPostContent($content) {
@@ -176,7 +176,7 @@ function renderDetailPostContent($content) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -187,8 +187,8 @@ function renderDetailPostContent($content) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
+                    <a href="<?php echo BASE_URL; ?>App/Views/search/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -202,12 +202,12 @@ function renderDetailPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'post'; include __DIR__ . '/partials/sidebar.php'; ?>
+                <?php $activePage = 'post'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-10 mx-auto">
                 <div class="post-detail-topbar">
-                    <button type="button" class="post-detail-back" onclick="history.length > 1 ? history.back() : window.location.href='<?php echo BASE_URL; ?>App/Views/feed.php';" aria-label="Quay lại">
+                    <button type="button" class="post-detail-back" onclick="history.length > 1 ? history.back() : window.location.href='<?php echo BASE_URL; ?>App/Views/post/feed.php';" aria-label="Quay lại">
                         <i class="bi bi-arrow-left"></i>
                     </button>
                     <div class="feed-title mb-0">Bài viết</div>

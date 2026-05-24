@@ -86,7 +86,7 @@ class AuthController {
                 if ($user['RoleName'] === 'Admin') {
                     header('Location: ' . app_url('App/Views/admin/dashboard.php'));
                 } else {
-                    header('Location: ' . app_url('App/Views/feed.php'));
+                    header('Location: ' . app_url('App/Views/post/feed.php'));
                 }
                 exit();
             } else {

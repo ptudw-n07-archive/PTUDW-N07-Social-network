@@ -3,10 +3,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../../Config/Database.php';
 
-require_once __DIR__ . '/../Controllers/ProfileController.php';
-require_once __DIR__ . '/partials/post-menu.php';
+require_once __DIR__ . '/../../Controllers/ProfileController.php';
+require_once __DIR__ . '/../auth/partials/post-menu.php';
 
 use App\Controllers\ProfileController;
 
@@ -71,7 +71,7 @@ function profilePostMediaPath($path) {
     }
 
     if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
-        $localPath = __DIR__ . '/../../Public/' . $cleanPath;
+        $localPath = __DIR__ . '/../../../Public/' . $cleanPath;
         return is_file($localPath) ? BASE_URL . "Public/" . $cleanPath : '';
     }
 
@@ -143,11 +143,11 @@ function profileNumber($number) {
 }
 
 function profileUrl($userId) {
-    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
 }
 
 function profileHashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
 }
 
 function renderProfilePostContentWithHashtags($content) {
@@ -216,7 +216,7 @@ foreach ($posts as $post) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -227,11 +227,11 @@ foreach ($posts as $post) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Trang chủ">
+                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Trang chủ">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn" title="Hồ sơ">
+                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn" title="Hồ sơ">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -245,7 +245,7 @@ foreach ($posts as $post) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'profile'; include __DIR__ . '/partials/sidebar.php'; ?>
+                <?php $activePage = 'profile'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
             </div>
 
             <?php if ($profileNotFound): ?>

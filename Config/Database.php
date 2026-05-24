@@ -117,7 +117,7 @@ class Database {
     public $conn;
 
     public function __construct() {
-        $this->host = app_env('DB_HOST', '127.0.0.1') ?? '127.0.0.1';
+        $this->host = app_env('DB_HOST', '100.76.147.122') ?? '100.76.147.122';
         $this->db_name = app_env('DB_NAME', 'db_archive') ?? 'db_archive';
         $this->username = app_env('DB_USER', 'root') ?? 'root';
         $this->password = app_env('DB_PASSWORD', '') ?? '';
