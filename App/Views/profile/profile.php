@@ -66,7 +66,7 @@ function profilePostMediaPath($path) {
     }
 
     if (str_starts_with($cleanPath, "Public/")) {
-        $localPath = __DIR__ . '/../../' . $cleanPath;
+        $localPath = __DIR__ . '/../../../' . $cleanPath;
         return is_file($localPath) ? BASE_URL . $cleanPath : '';
     }
 
