@@ -10,11 +10,32 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
     exit();
 }
 
+function adminAssetPath($path) {
+    $path = trim((string)$path);
+    if ($path === '') {
+        return BASE_URL . 'Public/assets/img/default-avatar.jpg';
+    }
+
+    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        return $path;
+    }
+
+    $path = ltrim($path, '/');
+    if (str_starts_with($path, 'Public/')) {
+        return BASE_URL . $path;
+    }
+
+    return BASE_URL . 'Public/' . $path;
+}
+
 /** @var array $stats */
 /** @var array $reports */
 /** @var array $members */
 /** @var array $roles */
 /** @var int|null $currentAdminId */
+/** @var array|null $currentAdmin */
+$adminProfileUrl = BASE_URL . 'App/Views/admin/profile.php';
+$adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
 ?>
 
 <!DOCTYPE html>
@@ -43,10 +64,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                     <div class="header-badge"><i class="bi bi-stars"></i></div>
                 </div>
                 <div class="col-4 d-flex justify-content-end align-items-center gap-3">
-                    <div class="d-none d-md-flex align-items-center gap-2 me-2">
-                        <span class="text-muted small fw-bold">Quản trị viên</span>
-                        <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
-                    </div>
+                    <a href="<?php echo htmlspecialchars($adminProfileUrl, ENT_QUOTES); ?>" class="admin-profile-link d-flex align-items-center gap-2 me-2" title="Admin Profile">
+                        <span class="text-muted small fw-bold d-none d-md-inline" id="adminHeaderName">Quản trị viên</span>
+                        <img id="adminHeaderAvatar" class="admin-profile-avatar" src="<?php echo htmlspecialchars($adminAvatarUrl, ENT_QUOTES); ?>" alt="Admin avatar">
+                    </a>
                     <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
@@ -101,7 +122,11 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                     <div>
                         <h5>Tổng quan hệ thống</h5>
                     </div>
-                    <small>Cập nhật lần cuối: <strong id="overviewLastUpdated"><?php echo htmlspecialchars($stats['lastUpdated'] ?? ''); ?></strong></small>
+                    <div class="admin-report-actions">
+                        <small>Cập nhật lần cuối: <strong id="overviewLastUpdated"><?php echo htmlspecialchars($stats['lastUpdated'] ?? ''); ?></strong></small>
+                        <button type="button" class="btn btn-outline-brown btn-sm" id="printOverviewBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                        <button type="button" class="btn btn-pink-admin btn-sm" id="exportOverviewCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                    </div>
                 </div>
                 <div class="row g-3 d-flex align-items-stretch overview-stat-grid" id="overviewStatsGrid">
                     <?php foreach ($overviewCards as $card): ?>
@@ -118,17 +143,23 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
 
             <div class="tab-pane fade" id="statistics" role="tabpanel">
                 <div class="statistics-shell">
-                    <ul class="nav nav-pills statistics-subtabs" id="statisticsSubTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#statistics-ranking" type="button" role="tab">Top Ranking</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-charts" type="button" role="tab">Biểu đồ</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-insights" type="button" role="tab">Activity Insights</button>
-                        </li>
-                    </ul>
+                    <div class="admin-tab-toolbar">
+                        <ul class="nav nav-pills statistics-subtabs" id="statisticsSubTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#statistics-ranking" type="button" role="tab">Top Ranking</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-charts" type="button" role="tab">Biểu đồ</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#statistics-insights" type="button" role="tab">Activity Insights</button>
+                            </li>
+                        </ul>
+                        <div class="admin-report-actions">
+                            <button type="button" class="btn btn-outline-brown btn-sm" id="printStatisticsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="exportStatisticsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                        </div>
+                    </div>
 
                     <div class="tab-content statistics-subtab-content">
                         <div class="tab-pane fade show active" id="statistics-ranking" role="tabpanel">
@@ -228,6 +259,23 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
 
             <div class="tab-pane fade" id="reports" role="tabpanel">
                 <div class="admin-table-container report-table-container">
+                    <div class="admin-tab-toolbar mb-3">
+                        <div class="content-toolbar mb-0">
+                            <div class="content-search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input type="search" id="reportSearchInput" class="form-control admin-control" placeholder="Tìm ReportID, người báo cáo, đối tượng, lý do">
+                            </div>
+                            <select id="reportStatusFilter" class="form-select admin-control content-filter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="pending">Chờ duyệt</option>
+                                <option value="resolved">Đã xử lý</option>
+                            </select>
+                        </div>
+                        <div class="admin-report-actions">
+                            <button type="button" class="btn btn-outline-brown btn-sm" id="printReportsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="exportReportsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                        </div>
+                    </div>
                     <div class="table-responsive report-table-responsive">
                     <table class="table align-middle report-table">
                         <colgroup>
@@ -251,7 +299,19 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                         <tbody>
                             <?php if(!empty($reports)): ?>
                                 <?php foreach($reports as $r): ?>
-                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
+                                <?php
+                                    $reportExportData = [
+                                        'ReportID' => $r['id'],
+                                        'Reporter' => $r['reporter'] ?? '',
+                                        'ReportedUser' => $r['user'] ?? '',
+                                        'ReportType' => $r['type'] ?? '',
+                                        'Reason' => $r['reason'] ?? '',
+                                        'Status' => $r['status'] ?? '',
+                                        'StatusKey' => $r['statusKey'] ?? '',
+                                        'CreatedAt' => $r['time'] ?? ''
+                                    ];
+                                ?>
+                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-report='<?php echo htmlspecialchars(json_encode($reportExportData, JSON_UNESCAPED_UNICODE), ENT_QUOTES); ?>' data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
@@ -337,6 +397,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="public">public</option>
                                     <option value="private">private</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentPostsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentPostsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table">
@@ -371,6 +435,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="0">Hiển thị</option>
                                     <option value="1">Đã ẩn</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentCommentsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentCommentsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table">
@@ -405,6 +473,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                                     <option value="0">Hiển thị</option>
                                     <option value="1">Đã ẩn</option>
                                 </select>
+                                <div class="admin-report-actions ms-lg-auto">
+                                    <button type="button" class="btn btn-outline-brown btn-sm" id="printContentHashtagsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                                    <button type="button" class="btn btn-pink-admin btn-sm" id="exportContentHashtagsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                                </div>
                             </div>
                             <div class="table-responsive content-table-responsive">
                                 <table class="table align-middle content-table hashtag-admin-table">
@@ -543,7 +615,18 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="adminNoteTextarea" class="form-label">Ghi chú của quản trị viên</label>
+                        <div class="admin-note-chip-list mb-3" aria-label="Gợi ý ghi chú xử lý">
+                            <button type="button" class="admin-note-chip" data-note-chip="Spam quảng cáo">Spam quảng cáo</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Ngôn từ xúc phạm">Ngôn từ xúc phạm</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Quấy rối người dùng">Quấy rối người dùng</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Nội dung sai sự thật">Nội dung sai sự thật</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Nội dung phản cảm">Nội dung phản cảm</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Vi phạm tiêu chuẩn cộng đồng">Vi phạm tiêu chuẩn cộng đồng</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Báo cáo không hợp lệ">Báo cáo không hợp lệ</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Tái phạm nhiều lần">Tái phạm nhiều lần</button>
+                        </div>
                         <textarea id="adminNoteTextarea" class="form-control admin-control" rows="4" placeholder="Nhập ghi chú xử lý báo cáo..."></textarea>
+                        <div id="adminNoteError" class="admin-note-error d-none">Vui lòng nhập ghi chú xử lý.</div>
                     </div>
                 </div>
                 <div class="modal-footer">

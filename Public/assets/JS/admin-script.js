@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showConfirmModal = (message, title = 'Xác nhận', confirmText = 'Xác nhận', cancelText = 'Hủy') => {
         if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            return Promise.resolve(false);
+            return Promise.resolve(window.confirm(message));
         }
 
         adminModalTitle.textContent = title;
@@ -45,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showAlertModal = (message, title = 'Thông báo', confirmText = 'Đóng') => {
         if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            return Promise.resolve(false);
+            window.alert(message);
+            return Promise.resolve(true);
         }
 
         adminModalTitle.textContent = title;
@@ -67,15 +68,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminNoteModalEl = document.getElementById('adminNoteModal');
     const adminNoteTextarea = document.getElementById('adminNoteTextarea');
     const adminNoteSaveBtn = document.getElementById('adminNoteSaveBtn');
+    const adminNoteError = document.getElementById('adminNoteError');
     const adminNoteModal = adminNoteModalEl ? new bootstrap.Modal(adminNoteModalEl) : null;
     let adminNoteResolve = null;
+    let adminNoteRequired = false;
 
-    const showAdminNoteModal = () => {
+    const showAdminNoteModal = (required = false) => {
         if (!adminNoteModal || !adminNoteTextarea) {
             return Promise.resolve('');
         }
 
+        adminNoteRequired = required;
         adminNoteTextarea.value = '';
+        if (adminNoteError) adminNoteError.classList.add('d-none');
         adminNoteModal.show();
 
         return new Promise(resolve => {
@@ -96,12 +101,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (adminNoteSaveBtn) {
         adminNoteSaveBtn.addEventListener('click', () => {
-            closeAdminNoteModal(adminNoteTextarea.value.trim());
+            const note = adminNoteTextarea.value.trim();
+            if (adminNoteRequired && note === '') {
+                if (adminNoteError) adminNoteError.classList.remove('d-none');
+                adminNoteTextarea.focus();
+                return;
+            }
+            closeAdminNoteModal(note);
         });
     }
 
+    document.querySelectorAll('[data-note-chip]').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (!adminNoteTextarea) return;
+            const value = chip.dataset.noteChip || '';
+            const current = adminNoteTextarea.value.trim();
+            adminNoteTextarea.value = current === '' ? value : `${current}\n${value}`;
+            if (adminNoteError) adminNoteError.classList.add('d-none');
+            adminNoteTextarea.focus();
+        });
+    });
+
     if (adminNoteModalEl) {
         adminNoteModalEl.addEventListener('hidden.bs.modal', () => {
+            adminNoteRequired = false;
+            if (adminNoteError) adminNoteError.classList.add('d-none');
             if (adminNoteResolve) {
                 adminNoteResolve(null);
                 adminNoteResolve = null;
@@ -120,6 +144,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const memberRoleFilter = document.getElementById('memberRoleFilter');
     const printMembersBtn = document.getElementById('printMembersBtn');
     const exportMembersCsvBtn = document.getElementById('exportMembersCsvBtn');
+    const printOverviewBtn = document.getElementById('printOverviewBtn');
+    const exportOverviewCsvBtn = document.getElementById('exportOverviewCsvBtn');
+    const printStatisticsBtn = document.getElementById('printStatisticsBtn');
+    const exportStatisticsCsvBtn = document.getElementById('exportStatisticsCsvBtn');
+    const reportSearchInput = document.getElementById('reportSearchInput');
+    const reportStatusFilter = document.getElementById('reportStatusFilter');
+    const printReportsBtn = document.getElementById('printReportsBtn');
+    const exportReportsCsvBtn = document.getElementById('exportReportsCsvBtn');
+    const printContentPostsBtn = document.getElementById('printContentPostsBtn');
+    const exportContentPostsCsvBtn = document.getElementById('exportContentPostsCsvBtn');
+    const printContentCommentsBtn = document.getElementById('printContentCommentsBtn');
+    const exportContentCommentsCsvBtn = document.getElementById('exportContentCommentsCsvBtn');
+    const printContentHashtagsBtn = document.getElementById('printContentHashtagsBtn');
+    const exportContentHashtagsCsvBtn = document.getElementById('exportContentHashtagsCsvBtn');
+    const adminProfileNameForm = document.getElementById('adminProfileNameForm');
+    const adminFullNameInput = document.getElementById('adminFullNameInput');
+    const adminAvatarForm = document.getElementById('adminAvatarForm');
+    const adminAvatarInput = document.getElementById('adminAvatarInput');
+    const adminPasswordForm = document.getElementById('adminPasswordForm');
+    const adminCurrentPassword = document.getElementById('adminCurrentPassword');
+    const adminNewPassword = document.getElementById('adminNewPassword');
+    const adminConfirmPassword = document.getElementById('adminConfirmPassword');
+    const adminProfileAlert = document.getElementById('adminProfileAlert');
+    const adminProfileAvatarLarge = document.getElementById('adminProfileAvatarLarge');
+    const adminProfileNameText = document.getElementById('adminProfileNameText');
+    const adminHeaderName = document.getElementById('adminHeaderName');
+    const adminHeaderAvatar = document.getElementById('adminHeaderAvatar');
+    const adminLogsSearch = document.getElementById('adminLogsSearch');
+    const adminLogsActionFilter = document.getElementById('adminLogsActionFilter');
+    const adminLogsTableBody = document.getElementById('adminLogsTableBody');
     const editRoleModalEl = document.getElementById('editRoleModal');
     const editRoleSelect = document.getElementById('editRoleSelect');
     const editRoleSaveBtn = document.getElementById('editRoleSaveBtn');
@@ -140,6 +194,52 @@ document.addEventListener('DOMContentLoaded', function() {
         '"': '&quot;',
         "'": '&#039;'
     }[char]));
+
+    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const downloadCsv = (filename, headers, rows) => {
+        const csv = [
+            headers.join(','),
+            ...rows.map(row => headers.map(header => csvCell(row[header])).join(','))
+        ].join('\r\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
+    const reportDateSlug = () => new Date().toISOString().slice(0, 10);
+    const ensurePrintArea = () => {
+        let printArea = document.getElementById('adminPrintArea');
+        if (!printArea) {
+            printArea = document.createElement('div');
+            printArea.id = 'adminPrintArea';
+            document.body.appendChild(printArea);
+        }
+        return printArea;
+    };
+
+    const printTableReport = (title, headers, rows, introHtml = '') => {
+        const printArea = ensurePrintArea();
+        printArea.innerHTML = `
+            <h1>${escapeHtml(title)}</h1>
+            <p>Thời gian xuất báo cáo: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</p>
+            ${introHtml}
+            <table>
+                <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+                <tbody>
+                    ${rows.length
+                        ? rows.map(row => `<tr>${headers.map(header => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')
+                        : `<tr><td colspan="${headers.length}">Không có dữ liệu phù hợp</td></tr>`}
+                </tbody>
+            </table>
+        `;
+        window.print();
+    };
 
     const normalizeAssetPath = path => {
         if (!path) return '';
@@ -374,6 +474,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 IsActive: updated.IsActive
             });
             updateRenderedRow(updated.UserID);
+            if (Array.isArray(updated.updatedReports)) {
+                markReportsResolved(updated.updatedReports);
+                applyReportFilters();
+            }
             await showAlertModal(data.message || 'Cập nhật trạng thái tài khoản thành công', 'Thành công', 'Đóng');
         } catch (err) {
             console.error('Toggle active error:', err);
@@ -423,47 +527,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportMembersCsv = () => {
         const rows = currentReportRows();
         const headers = ['UserID', 'Username', 'FullName', 'Email', 'RoleName', 'IsActive', 'CreatedAt', 'PostCount', 'ReportCount'];
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => headers.map(header => `"${String(row[header] ?? '').replace(/"/g, '""')}"`).join(','))
-        ].join('\r\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `archive-members-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+        downloadCsv(`archive-members-${reportDateSlug()}.csv`, headers, rows);
     };
 
     const printMembersReport = () => {
         const rows = currentReportRows();
-        let printArea = document.getElementById('membersPrintArea');
-        if (!printArea) {
-            printArea = document.createElement('div');
-            printArea.id = 'membersPrintArea';
-            document.body.appendChild(printArea);
-        }
-
-        printArea.innerHTML = `
-            <h1>Báo cáo quản lý thành viên - Archive</h1>
-            <p>Thời gian xuất báo cáo: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</p>
-            <table>
-                <thead>
-                    <tr>
-                        ${Object.keys(currentReportRows()[0] || {
-                            UserID: '', Username: '', FullName: '', Email: '', RoleName: '', IsActive: '', CreatedAt: '', PostCount: '', ReportCount: ''
-                        }).map(key => `<th>${escapeHtml(key)}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows.map(row => `<tr>${Object.values(row).map(value => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join('')}
-                </tbody>
-            </table>
-        `;
-        window.print();
+        const headers = ['UserID', 'Username', 'FullName', 'Email', 'RoleName', 'IsActive', 'CreatedAt', 'PostCount', 'ReportCount'];
+        printTableReport('Báo cáo quản lý thành viên - Archive', headers, rows);
     };
 
     if (membersTableBody) {
@@ -687,8 +757,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!confirmed) return;
 
-        const adminNote = await showAdminNoteModal();
+        const requiresAdminNote = ['warn', 'hide', 'delete', 'lock'].includes(action);
+        const adminNote = await showAdminNoteModal(requiresAdminNote);
         if (adminNote === null) return;
+        if (requiresAdminNote && adminNote.trim() === '') {
+            await showAlertModal('Vui lòng nhập ghi chú xử lý.', 'Thiếu ghi chú', 'Đóng');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('reportId', reportId);
@@ -709,28 +784,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const reportIdValue = data.data && data.data.reportId ? data.data.reportId : reportId;
-            const reportElement = document.getElementById(`report-row-${reportIdValue}`);
-            if (reportElement) {
-                const statusBadge = reportElement.querySelector('td:nth-child(5) .badge');
-                const actionsCell = reportElement.querySelector('.report-actions');
-
-                if (statusBadge) {
-                    statusBadge.textContent = 'Đã xử lý';
-                    statusBadge.className = 'badge rounded-pill bg-success text-white report-status-badge';
-                }
-
-                if (actionsCell) {
-                    actionsCell.innerHTML = `<div class="report-actions-group is-completed">
-                        <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="${reportIdValue}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
-                        <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
-                    </div>`;
-                }
-            }
+            const responseUpdatedReports = Array.isArray(data.updatedReports) ? data.updatedReports : (data.data && Array.isArray(data.data.updatedReports) ? data.data.updatedReports : []);
+            const updatedReports = responseUpdatedReports.length
+                ? responseUpdatedReports
+                : [reportIdValue];
+            markReportsResolved(updatedReports);
+            applyReportFilters();
 
             const reportStatElement = document.querySelector('#overview .stat-value.text-danger');
             if (reportStatElement) {
                 const currentCount = parseInt(reportStatElement.textContent, 10) || 0;
-                if (currentCount > 0) reportStatElement.textContent = currentCount - 1;
+                if (currentCount > 0) reportStatElement.textContent = Math.max(0, currentCount - updatedReports.length);
             }
 
             await showAlertModal(data.message, 'Thành công', 'Đóng');
@@ -743,6 +807,101 @@ document.addEventListener('DOMContentLoaded', function() {
     function showReportDetails(reportId) {
         openReportDetail(reportId);
     }
+
+    let currentReports = Array.from(document.querySelectorAll('#reports tbody tr[data-report]')).map(row => {
+        try {
+            return { ...JSON.parse(row.dataset.report || '{}'), row };
+        } catch (err) {
+            return { row };
+        }
+    });
+
+    function markReportsResolved(reportIds) {
+        (reportIds || []).forEach(reportId => {
+            const reportElement = document.getElementById(`report-row-${reportId}`);
+            if (reportElement) {
+                const statusBadge = reportElement.querySelector('td:nth-child(5) .badge');
+                const actionsCell = reportElement.querySelector('.report-actions');
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Đã xử lý';
+                    statusBadge.className = 'badge rounded-pill bg-success text-white report-status-badge';
+                }
+
+                if (actionsCell) {
+                    actionsCell.innerHTML = `<div class="report-actions-group is-completed">
+                        <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="${reportId}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
+                        <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
+                    </div>`;
+                }
+            }
+
+            const cachedReport = currentReports.find(report => Number(report.ReportID) === Number(reportId));
+            if (cachedReport) {
+                cachedReport.Status = 'Đã xử lý';
+                cachedReport.StatusKey = 'resolved';
+                if (reportElement) cachedReport.row = reportElement;
+                if (reportElement) {
+                    reportElement.dataset.report = JSON.stringify({
+                        ReportID: cachedReport.ReportID,
+                        Reporter: cachedReport.Reporter || '',
+                        ReportedUser: cachedReport.ReportedUser || '',
+                        ReportType: cachedReport.ReportType || '',
+                        Reason: cachedReport.Reason || '',
+                        Status: cachedReport.Status,
+                        StatusKey: 'resolved',
+                        CreatedAt: cachedReport.CreatedAt || ''
+                    });
+                }
+            }
+        });
+    }
+
+    const filteredReportRows = () => {
+        const keyword = reportSearchInput ? reportSearchInput.value.trim().toLowerCase() : '';
+        const status = reportStatusFilter ? reportStatusFilter.value : '';
+
+        return currentReports.filter(report => {
+            const rowText = [
+                report.ReportID,
+                report.Reporter,
+                report.ReportedUser,
+                report.ReportType,
+                report.Reason,
+                report.Status,
+                report.CreatedAt
+            ].join(' ').toLowerCase();
+            const matchesKeyword = keyword === '' || rowText.includes(keyword);
+            const matchesStatus = status === '' || report.StatusKey === status;
+            return matchesKeyword && matchesStatus;
+        });
+    };
+
+    const applyReportFilters = () => {
+        const visible = new Set(filteredReportRows().map(report => String(report.ReportID)));
+        currentReports.forEach(report => {
+            if (report.row) report.row.classList.toggle('d-none', !visible.has(String(report.ReportID)));
+        });
+    };
+
+    const reportExportRows = () => filteredReportRows().map(report => ({
+        ReportID: report.ReportID || '',
+        Reporter: report.Reporter || '',
+        ReportedUser: report.ReportedUser || '',
+        ReportType: report.ReportType || '',
+        Reason: report.Reason || '',
+        Status: report.Status || '',
+        CreatedAt: report.CreatedAt || ''
+    }));
+
+    const reportHeaders = ['ReportID', 'Reporter', 'ReportedUser', 'ReportType', 'Reason', 'Status', 'CreatedAt'];
+    const exportReportsCsv = () => downloadCsv(`archive-reports-${reportDateSlug()}.csv`, reportHeaders, reportExportRows());
+    const printReportsReport = () => printTableReport('Báo cáo kiểm duyệt - Archive', reportHeaders, reportExportRows());
+
+    if (reportSearchInput) reportSearchInput.addEventListener('input', applyReportFilters);
+    if (reportStatusFilter) reportStatusFilter.addEventListener('change', applyReportFilters);
+    if (exportReportsCsvBtn) exportReportsCsvBtn.addEventListener('click', exportReportsCsv);
+    if (printReportsBtn) printReportsBtn.addEventListener('click', printReportsReport);
 
     const contentPostsTableBody = document.getElementById('contentPostsTableBody');
     const contentCommentsTableBody = document.getElementById('contentCommentsTableBody');
@@ -764,6 +923,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let contentCommentTimer = null;
     let contentHashtagTimer = null;
     let contentLoaded = false;
+    let currentContentPosts = [];
+    let currentContentComments = [];
+    let currentContentHashtags = [];
 
     const contentEmptyRow = colspan => `<tr><td colspan="${colspan}" class="text-center text-muted py-4">Không tìm thấy dữ liệu phù hợp</td></tr>`;
     const compactText = (value, max = 120) => {
@@ -805,14 +967,171 @@ document.addEventListener('DOMContentLoaded', function() {
         return data;
     };
 
+    const showAdminProfileAlert = (message, type = 'success') => {
+        if (!adminProfileAlert) return;
+        adminProfileAlert.textContent = message;
+        adminProfileAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-4`;
+    };
+
+    const adminProfileImageSrc = path => normalizeAssetPath(path || 'Public/assets/img/default-avatar.jpg');
+    const applyAdminProfile = profile => {
+        if (!profile) return;
+        const displayName = profile.FullName || profile.Username || 'Quản trị viên';
+        if (adminProfileNameText) adminProfileNameText.textContent = displayName;
+        if (adminFullNameInput) adminFullNameInput.value = profile.FullName || '';
+        if (adminHeaderName) adminHeaderName.textContent = displayName;
+
+        const avatarSrc = adminProfileImageSrc(profile.ProfilePictureUrl);
+        if (adminProfileAvatarLarge) adminProfileAvatarLarge.src = avatarSrc;
+        if (adminHeaderAvatar) adminHeaderAvatar.src = avatarSrc;
+    };
+
+    const renderAdminLogs = logs => {
+        if (!adminLogsTableBody) return;
+        if (!logs || logs.length === 0) {
+            adminLogsTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Chưa có log phù hợp.</td></tr>';
+            return;
+        }
+
+        adminLogsTableBody.innerHTML = logs.map(log => `
+            <tr>
+                <td><span class="content-pill">${escapeHtml(log.Action || '')}</span></td>
+                <td>${escapeHtml(log.TargetType || '')}</td>
+                <td>${escapeHtml(log.TargetID || '')}</td>
+                <td>${escapeHtml(log.Description || '')}</td>
+                <td class="text-muted small">${escapeHtml(log.CreatedAt || '')}</td>
+            </tr>
+        `).join('');
+    };
+
+    const updateAdminLogActions = actions => {
+        if (!adminLogsActionFilter || !Array.isArray(actions)) return;
+        const currentValue = adminLogsActionFilter.value;
+        adminLogsActionFilter.innerHTML = '<option value="">Tất cả action</option>' + actions.map(action => `<option value="${escapeHtml(action)}">${escapeHtml(action)}</option>`).join('');
+        adminLogsActionFilter.value = actions.includes(currentValue) ? currentValue : '';
+    };
+
+    const loadAdminLogs = async () => {
+        if (!window.ADMIN_LOGS_URL || !adminLogsTableBody) return;
+        const url = new URL(window.ADMIN_LOGS_URL, window.location.href);
+        url.searchParams.set('keyword', adminLogsSearch ? adminLogsSearch.value.trim() : '');
+        url.searchParams.set('actionFilter', adminLogsActionFilter ? adminLogsActionFilter.value : '');
+        try {
+            const data = await fetchJson(url.toString());
+            renderAdminLogs((data.data && data.data.logs) || []);
+            updateAdminLogActions((data.data && data.data.actions) || []);
+        } catch (err) {
+            adminLogsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+        }
+    };
+
+    let adminLogSearchTimer = null;
+    if (adminLogsSearch) {
+        adminLogsSearch.addEventListener('input', () => {
+            clearTimeout(adminLogSearchTimer);
+            adminLogSearchTimer = setTimeout(loadAdminLogs, 250);
+        });
+    }
+    if (adminLogsActionFilter) adminLogsActionFilter.addEventListener('change', loadAdminLogs);
+
+    if (adminProfileNameForm) {
+        adminProfileNameForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const data = await fetchJson(window.ADMIN_UPDATE_PROFILE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ FullName: adminFullNameInput ? adminFullNameInput.value.trim() : '' })
+                });
+                applyAdminProfile(data.data && data.data.profile);
+                showAdminProfileAlert(data.message || 'Cập nhật hồ sơ thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể cập nhật hồ sơ.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (adminAvatarForm) {
+        adminAvatarForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const formData = new FormData(adminAvatarForm);
+                const data = await fetchJson(window.ADMIN_UPDATE_AVATAR_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                applyAdminProfile(data.data && data.data.profile);
+                if (adminAvatarInput) adminAvatarInput.value = '';
+                showAdminProfileAlert(data.message || 'Cập nhật avatar thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể cập nhật avatar.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (adminPasswordForm) {
+        adminPasswordForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const data = await fetchJson(window.ADMIN_CHANGE_PASSWORD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        CurrentPassword: adminCurrentPassword ? adminCurrentPassword.value : '',
+                        NewPassword: adminNewPassword ? adminNewPassword.value : '',
+                        ConfirmPassword: adminConfirmPassword ? adminConfirmPassword.value : ''
+                    })
+                });
+                adminPasswordForm.reset();
+                showAdminProfileAlert(data.message || 'Đổi mật khẩu thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể đổi mật khẩu.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (window.ADMIN_LOGS_URL && adminLogsTableBody) {
+        loadAdminLogs();
+    }
+
     const formatNumber = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
     const rosePalette = ['#d69096', '#795d4a', '#e8b4c3', '#8aa889', '#f0c88a', '#c75d72'];
+    let currentOverviewStats = {};
     let statisticsLoaded = false;
+    let currentStatisticsRankings = {
+        topPostsByLikes: [],
+        topUsersByFollowers: [],
+        topHashtags: [],
+        topReportedUsers: []
+    };
+    let currentStatisticsCharts = {};
+    let currentStatisticsInsights = {
+        mostActiveUsers: [],
+        peakPostHour: null,
+        recentHotHashtags: [],
+        latestReports: []
+    };
     const chartInstances = {};
     const statisticsRankingLimit = document.getElementById('statisticsRankingLimit');
 
     const updateOverviewStats = stats => {
         if (!stats) return;
+        currentOverviewStats = { ...currentOverviewStats, ...stats };
         document.querySelectorAll('[data-overview-stat]').forEach(element => {
             const key = element.dataset.overviewStat;
             if (Object.prototype.hasOwnProperty.call(stats, key)) {
@@ -835,6 +1154,21 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Overview stats error:', err);
         }
     };
+
+    const overviewRows = () => Array.from(document.querySelectorAll('.overview-stat-card')).map(card => ({
+        Metric: card.querySelector('.stat-label') ? card.querySelector('.stat-label').textContent.trim() : '',
+        Value: card.querySelector('.stat-value') ? card.querySelector('.stat-value').textContent.trim() : ''
+    })).filter(row => row.Metric !== '');
+
+    const exportOverviewCsv = () => downloadCsv(`archive-overview-${reportDateSlug()}.csv`, ['Metric', 'Value'], overviewRows());
+    const printOverviewReport = () => printTableReport(
+        'Báo cáo tổng quan hệ thống - Archive',
+        ['Metric', 'Value'],
+        overviewRows()
+    );
+
+    if (exportOverviewCsvBtn) exportOverviewCsvBtn.addEventListener('click', exportOverviewCsv);
+    if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverviewReport);
 
     const statisticsEmpty = message => `<div class="statistics-empty">${escapeHtml(message || 'Không có dữ liệu phù hợp')}</div>`;
     const visibilityBadge = isHidden => Number(isHidden) === 1
@@ -929,8 +1263,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         target.innerHTML = users.map((user, index) => `
-            <div class="statistics-rank-item compact">
+            <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
+                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar">
                 <div class="rank-main">
                     <strong>${escapeHtml(personDisplayName(user))}</strong>
                     <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.RoleName || '-')}</span>
@@ -1098,6 +1433,12 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('limit', statisticsRankingLimit ? statisticsRankingLimit.value : '5');
         const data = await fetchJson(url.toString());
         const rankings = data.data || {};
+        currentStatisticsRankings = {
+            topPostsByLikes: rankings.topPostsByLikes || [],
+            topUsersByFollowers: rankings.topUsersByFollowers || [],
+            topHashtags: rankings.topHashtags || [],
+            topReportedUsers: rankings.topReportedUsers || []
+        };
         renderTopPosts(rankings.topPostsByLikes || []);
         renderTopUsers(rankings.topUsersByFollowers || []);
         renderTopHashtags(rankings.topHashtags || []);
@@ -1108,6 +1449,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadStatisticsCharts = async () => {
         const data = await fetchJson(window.ADMIN_STATISTICS_CHARTS_URL);
         const charts = data.data || {};
+        currentStatisticsCharts = charts;
         createOrUpdateChart('postsByDayChart', 'line', charts.postsByDay, 'Bài viết');
         createOrUpdateChart('usersByDayChart', 'line', charts.usersByDay, 'Người dùng');
         createOrUpdateChart('reportStatusChart', 'doughnut', charts.reportStatus, 'Report');
@@ -1117,6 +1459,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadStatisticsInsights = async () => {
         const data = await fetchJson(window.ADMIN_STATISTICS_INSIGHTS_URL);
         const insights = data.data || {};
+        currentStatisticsInsights = {
+            mostActiveUsers: insights.mostActiveUsers || [],
+            peakPostHour: insights.peakPostHour || null,
+            recentHotHashtags: insights.recentHotHashtags || [],
+            latestReports: insights.latestReports || []
+        };
         renderMostActiveUsers(insights.mostActiveUsers || []);
         renderPeakHour(insights.peakPostHour || null);
         renderRecentHotHashtags(insights.recentHotHashtags || []);
@@ -1139,6 +1487,112 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     };
+
+    const statisticsCsvRows = () => {
+        const rows = [];
+        currentStatisticsRankings.topPostsByLikes.forEach((post, index) => rows.push({
+            Section: 'Top Posts',
+            Rank: index + 1,
+            ID: post.PostID || '',
+            Name: compactText(post.Content, 120) || '',
+            Username: post.Username || '',
+            Metric: 'LikeCount',
+            Value: post.LikeCount || 0,
+            Extra: `CommentCount: ${post.CommentCount || 0}`
+        }));
+        currentStatisticsRankings.topUsersByFollowers.forEach((user, index) => rows.push({
+            Section: 'Top Users',
+            Rank: index + 1,
+            ID: user.UserID || '',
+            Name: personDisplayName(user),
+            Username: user.Username || '',
+            Metric: 'FollowerCount',
+            Value: user.FollowerCount || 0,
+            Extra: `PostCount: ${user.PostCount || 0}`
+        }));
+        currentStatisticsRankings.topHashtags.forEach((hashtag, index) => rows.push({
+            Section: 'Top Hashtags',
+            Rank: index + 1,
+            ID: hashtag.HashtagID || '',
+            Name: hashtag.HashtagName || '',
+            Username: '',
+            Metric: 'UsageCount',
+            Value: hashtag.UsageCount || 0,
+            Extra: `PostCount: ${hashtag.PostCount || 0}`
+        }));
+        currentStatisticsRankings.topReportedUsers.forEach((user, index) => rows.push({
+            Section: 'Top Reported Users',
+            Rank: index + 1,
+            ID: user.UserID || '',
+            Name: personDisplayName(user),
+            Username: user.Username || '',
+            Metric: 'ReportCount',
+            Value: user.ReportCount || 0,
+            Extra: user.RoleName || ''
+        }));
+        return rows;
+    };
+
+    const statisticsInsightRows = () => {
+        const rows = [];
+        currentStatisticsInsights.mostActiveUsers.forEach((user, index) => rows.push({
+            Section: 'Most Active Users',
+            Item: `${index + 1}. ${personDisplayName(user)} (@${user.Username || ''})`,
+            Detail: `${user.PostCount || 0} bài, ${user.CommentCount || 0} bình luận, ${user.LikeCount || 0} like, ${user.ActivityScore || 0} điểm`
+        }));
+        if (currentStatisticsInsights.peakPostHour) {
+            rows.push({
+                Section: 'Peak Post Hour',
+                Item: currentStatisticsInsights.peakPostHour.label || '',
+                Detail: `${currentStatisticsInsights.peakPostHour.postCount || 0} bài viết`
+            });
+        }
+        currentStatisticsInsights.recentHotHashtags.forEach(hashtag => rows.push({
+            Section: 'Recent Hot Hashtags',
+            Item: `#${hashtag.HashtagName || ''}`,
+            Detail: `${hashtag.RecentPostCount || 0} bài trong 7 ngày, UsageCount ${hashtag.UsageCount || 0}`
+        }));
+        currentStatisticsInsights.latestReports.forEach(report => rows.push({
+            Section: 'Latest Reports',
+            Item: report.Reason || '',
+            Detail: `${report.ReporterFullName || report.ReporterUsername || ''} -> ${report.ReportedFullName || report.ReportedUsername || ''} (${report.Status || ''}) ${report.CreatedAt || ''}`
+        }));
+        return rows;
+    };
+
+    const chartSummaryRows = () => Object.entries(currentStatisticsCharts || {}).flatMap(([section, chart]) => {
+        const labels = Array.isArray(chart && chart.labels) ? chart.labels : [];
+        const values = Array.isArray(chart && chart.values) ? chart.values : [];
+        return labels.map((label, index) => ({
+            Section: section,
+            Item: label,
+            Detail: values[index] || 0
+        }));
+    });
+
+    const exportStatisticsCsv = async () => {
+        await loadStatistics();
+        const headers = ['Section', 'Rank', 'ID', 'Name', 'Username', 'Metric', 'Value', 'Extra'];
+        downloadCsv(`archive-statistics-${reportDateSlug()}.csv`, headers, statisticsCsvRows());
+    };
+
+    const printStatisticsReport = async () => {
+        await loadStatistics();
+        const rankingHeaders = ['Section', 'Rank', 'ID', 'Name', 'Username', 'Metric', 'Value', 'Extra'];
+        const insightHeaders = ['Section', 'Item', 'Detail'];
+        const introHtml = `
+            <h2>Activity Insights</h2>
+            <table>
+                <thead><tr>${insightHeaders.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+                <tbody>${[...statisticsInsightRows(), ...chartSummaryRows()].map(row => `<tr>${insightHeaders.map(header => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table>
+            <h2>Top Ranking</h2>
+        `;
+        printTableReport('Báo cáo thống kê - Archive', rankingHeaders, statisticsCsvRows(), introHtml);
+    };
+
+    if (exportStatisticsCsvBtn) exportStatisticsCsvBtn.addEventListener('click', exportStatisticsCsv);
+    if (printStatisticsBtn) printStatisticsBtn.addEventListener('click', printStatisticsReport);
 
     if (statisticsRankingLimit) {
         statisticsRankingLimit.addEventListener('change', async () => {
@@ -1220,6 +1674,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const posts = (data.data && data.data.posts) || [];
+            currentContentPosts = posts;
             contentPostsTableBody.innerHTML = posts.length ? posts.map(renderContentPostRow).join('') : contentEmptyRow(9);
         } catch (err) {
             contentPostsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1234,6 +1689,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const comments = (data.data && data.data.comments) || [];
+            currentContentComments = comments;
             contentCommentsTableBody.innerHTML = comments.length ? comments.map(renderContentCommentRow).join('') : contentEmptyRow(9);
         } catch (err) {
             contentCommentsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1248,6 +1704,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const data = await fetchJson(url.toString());
             const hashtags = (data.data && data.data.hashtags) || [];
+            currentContentHashtags = hashtags;
             contentHashtagsTableBody.innerHTML = hashtags.length ? hashtags.map(renderContentHashtagRow).join('') : contentEmptyRow(7);
         } catch (err) {
             contentHashtagsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
@@ -1260,6 +1717,77 @@ document.addEventListener('DOMContentLoaded', function() {
         loadContentComments();
         loadContentHashtags();
     };
+
+    const contentStatusText = isHidden => Number(isHidden) === 1 ? 'Đã ẩn' : 'Hiển thị';
+    const contentPostRows = () => currentContentPosts.map(post => ({
+        PostID: post.PostID || '',
+        Username: post.Username || '',
+        Content: post.Content || '',
+        LikeCount: post.LikeCount || 0,
+        CommentCount: post.CommentCount || 0,
+        IsHidden: contentStatusText(post.IsHidden),
+        CreatedAt: post.CreatedAt || ''
+    }));
+    const contentCommentRows = () => currentContentComments.map(comment => ({
+        CommentID: comment.CommentID || '',
+        Username: comment.Username || '',
+        CommentContent: comment.Content || '',
+        PostContent: comment.PostContent || '',
+        IsHidden: contentStatusText(comment.IsHidden),
+        CreatedAt: comment.CreatedAt || ''
+    }));
+    const contentHashtagRows = () => currentContentHashtags.map(hashtag => ({
+        HashtagID: hashtag.HashtagID || '',
+        HashtagName: hashtag.HashtagName || '',
+        UsageCount: hashtag.UsageCount || 0,
+        IsHidden: contentStatusText(hashtag.IsHidden),
+        CreatedAt: hashtag.CreatedAt || ''
+    }));
+
+    const ensureContentLoaded = async loader => {
+        if (!contentLoaded) {
+            contentLoaded = true;
+            await loader();
+        }
+    };
+
+    const exportContentPostsCsv = async () => {
+        await ensureContentLoaded(loadContentPosts);
+        const headers = ['PostID', 'Username', 'Content', 'LikeCount', 'CommentCount', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-posts-${reportDateSlug()}.csv`, headers, contentPostRows());
+    };
+    const printContentPostsReport = async () => {
+        await ensureContentLoaded(loadContentPosts);
+        const headers = ['PostID', 'Username', 'Content', 'LikeCount', 'CommentCount', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo bài viết - Archive', headers, contentPostRows());
+    };
+    const exportContentCommentsCsv = async () => {
+        await ensureContentLoaded(loadContentComments);
+        const headers = ['CommentID', 'Username', 'CommentContent', 'PostContent', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-comments-${reportDateSlug()}.csv`, headers, contentCommentRows());
+    };
+    const printContentCommentsReport = async () => {
+        await ensureContentLoaded(loadContentComments);
+        const headers = ['CommentID', 'Username', 'CommentContent', 'PostContent', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo bình luận - Archive', headers, contentCommentRows());
+    };
+    const exportContentHashtagsCsv = async () => {
+        await ensureContentLoaded(loadContentHashtags);
+        const headers = ['HashtagID', 'HashtagName', 'UsageCount', 'IsHidden', 'CreatedAt'];
+        downloadCsv(`archive-hashtags-${reportDateSlug()}.csv`, headers, contentHashtagRows());
+    };
+    const printContentHashtagsReport = async () => {
+        await ensureContentLoaded(loadContentHashtags);
+        const headers = ['HashtagID', 'HashtagName', 'UsageCount', 'IsHidden', 'CreatedAt'];
+        printTableReport('Báo cáo hashtag - Archive', headers, contentHashtagRows());
+    };
+
+    if (exportContentPostsCsvBtn) exportContentPostsCsvBtn.addEventListener('click', exportContentPostsCsv);
+    if (printContentPostsBtn) printContentPostsBtn.addEventListener('click', printContentPostsReport);
+    if (exportContentCommentsCsvBtn) exportContentCommentsCsvBtn.addEventListener('click', exportContentCommentsCsv);
+    if (printContentCommentsBtn) printContentCommentsBtn.addEventListener('click', printContentCommentsReport);
+    if (exportContentHashtagsCsvBtn) exportContentHashtagsCsvBtn.addEventListener('click', exportContentHashtagsCsv);
+    if (printContentHashtagsBtn) printContentHashtagsBtn.addEventListener('click', printContentHashtagsReport);
 
     const detailGridItem = (label, value) => `<div class="report-detail-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value || value === 0 ? value : '-')}</strong></div>`;
     const contentBox = (title, value) => `<div class="report-detail-panel"><h6>${escapeHtml(title)}</h6><div class="report-content-box">${escapeHtml(value || '-')}</div></div>`;
@@ -1318,6 +1846,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const rowId = type === 'post' ? `content-post-row-${item.PostID}` : type === 'comment' ? `content-comment-row-${item.CommentID}` : `content-hashtag-row-${item.HashtagID}`;
         const row = document.getElementById(rowId);
         if (!row) return;
+        if (type === 'post') {
+            currentContentPosts = currentContentPosts.map(post => Number(post.PostID) === Number(item.PostID) ? item : post);
+        } else if (type === 'comment') {
+            currentContentComments = currentContentComments.map(comment => Number(comment.CommentID) === Number(item.CommentID) ? item : comment);
+        } else {
+            currentContentHashtags = currentContentHashtags.map(hashtag => Number(hashtag.HashtagID) === Number(item.HashtagID) ? item : hashtag);
+        }
         row.outerHTML = type === 'post' ? renderContentPostRow(item) : type === 'comment' ? renderContentCommentRow(item) : renderContentHashtagRow(item);
     };
 
@@ -1336,6 +1871,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const item = data.data && (data.data.post || data.data.comment || data.data.hashtag);
             if (item) rerenderContentRow(type, item);
+            if (data.data && Array.isArray(data.data.updatedReports)) {
+                markReportsResolved(data.data.updatedReports);
+                applyReportFilters();
+            }
         } catch (err) {
             await showAlertModal(err.message || 'Không thể cập nhật trạng thái.', 'Lỗi', 'Đóng');
             button.disabled = false;
@@ -1363,9 +1902,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     const row = document.getElementById(`content-comment-row-${commentId}`);
                     if (row) row.remove();
                 });
+                currentContentComments = currentContentComments.filter(comment => !data.data.DeletedCommentIDs.map(Number).includes(Number(comment.CommentID)));
             } else {
                 const row = document.getElementById(rowId);
                 if (row) row.remove();
+                if (type === 'post') {
+                    currentContentPosts = currentContentPosts.filter(post => Number(post.PostID) !== id);
+                } else if (type === 'comment') {
+                    currentContentComments = currentContentComments.filter(comment => Number(comment.CommentID) !== id);
+                } else {
+                    currentContentHashtags = currentContentHashtags.filter(hashtag => Number(hashtag.HashtagID) !== id);
+                }
+            }
+            if (data.data && Array.isArray(data.data.updatedReports)) {
+                markReportsResolved(data.data.updatedReports);
+                applyReportFilters();
             }
         } catch (err) {
             await showAlertModal(err.message || `Không thể xóa ${labelMap[type]}.`, 'Lỗi', 'Đóng');
