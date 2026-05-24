@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminModalMessage = adminModal ? adminModal.querySelector('.admin-modal-message') : null;
     const adminModalConfirm = adminModal ? adminModal.querySelector('[data-admin-modal-confirm]') : null;
     const adminModalCancel = adminModal ? adminModal.querySelector('[data-admin-modal-cancel]') : null;
-    const adminModalClose = adminModal ? adminModal.querySelector('[data-admin-modal-close]') : null;
+    const adminModalClose = adminModal ? adminModal.querySelector('.admin-modal-close') : null;
     const adminModalBackdrop = adminModal ? adminModal.querySelector('.admin-modal-backdrop') : null;
     let modalResolve = null;
 
@@ -64,6 +64,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (adminModalCancel) adminModalCancel.addEventListener('click', () => closeModal(false));
     if (adminModalClose) adminModalClose.addEventListener('click', () => closeModal(false));
     if (adminModalBackdrop) adminModalBackdrop.addEventListener('click', () => closeModal(false));
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && adminModal && !adminModal.classList.contains('d-none')) {
+            closeModal(false);
+        }
+    });
 
     const adminNoteModalEl = document.getElementById('adminNoteModal');
     const adminNoteTextarea = document.getElementById('adminNoteTextarea');
@@ -146,6 +151,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportMembersCsvBtn = document.getElementById('exportMembersCsvBtn');
     const printOverviewBtn = document.getElementById('printOverviewBtn');
     const exportOverviewCsvBtn = document.getElementById('exportOverviewCsvBtn');
+    const overviewDetailModalEl = document.getElementById('overviewDetailModal');
+    const overviewDetailTitle = document.getElementById('overviewDetailModalLabel');
+    const overviewDetailLoading = document.getElementById('overviewDetailLoading');
+    const overviewDetailError = document.getElementById('overviewDetailError');
+    const overviewDetailBody = document.getElementById('overviewDetailBody');
+    const overviewDetailModal = overviewDetailModalEl && window.bootstrap ? new bootstrap.Modal(overviewDetailModalEl) : null;
     const printStatisticsBtn = document.getElementById('printStatisticsBtn');
     const exportStatisticsCsvBtn = document.getElementById('exportStatisticsCsvBtn');
     const reportSearchInput = document.getElementById('reportSearchInput');
@@ -160,6 +171,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportContentHashtagsCsvBtn = document.getElementById('exportContentHashtagsCsvBtn');
     const adminProfileNameForm = document.getElementById('adminProfileNameForm');
     const adminFullNameInput = document.getElementById('adminFullNameInput');
+    const adminProfileBioForm = document.getElementById('adminProfileBioForm');
+    const adminBioInput = document.getElementById('adminBioInput');
+    const adminBioCount = document.getElementById('adminBioCount');
+    const adminProfileBioText = document.getElementById('adminProfileBioText');
     const adminAvatarForm = document.getElementById('adminAvatarForm');
     const adminAvatarInput = document.getElementById('adminAvatarInput');
     const adminPasswordForm = document.getElementById('adminPasswordForm');
@@ -174,6 +189,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminLogsSearch = document.getElementById('adminLogsSearch');
     const adminLogsActionFilter = document.getElementById('adminLogsActionFilter');
     const adminLogsTableBody = document.getElementById('adminLogsTableBody');
+    const notificationSearchInput = document.getElementById('notificationSearchInput');
+    const notificationTypeFilter = document.getElementById('notificationTypeFilter');
+    const notificationReadFilter = document.getElementById('notificationReadFilter');
+    const notificationsTableBody = document.getElementById('notificationsTableBody');
+    const notificationAlert = document.getElementById('notificationAlert');
+    const printNotificationsBtn = document.getElementById('printNotificationsBtn');
+    const exportNotificationsCsvBtn = document.getElementById('exportNotificationsCsvBtn');
+    const openSendNotificationBtn = document.getElementById('openSendNotificationBtn');
+    const notificationDetailModalEl = document.getElementById('notificationDetailModal');
+    const notificationDetailLoading = document.getElementById('notificationDetailLoading');
+    const notificationDetailError = document.getElementById('notificationDetailError');
+    const notificationDetailBody = document.getElementById('notificationDetailBody');
+    const notificationDetailModal = notificationDetailModalEl ? new bootstrap.Modal(notificationDetailModalEl) : null;
+    const sendNotificationModalEl = document.getElementById('sendNotificationModal');
+    const sendNotificationModal = sendNotificationModalEl ? new bootstrap.Modal(sendNotificationModalEl) : null;
+    const sendNotificationForm = document.getElementById('sendNotificationForm');
+    const sendNotificationAllCheckbox = document.getElementById('sendNotificationAllCheckbox');
+    const singleReceiverWrap = document.getElementById('singleReceiverWrap');
+    const notificationReceiverSearch = document.getElementById('notificationReceiverSearch');
+    const notificationReceiverId = document.getElementById('notificationReceiverId');
+    const notificationReceiverSelected = document.getElementById('notificationReceiverSelected');
+    const notificationReceiverResults = document.getElementById('notificationReceiverResults');
+    const systemNotificationMessage = document.getElementById('systemNotificationMessage');
+    const systemNotificationMessageCount = document.getElementById('systemNotificationMessageCount');
+    const sendNotificationError = document.getElementById('sendNotificationError');
     const editRoleModalEl = document.getElementById('editRoleModal');
     const editRoleSelect = document.getElementById('editRoleSelect');
     const editRoleSaveBtn = document.getElementById('editRoleSaveBtn');
@@ -184,8 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const memberDetailContent = document.getElementById('memberDetailContent');
     const memberDetailModal = memberDetailModalEl ? new bootstrap.Modal(memberDetailModalEl) : null;
     let currentMembers = [];
+    let currentNotifications = [];
     let currentEditUserId = null;
     let searchTimer = null;
+    let notificationSearchTimer = null;
+    let notificationReceiverTimer = null;
+    let notificationsLoaded = false;
 
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;',
@@ -570,6 +614,382 @@ document.addEventListener('DOMContentLoaded', function() {
     if (memberRoleFilter) memberRoleFilter.addEventListener('change', fetchMembers);
     if (exportMembersCsvBtn) exportMembersCsvBtn.addEventListener('click', exportMembersCsv);
     if (printMembersBtn) printMembersBtn.addEventListener('click', printMembersReport);
+
+    const notificationPerson = (prefix, item) => {
+        const userId = item[`${prefix}UserID`];
+        if (!userId && prefix === 'Sender') return 'Hệ thống';
+        const fullName = item[`${prefix}FullName`] || '';
+        const username = item[`${prefix}Username`] || '';
+        return fullName || username || (userId ? `User #${userId}` : '-');
+    };
+
+    const notificationReadText = item => Number(item.IsRead) === 1 ? 'Đã đọc' : 'Chưa đọc';
+    const notificationReadBadge = item => Number(item.IsRead) === 1
+        ? '<span class="badge rounded-pill content-status-badge is-visible">Đã đọc</span>'
+        : '<span class="badge rounded-pill content-status-badge is-hidden">Chưa đọc</span>';
+
+    const showNotificationAlert = (message, type = 'success') => {
+        if (!notificationAlert) return;
+        notificationAlert.textContent = message;
+        notificationAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mb-3`;
+    };
+
+    const notificationEmptyRow = message => `<tr><td colspan="9" class="text-center text-muted py-4">${escapeHtml(message || 'Không có thông báo phù hợp')}</td></tr>`;
+
+    const renderNotificationRow = item => {
+        const links = [
+            item.PostID ? `Post #${item.PostID}` : '',
+            item.CommentID ? `Comment #${item.CommentID}` : ''
+        ].filter(Boolean).join(' · ') || '-';
+
+        return `
+            <tr id="notification-row-${escapeHtml(item.NotificationID)}" data-id="${escapeHtml(item.NotificationID)}">
+                <td class="fw-bold">#${escapeHtml(item.NotificationID)}</td>
+                <td><span class="content-pill">${escapeHtml(item.TypeName || '-')}</span></td>
+                <td>
+                    <div class="notification-user-cell">
+                        <strong>${escapeHtml(notificationPerson('Receiver', item))}</strong>
+                        <span>#${escapeHtml(item.ReceiverUserID || '')} · @${escapeHtml(item.ReceiverUsername || '')}</span>
+                        <span>${escapeHtml(item.ReceiverEmail || '')}</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="notification-user-cell">
+                        <strong>${escapeHtml(notificationPerson('Sender', item))}</strong>
+                        ${item.SenderUserID ? `<span>#${escapeHtml(item.SenderUserID)} · @${escapeHtml(item.SenderUsername || '')}</span>` : '<span>System</span>'}
+                    </div>
+                </td>
+                <td><span class="notification-message" title="${escapeHtml(item.Message || '')}">${escapeHtml(item.Message || '-')}</span></td>
+                <td class="small">${escapeHtml(links)}</td>
+                <td>${notificationReadBadge(item)}</td>
+                <td class="small text-muted">${escapeHtml(item.CreatedAt || '')}</td>
+                <td class="text-end">
+                    <div class="notification-actions">
+                        <button type="button" class="btn btn-outline-brown btn-sm btn-icon-detail btn-notification-detail" data-id="${escapeHtml(item.NotificationID)}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-delete-notification" data-id="${escapeHtml(item.NotificationID)}"><i class="bi bi-trash me-1"></i>Xóa</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    };
+
+    const loadNotifications = async () => {
+        if (!notificationsTableBody || !window.ADMIN_LIST_NOTIFICATIONS_URL) return;
+        const url = new URL(window.ADMIN_LIST_NOTIFICATIONS_URL, window.location.href);
+        url.searchParams.set('keyword', notificationSearchInput ? notificationSearchInput.value.trim() : '');
+        url.searchParams.set('typeName', notificationTypeFilter ? notificationTypeFilter.value : '');
+        url.searchParams.set('isRead', notificationReadFilter ? notificationReadFilter.value : '');
+        try {
+            const data = await fetchJson(url.toString());
+            const notifications = (data.data && data.data.notifications) || [];
+            currentNotifications = notifications;
+            notificationsTableBody.innerHTML = notifications.length ? notifications.map(renderNotificationRow).join('') : notificationEmptyRow();
+        } catch (err) {
+            notificationsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+        }
+    };
+
+    const scheduleNotificationsLoad = () => {
+        clearTimeout(notificationSearchTimer);
+        notificationSearchTimer = setTimeout(() => {
+            notificationsLoaded = true;
+            loadNotifications();
+        }, 300);
+    };
+
+    const notificationRows = () => currentNotifications.map(item => ({
+        NotificationID: item.NotificationID || '',
+        TypeName: item.TypeName || '',
+        Receiver: notificationPerson('Receiver', item),
+        Sender: notificationPerson('Sender', item),
+        Message: item.Message || '',
+        IsRead: notificationReadText(item),
+        CreatedAt: item.CreatedAt || ''
+    }));
+
+    const exportNotificationsCsv = async () => {
+        if (!notificationsLoaded) {
+            notificationsLoaded = true;
+            await loadNotifications();
+        }
+        const headers = ['NotificationID', 'TypeName', 'Receiver', 'Sender', 'Message', 'IsRead', 'CreatedAt'];
+        downloadCsv(`archive-notifications-${reportDateSlug()}.csv`, headers, notificationRows());
+    };
+
+    const printNotificationsReport = async () => {
+        if (!notificationsLoaded) {
+            notificationsLoaded = true;
+            await loadNotifications();
+        }
+        const headers = ['NotificationID', 'TypeName', 'Receiver', 'Sender', 'Message', 'IsRead', 'CreatedAt'];
+        printTableReport('Báo cáo thông báo hệ thống - Archive', headers, notificationRows());
+    };
+
+    const notificationDetailItem = (label, value) => `
+        <div class="member-detail-item">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value || value === 0 ? value : '-')}</strong>
+        </div>
+    `;
+
+    const openNotificationDetail = async notificationId => {
+        if (!notificationDetailModal || !window.ADMIN_NOTIFICATION_DETAIL_URL) return;
+        if (notificationDetailBody) notificationDetailBody.innerHTML = '';
+        if (notificationDetailError) notificationDetailError.classList.add('d-none');
+        if (notificationDetailLoading) notificationDetailLoading.classList.remove('d-none');
+        notificationDetailModal.show();
+
+        try {
+            const url = new URL(window.ADMIN_NOTIFICATION_DETAIL_URL, window.location.href);
+            url.searchParams.set('notificationId', notificationId);
+            const data = await fetchJson(url.toString());
+            const item = data.data && data.data.notification ? data.data.notification : {};
+            const rows = [
+                ['NotificationID', item.NotificationID],
+                ['TypeName', item.TypeName],
+                ['Message', item.Message],
+                ['Receiver', `${notificationPerson('Receiver', item)} (#${item.ReceiverUserID || '-'})`],
+                ['Receiver Email', item.ReceiverEmail],
+                ['Sender', notificationPerson('Sender', item)],
+                ['PostID', item.PostID],
+                ['CommentID', item.CommentID],
+                ['IsRead', notificationReadText(item)],
+                ['CreatedAt', item.CreatedAt]
+            ];
+            if (notificationDetailBody) {
+                notificationDetailBody.innerHTML = rows.map(([label, value]) => notificationDetailItem(label, value)).join('');
+            }
+        } catch (err) {
+            if (notificationDetailError) {
+                notificationDetailError.textContent = err.message || 'Không thể tải chi tiết thông báo.';
+                notificationDetailError.classList.remove('d-none');
+            }
+        } finally {
+            if (notificationDetailLoading) notificationDetailLoading.classList.add('d-none');
+        }
+    };
+
+    const deleteNotification = async notificationId => {
+        const confirmed = await showConfirmModal('Bạn có chắc chắn muốn xóa thông báo này?', 'Xác nhận xóa', 'Xóa', 'Hủy');
+        if (!confirmed) return;
+
+        try {
+            const data = await fetchJson(window.ADMIN_DELETE_NOTIFICATION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ NotificationID: Number(notificationId) })
+            });
+            currentNotifications = currentNotifications.filter(item => Number(item.NotificationID) !== Number(notificationId));
+            const row = document.getElementById(`notification-row-${notificationId}`);
+            if (row) row.remove();
+            if (notificationsTableBody && currentNotifications.length === 0) {
+                notificationsTableBody.innerHTML = notificationEmptyRow();
+            }
+            showNotificationAlert(data.message || 'Xóa thông báo thành công', 'success');
+        } catch (err) {
+            showNotificationAlert(err.message || 'Không thể xóa thông báo.', 'danger');
+        }
+    };
+
+    const receiverAvatarSrc = user => adminProfileImageSrc(user.ProfilePictureUrl || 'Public/assets/img/default-avatar.jpg');
+
+    const clearSelectedReceiver = () => {
+        if (notificationReceiverId) notificationReceiverId.value = '';
+        if (notificationReceiverSelected) {
+            notificationReceiverSelected.innerHTML = '';
+            notificationReceiverSelected.classList.add('d-none');
+        }
+    };
+
+    const hideReceiverResults = () => {
+        if (notificationReceiverResults) {
+            notificationReceiverResults.innerHTML = '';
+            notificationReceiverResults.classList.add('d-none');
+        }
+    };
+
+    const selectNotificationReceiver = user => {
+        if (!user || !user.UserID) return;
+        if (notificationReceiverId) notificationReceiverId.value = user.UserID;
+        if (notificationReceiverSearch) notificationReceiverSearch.value = user.Username || user.FullName || user.Email || '';
+        if (notificationReceiverSelected) {
+            notificationReceiverSelected.innerHTML = `
+                <div class="notification-receiver-chip">
+                    <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar">
+                    <div>
+                        <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
+                        <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-brown" data-clear-receiver aria-label="Bỏ chọn"><i class="bi bi-x-lg"></i></button>
+                </div>
+            `;
+            notificationReceiverSelected.classList.remove('d-none');
+        }
+        hideReceiverResults();
+        setSendNotificationError('');
+    };
+
+    const renderReceiverResults = users => {
+        if (!notificationReceiverResults) return;
+        const safeUsers = Array.isArray(users) ? users : [];
+        if (!safeUsers.length) {
+            notificationReceiverResults.innerHTML = '<div class="notification-receiver-empty">Không tìm thấy người dùng phù hợp</div>';
+            notificationReceiverResults.classList.remove('d-none');
+            return;
+        }
+
+        notificationReceiverResults.innerHTML = safeUsers.map(user => `
+            <button type="button" class="notification-receiver-option" data-user='${escapeHtml(JSON.stringify(user))}'>
+                <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar">
+                <span>
+                    <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
+                    <small>#${escapeHtml(user.UserID)} · @${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</small>
+                </span>
+            </button>
+        `).join('');
+        notificationReceiverResults.classList.remove('d-none');
+    };
+
+    const searchNotificationReceivers = async () => {
+        if (!notificationReceiverResults || !window.ADMIN_SEARCH_NOTIFICATION_RECEIVERS_URL) return;
+        const keyword = notificationReceiverSearch ? notificationReceiverSearch.value.trim() : '';
+        if (keyword.length < 2) {
+            hideReceiverResults();
+            return;
+        }
+        const url = new URL(window.ADMIN_SEARCH_NOTIFICATION_RECEIVERS_URL, window.location.href);
+        url.searchParams.set('keyword', keyword);
+        try {
+            const data = await fetchJson(url.toString());
+            const users = Array.isArray(data.data) ? data.data : ((data.data && data.data.users) || []);
+            renderReceiverResults(users);
+        } catch (err) {
+            renderReceiverResults([]);
+        }
+    };
+
+    const setSendNotificationError = message => {
+        if (!sendNotificationError) return;
+        sendNotificationError.textContent = message || '';
+        sendNotificationError.classList.toggle('d-none', !message);
+    };
+
+    const syncSendAllState = () => {
+        const sendAll = !!(sendNotificationAllCheckbox && sendNotificationAllCheckbox.checked);
+        if (singleReceiverWrap) singleReceiverWrap.classList.toggle('d-none', sendAll);
+        if (sendAll) {
+            clearSelectedReceiver();
+            hideReceiverResults();
+        }
+    };
+
+    if (notificationsTableBody) {
+        notificationsTableBody.addEventListener('click', event => {
+            const detailButton = event.target.closest('.btn-notification-detail');
+            const deleteButton = event.target.closest('.btn-delete-notification');
+            if (detailButton) openNotificationDetail(detailButton.dataset.id);
+            if (deleteButton) deleteNotification(deleteButton.dataset.id);
+        });
+    }
+
+    if (notificationSearchInput) notificationSearchInput.addEventListener('input', scheduleNotificationsLoad);
+    if (notificationTypeFilter) notificationTypeFilter.addEventListener('change', () => { notificationsLoaded = true; loadNotifications(); });
+    if (notificationReadFilter) notificationReadFilter.addEventListener('change', () => { notificationsLoaded = true; loadNotifications(); });
+    if (exportNotificationsCsvBtn) exportNotificationsCsvBtn.addEventListener('click', exportNotificationsCsv);
+    if (printNotificationsBtn) printNotificationsBtn.addEventListener('click', printNotificationsReport);
+    if (openSendNotificationBtn) {
+        openSendNotificationBtn.addEventListener('click', () => {
+            if (!sendNotificationModal) return;
+            if (sendNotificationForm) sendNotificationForm.reset();
+            if (systemNotificationMessageCount) systemNotificationMessageCount.textContent = '0';
+            clearSelectedReceiver();
+            hideReceiverResults();
+            setSendNotificationError('');
+            syncSendAllState();
+            sendNotificationModal.show();
+        });
+    }
+    if (sendNotificationAllCheckbox) sendNotificationAllCheckbox.addEventListener('change', syncSendAllState);
+    if (systemNotificationMessage && systemNotificationMessageCount) {
+        systemNotificationMessage.addEventListener('input', () => {
+            systemNotificationMessageCount.textContent = String(systemNotificationMessage.value.length);
+        });
+    }
+    if (notificationReceiverSearch) {
+        notificationReceiverSearch.addEventListener('input', () => {
+            clearSelectedReceiver();
+            clearTimeout(notificationReceiverTimer);
+            notificationReceiverTimer = setTimeout(searchNotificationReceivers, 300);
+        });
+    }
+    if (notificationReceiverResults) {
+        notificationReceiverResults.addEventListener('click', event => {
+            const option = event.target.closest('.notification-receiver-option');
+            if (!option) return;
+            try {
+                selectNotificationReceiver(JSON.parse(option.dataset.user || '{}'));
+            } catch (err) {
+                setSendNotificationError('Không thể chọn người nhận.');
+            }
+        });
+    }
+    if (notificationReceiverSelected) {
+        notificationReceiverSelected.addEventListener('click', event => {
+            if (event.target.closest('[data-clear-receiver]')) {
+                clearSelectedReceiver();
+                if (notificationReceiverSearch) {
+                    notificationReceiverSearch.value = '';
+                    notificationReceiverSearch.focus();
+                }
+            }
+        });
+    }
+    if (sendNotificationForm) {
+        sendNotificationForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            const message = systemNotificationMessage ? systemNotificationMessage.value.trim() : '';
+            const sendAll = !!(sendNotificationAllCheckbox && sendNotificationAllCheckbox.checked);
+            const receiverUserId = notificationReceiverId ? Number(notificationReceiverId.value || 0) : 0;
+
+            if (message === '' || message.length > 1000) {
+                setSendNotificationError('Message không được rỗng và tối đa 1000 ký tự.');
+                return;
+            }
+            if (!sendAll && !receiverUserId) {
+                setSendNotificationError('Vui lòng chọn người nhận.');
+                return;
+            }
+
+            if (submitButton) submitButton.disabled = true;
+            setSendNotificationError('');
+            try {
+                const data = await fetchJson(window.ADMIN_SEND_SYSTEM_NOTIFICATION_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sendToAll: sendAll,
+                        receiverUserId,
+                        message,
+                        SendAll: sendAll,
+                        ReceiverUserID: receiverUserId,
+                        Message: message
+                    })
+                });
+                if (sendNotificationModal) sendNotificationModal.hide();
+                if (sendNotificationForm) sendNotificationForm.reset();
+                clearSelectedReceiver();
+                hideReceiverResults();
+                notificationsLoaded = true;
+                await loadNotifications();
+                showNotificationAlert(`${data.message || 'Gửi thông báo thành công'} (${(data.data && data.data.sentCount) || 0})`, 'success');
+            } catch (err) {
+                setSendNotificationError(err.message || 'Không thể gửi thông báo.');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
 
     const detailValue = value => escapeHtml(value || value === 0 ? value : '-');
 
@@ -979,6 +1399,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const displayName = profile.FullName || profile.Username || 'Quản trị viên';
         if (adminProfileNameText) adminProfileNameText.textContent = displayName;
         if (adminFullNameInput) adminFullNameInput.value = profile.FullName || '';
+        if (adminBioInput) adminBioInput.value = profile.Bio || '';
+        if (adminBioCount) adminBioCount.textContent = String((profile.Bio || '').length);
+        if (adminProfileBioText) adminProfileBioText.textContent = profile.Bio && profile.Bio.trim() !== '' ? profile.Bio : 'Chưa có bio.';
         if (adminHeaderName) adminHeaderName.textContent = displayName;
 
         const avatarSrc = adminProfileImageSrc(profile.ProfilePictureUrl);
@@ -1050,6 +1473,43 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadAdminLogs();
             } catch (err) {
                 showAdminProfileAlert(err.message || 'Không thể cập nhật hồ sơ.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (adminBioInput && adminBioCount) {
+        adminBioInput.addEventListener('input', () => {
+            adminBioCount.textContent = String(adminBioInput.value.length);
+        });
+    }
+
+    if (adminProfileBioForm) {
+        adminProfileBioForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            const bio = adminBioInput ? adminBioInput.value.trim() : '';
+            if (bio.length > 500) {
+                showAdminProfileAlert('Bio tối đa 500 ký tự.', 'danger');
+                return;
+            }
+
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const data = await fetchJson(window.ADMIN_UPDATE_BIO_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Bio: bio })
+                });
+                const updatedBio = data.data && typeof data.data.Bio === 'string' ? data.data.Bio : bio;
+                if (adminBioInput) adminBioInput.value = updatedBio;
+                if (adminBioCount) adminBioCount.textContent = String(updatedBio.length);
+                if (adminProfileBioText) adminProfileBioText.textContent = updatedBio.trim() !== '' ? updatedBio : 'Chưa có bio.';
+                showAdminProfileAlert(data.message || 'Cập nhật bio thành công', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể cập nhật bio.', 'danger');
             } finally {
                 if (submitButton) submitButton.disabled = false;
             }
@@ -1166,6 +1626,89 @@ document.addEventListener('DOMContentLoaded', function() {
         ['Metric', 'Value'],
         overviewRows()
     );
+
+    const setOverviewDetailState = (state, message = '') => {
+        if (overviewDetailLoading) overviewDetailLoading.classList.toggle('d-none', state !== 'loading');
+        if (overviewDetailError) {
+            overviewDetailError.textContent = message;
+            overviewDetailError.classList.toggle('d-none', state !== 'error');
+        }
+        if (overviewDetailBody) overviewDetailBody.classList.toggle('d-none', state === 'loading' || state === 'error');
+    };
+
+    const renderOverviewDetailTable = (columns, rows) => {
+        if (!overviewDetailBody) return;
+        const safeColumns = Array.isArray(columns) ? columns : [];
+        const safeRows = Array.isArray(rows) ? rows : [];
+
+        if (!safeColumns.length || !safeRows.length) {
+            overviewDetailBody.innerHTML = '<div class="overview-detail-empty"><i class="bi bi-inbox"></i><span>Không có dữ liệu phù hợp.</span></div>';
+            return;
+        }
+
+        overviewDetailBody.innerHTML = `
+            <div class="table-responsive overview-detail-table-wrap">
+                <table class="table align-middle overview-detail-table">
+                    <thead>
+                        <tr>${safeColumns.map(column => `<th>${escapeHtml(column)}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${safeRows.map(row => `
+                            <tr>
+                                ${safeColumns.map(column => `<td><span class="overview-detail-cell">${escapeHtml(row[column] ?? '')}</span></td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    };
+
+    const openOverviewDetail = async card => {
+        if (!card || !overviewDetailModal || !window.ADMIN_OVERVIEW_DETAIL_URL) return;
+        const metric = card.dataset.overviewMetric || '';
+        if (!metric) return;
+
+        if (overviewDetailTitle) {
+            overviewDetailTitle.textContent = card.dataset.overviewTitle || 'Chi tiết tổng quan';
+        }
+        if (overviewDetailBody) overviewDetailBody.innerHTML = '';
+        setOverviewDetailState('loading');
+        overviewDetailModal.show();
+
+        try {
+            const url = new URL(window.ADMIN_OVERVIEW_DETAIL_URL, window.location.href);
+            url.searchParams.set('metric', metric);
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Không thể tải dữ liệu chi tiết.');
+            }
+
+            if (overviewDetailTitle && result.title) {
+                overviewDetailTitle.textContent = result.title;
+            }
+            renderOverviewDetailTable(result.columns || [], result.data || []);
+            setOverviewDetailState('ready');
+        } catch (error) {
+            setOverviewDetailState('error', error.message || 'Không thể tải dữ liệu chi tiết.');
+        }
+    };
+
+    document.querySelectorAll('.overview-detail-card').forEach(card => {
+        card.addEventListener('click', () => openOverviewDetail(card));
+        card.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openOverviewDetail(card);
+            }
+        });
+    });
 
     if (exportOverviewCsvBtn) exportOverviewCsvBtn.addEventListener('click', exportOverviewCsv);
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverviewReport);
@@ -1947,6 +2490,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Đã chuyển sang phân hệ: ' + event.target.getAttribute('data-bs-target'));
             if (event.target.getAttribute('data-bs-target') === '#content' && !contentLoaded) {
                 loadAllContent();
+            }
+            if (event.target.getAttribute('data-bs-target') === '#notifications' && !notificationsLoaded) {
+                notificationsLoaded = true;
+                loadNotifications();
             }
             if (event.target.getAttribute('data-bs-target') === '#statistics') {
                 loadStatistics();
