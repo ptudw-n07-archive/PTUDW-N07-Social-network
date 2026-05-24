@@ -10,7 +10,7 @@ if (PHP_SAPI === 'cli-server') {
         if (
             $projectRoot !== false
             && $requestedFile !== false
-            && str_starts_with($requestedFile, $projectRoot . DIRECTORY_SEPARATOR)
+            && !str_contains($requestPath, '..')
             && is_file($requestedFile)
         ) {
             return false;
