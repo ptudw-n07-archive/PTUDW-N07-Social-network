@@ -1,4 +1,23 @@
 <?php
+
+if (PHP_SAPI === 'cli-server') {
+    $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+
+    if (is_string($requestPath) && $requestPath !== '/') {
+        $projectRoot = realpath(__DIR__ . '/..');
+        $requestedFile = realpath(($projectRoot ?: (__DIR__ . '/..')) . $requestPath);
+
+        if (
+            $projectRoot !== false
+            && $requestedFile !== false
+            && str_starts_with($requestedFile, $projectRoot . DIRECTORY_SEPARATOR)
+            && is_file($requestedFile)
+        ) {
+            return false;
+        }
+    }
+}
+
 // 1. Khởi động Session hệ thống nếu chưa có
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
