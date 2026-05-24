@@ -22,16 +22,25 @@ document.addEventListener("DOMContentLoaded", function () {
                         item.classList.remove("unread");
                     });
 
-                    document.querySelectorAll(".activity-unread-dot, .notification-badge").forEach(item => {
+                    document.querySelectorAll(".activity-unread-dot").forEach(item => {
                         item.remove();
                     });
 
                     const subtitle = document.querySelector(".activity-subtitle");
                     if (subtitle) {
-                        subtitle.innerText = "0 thông báo chưa đọc";
+                        subtitle.innerText = `${data.unreadCount || 0} thông báo chưa đọc`;
                     }
 
-                    markAllReadBtn.remove();
+                    const badge = document.querySelector(".notification-badge");
+                    if (badge && (data.unreadCount || 0) > 0) {
+                        badge.innerText = Math.min(data.unreadCount, 99);
+                    } else if (badge) {
+                        badge.remove();
+                    }
+
+                    if ((data.unreadCount || 0) === 0) {
+                        markAllReadBtn.remove();
+                    }
                 });
         });
     }

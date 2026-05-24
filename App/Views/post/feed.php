@@ -20,6 +20,7 @@ $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 require_once __DIR__ . '/../../Controllers/PostController.php';
 require_once __DIR__ . '/../../Controllers/FollowController.php';
 require_once __DIR__ . '/../../Controllers/NotificationController.php';
+require_once __DIR__ . '/../auth/partials/post-menu.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
@@ -278,7 +279,11 @@ function renderPostContentWithHashtags($content) {
                         <?php foreach ($posts as $post): ?>
                             <?php $comments = $postController->getComments($post['PostID']); ?>
                             <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
-                            <div class="bg-white post-card mb-3" id="post-<?= (int) $post['PostID'] ?>">
+                            <div
+                                class="bg-white post-card mb-3"
+                                id="post-<?= (int) $post['PostID'] ?>"
+                                <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
+                            >
                                 <div class="p-3">
                                     <div class="d-flex gap-3">
                                         <a href="<?= profileUrl($post['UserID']) ?>">
@@ -291,11 +296,15 @@ function renderPostContentWithHashtags($content) {
                                         </a>
 
                                         <div class="flex-grow-1">
-                                            <div class="post-meta-line">
-                                                <a href="<?= profileUrl($post['UserID']) ?>" class="post-author-link text-decoration-none">
-                                                    <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
-                                                </a>
-                                                <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
+                                            <div class="post-card-header">
+                                                <div class="post-meta-line">
+                                                    <a href="<?= profileUrl($post['UserID']) ?>" class="post-author-link text-decoration-none">
+                                                        <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
+                                                    </a>
+                                                    <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
+                                                </div>
+
+                                                <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                             </div>
 
                                             <div

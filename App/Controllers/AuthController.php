@@ -12,6 +12,7 @@ require_once __DIR__ . '/../Models/UserModel.php';
 
 use App\Models\UserModel;
 use Database;
+use PDOException;
 
 class AuthController {
     private $conn;
@@ -45,15 +46,47 @@ class AuthController {
                 exit();
             }
 
-            if ($this->userModel->register($name, $username, $email, $password)) {
-                $_SESSION['success'] = "Đăng ký thành công! Vui lòng đăng nhập.";
-                header('Location: ' . app_url('App/Views/auth/login.php'));
-                exit();
-            } else {
-                $_SESSION['error'] = "Tài khoản hoặc Email đã tồn tại trên hệ thống.";
+            if ($this->userModel->usernameExists($username)) {
+                $_SESSION['error'] = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.";
                 header('Location: ' . app_url('App/Views/auth/register.php'));
                 exit();
             }
+
+            if ($this->userModel->emailExists($email)) {
+                $_SESSION['error'] = "Email đã được sử dụng. Vui lòng dùng email khác.";
+                header('Location: ' . app_url('App/Views/auth/register.php'));
+                exit();
+            }
+
+            try {
+                $registered = $this->userModel->register($name, $username, $email, $password);
+            } catch (PDOException $e) {
+                if ($e->getCode() !== '23000') {
+                    $_SESSION['error'] = "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
+                    header('Location: ' . app_url('App/Views/auth/register.php'));
+                    exit();
+                }
+
+                $registered = false;
+
+                if ($this->userModel->usernameExists($username)) {
+                    $_SESSION['error'] = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.";
+                } elseif ($this->userModel->emailExists($email)) {
+                    $_SESSION['error'] = "Email đã được sử dụng. Vui lòng dùng email khác.";
+                } else {
+                    $_SESSION['error'] = "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
+                }
+            }
+
+            if ($registered) {
+                $_SESSION['success'] = "Đăng ký thành công! Vui lòng đăng nhập.";
+                header('Location: ' . app_url('App/Views/auth/login.php'));
+                exit();
+            }
+
+            $_SESSION['error'] = $_SESSION['error'] ?? "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
+            header('Location: ' . app_url('App/Views/auth/register.php'));
+            exit();
         }
     }
 

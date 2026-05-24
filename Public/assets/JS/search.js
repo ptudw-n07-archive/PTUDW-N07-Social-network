@@ -228,8 +228,9 @@ document.addEventListener("DOMContentLoaded", function () {
         hashtagSection.classList.toggle("d-none", hashtags.length === 0);
 
         hashtags.forEach(item => {
-            const row = document.createElement("button");
-            row.type = "button";
+            const tag = String(item.tag || "").replace(/^#/, "");
+            const row = document.createElement("a");
+            row.href = baseUrl + "App/Views/hashtags/hashtag.php?tag=" + encodeURIComponent(tag);
             row.className = "search-hashtag-item";
             row.innerHTML = `
                 <span class="search-hashtag-icon"><i class="bi bi-hash"></i></span>
@@ -240,10 +241,7 @@ document.addEventListener("DOMContentLoaded", function () {
             `;
 
             row.addEventListener("click", function () {
-                const tag = item.tag || "";
-                input.value = tag;
-                recordHistory(tag);
-                runSearch(tag.replace(/^#/, ""));
+                recordHistory("#" + tag);
             });
 
             hashtagResults.appendChild(row);
