@@ -44,6 +44,146 @@ class AdminModel {
         ];
     }
 
+    public function getOverviewDetail(string $metric): ?array {
+        $configs = [
+            'totalUsers' => ['title' => 'Tổng thành viên', 'type' => 'users', 'where' => ''],
+            'activeUsers' => ['title' => 'Tài khoản đang hoạt động', 'type' => 'users', 'where' => 'WHERE u.IsActive = 1'],
+            'lockedUsers' => ['title' => 'Tài khoản bị khóa', 'type' => 'users', 'where' => 'WHERE u.IsActive = 0'],
+            'totalPosts' => ['title' => 'Tổng bài viết', 'type' => 'posts', 'where' => ''],
+            'visiblePosts' => ['title' => 'Bài viết đang hiển thị', 'type' => 'posts', 'where' => 'WHERE p.IsHidden = 0'],
+            'hiddenPosts' => ['title' => 'Bài viết đã ẩn', 'type' => 'posts', 'where' => 'WHERE p.IsHidden = 1'],
+            'totalComments' => ['title' => 'Tổng bình luận', 'type' => 'comments', 'where' => ''],
+            'hiddenComments' => ['title' => 'Bình luận đã ẩn', 'type' => 'comments', 'where' => 'WHERE c.IsHidden = 1'],
+            'pendingReports' => ['title' => 'Report chờ duyệt', 'type' => 'reports', 'where' => "WHERE r.Status = 'Pending'"],
+            'totalHashtags' => ['title' => 'Tổng hashtag', 'type' => 'hashtags', 'where' => '']
+        ];
+
+        if (!isset($configs[$metric])) {
+            return null;
+        }
+
+        $config = $configs[$metric];
+        $rows = [];
+        $columns = [];
+
+        switch ($config['type']) {
+            case 'users':
+                $columns = ['UserID', 'Username', 'FullName', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo'];
+                $sql = "SELECT u.UserID, u.Username, u.FullName, u.Email, r.RoleName,
+                               CASE WHEN u.IsActive = 1 THEN 'Hoạt động' ELSE 'Bị khóa' END AS StatusText,
+                               u.CreatedAt
+                        FROM users u
+                        LEFT JOIN roles r ON r.RoleID = u.RoleID
+                        {$config['where']}
+                        ORDER BY u.CreatedAt DESC";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute();
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $rows[] = [
+                        'UserID' => $row['UserID'],
+                        'Username' => $row['Username'],
+                        'FullName' => $row['FullName'],
+                        'Email' => $row['Email'],
+                        'Vai trò' => $row['RoleName'],
+                        'Trạng thái' => $row['StatusText'],
+                        'Ngày tạo' => $row['CreatedAt']
+                    ];
+                }
+                break;
+
+            case 'posts':
+                $columns = ['PostID', 'Tác giả', 'Content', 'Trạng thái', 'CreatedAt'];
+                $sql = "SELECT p.PostID, p.Content, p.IsHidden, p.CreatedAt,
+                               u.Username, u.FullName
+                        FROM posts p
+                        LEFT JOIN users u ON u.UserID = p.UserID
+                        {$config['where']}
+                        ORDER BY p.CreatedAt DESC";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute();
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $rows[] = [
+                        'PostID' => $row['PostID'],
+                        'Tác giả' => $row['FullName'] ?: $row['Username'],
+                        'Content' => $row['Content'],
+                        'Trạng thái' => (int)$row['IsHidden'] === 1 ? 'Đã ẩn' : 'Đang hiển thị',
+                        'CreatedAt' => $row['CreatedAt']
+                    ];
+                }
+                break;
+
+            case 'comments':
+                $columns = ['CommentID', 'Tác giả', 'Content', 'PostID', 'Trạng thái', 'CreatedAt'];
+                $sql = "SELECT c.CommentID, c.Content, c.PostID, c.IsHidden, c.CreatedAt,
+                               u.Username, u.FullName
+                        FROM comments c
+                        LEFT JOIN users u ON u.UserID = c.UserID
+                        {$config['where']}
+                        ORDER BY c.CreatedAt DESC";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute();
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $rows[] = [
+                        'CommentID' => $row['CommentID'],
+                        'Tác giả' => $row['FullName'] ?: $row['Username'],
+                        'Content' => $row['Content'],
+                        'PostID' => $row['PostID'],
+                        'Trạng thái' => (int)$row['IsHidden'] === 1 ? 'Đã ẩn' : 'Đang hiển thị',
+                        'CreatedAt' => $row['CreatedAt']
+                    ];
+                }
+                break;
+
+            case 'reports':
+                $columns = ['ReportID', 'Reporter', 'ReportedUser', 'Reason', 'Status', 'CreatedAt'];
+                $sql = "SELECT r.ReportID, r.Reason, r.Status, r.CreatedAt,
+                               reporter.Username AS ReporterUsername, reporter.FullName AS ReporterFullName,
+                               reported.Username AS ReportedUsername, reported.FullName AS ReportedFullName
+                        FROM reports r
+                        LEFT JOIN users reporter ON reporter.UserID = r.ReporterUserID
+                        LEFT JOIN users reported ON reported.UserID = r.ReportedUserID
+                        {$config['where']}
+                        ORDER BY r.CreatedAt DESC";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute();
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $rows[] = [
+                        'ReportID' => $row['ReportID'],
+                        'Reporter' => $row['ReporterFullName'] ?: $row['ReporterUsername'],
+                        'ReportedUser' => $row['ReportedFullName'] ?: $row['ReportedUsername'],
+                        'Reason' => $row['Reason'],
+                        'Status' => $row['Status'],
+                        'CreatedAt' => $row['CreatedAt']
+                    ];
+                }
+                break;
+
+            case 'hashtags':
+                $columns = ['HashtagID', 'HashtagName', 'UsageCount', 'Trạng thái', 'CreatedAt'];
+                $sql = "SELECT HashtagID, HashtagName, UsageCount, IsHidden, CreatedAt
+                        FROM hashtags
+                        ORDER BY UsageCount DESC, CreatedAt DESC";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->execute();
+                foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                    $rows[] = [
+                        'HashtagID' => $row['HashtagID'],
+                        'HashtagName' => $row['HashtagName'],
+                        'UsageCount' => $row['UsageCount'],
+                        'Trạng thái' => (int)$row['IsHidden'] === 1 ? 'Đã ẩn' : 'Đang hiển thị',
+                        'CreatedAt' => $row['CreatedAt']
+                    ];
+                }
+                break;
+        }
+
+        return [
+            'title' => $config['title'],
+            'columns' => $columns,
+            'data' => $rows
+        ];
+    }
+
     public function getStatisticsTopRankings($limit = 5) {
         $limit = in_array((int)$limit, [5, 10, 15, 20], true) ? (int)$limit : 5;
 
@@ -451,6 +591,14 @@ class AdminModel {
         return $stmt->execute();
     }
 
+    public function updateAdminBio($userId, $bio): bool {
+        $sql = "UPDATE users SET Bio = :bio WHERE UserID = :userId AND RoleID = 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':bio', $bio, PDO::PARAM_STR);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
     public function updateAdminAvatar($userId, $avatarPath): bool {
         $sql = "UPDATE users SET ProfilePictureUrl = :avatarPath WHERE UserID = :userId AND RoleID = 1";
         $stmt = $this->conn->prepare($sql);
@@ -768,8 +916,8 @@ class AdminModel {
             return false;
         }
 
-        $sql = "INSERT INTO notifications (ReceiverUserID, SenderUserID, PostID, CommentID, NotificationTypeID, IsRead, CreatedAt)
-                VALUES (:receiverUserId, :senderUserId, :postId, :commentId, :notificationTypeId, 0, NOW())";
+        $sql = "INSERT INTO notifications (ReceiverUserID, SenderUserID, PostID, CommentID, NotificationTypeID, Message, IsRead, CreatedAt)
+                VALUES (:receiverUserId, :senderUserId, :postId, :commentId, :notificationTypeId, NULL, 0, NOW())";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':receiverUserId', $receiverUserId, PDO::PARAM_INT);
         $stmt->bindValue(':senderUserId', $senderUserId, PDO::PARAM_INT);
@@ -786,6 +934,149 @@ class AdminModel {
         }
 
         return $this->createNotification($receiverUserId, $senderUserId, null, null, (int)$typeId);
+    }
+
+    private function notificationSelectSql(): string {
+        return "SELECT n.NotificationID, n.NotificationTypeID, nt.TypeName,
+                       n.ReceiverUserID, receiver.Username AS ReceiverUsername,
+                       receiver.FullName AS ReceiverFullName, receiver.Email AS ReceiverEmail,
+                       n.SenderUserID, sender.Username AS SenderUsername,
+                       sender.FullName AS SenderFullName,
+                       n.PostID, n.CommentID, n.Message, n.IsRead, n.CreatedAt
+                FROM notifications n
+                JOIN notificationtypes nt ON nt.NotificationTypeID = n.NotificationTypeID
+                JOIN users receiver ON receiver.UserID = n.ReceiverUserID
+                LEFT JOIN users sender ON sender.UserID = n.SenderUserID";
+    }
+
+    public function getAdminNotifications($keyword = '', $typeName = '', $isRead = ''): array {
+        $conditions = [];
+        $params = [];
+        $allowedTypes = ['Like', 'Comment', 'Follow', 'ReportWarning', 'ContentHidden', 'RoleChanged', 'AccountLocked', 'AccountUnlocked', 'System'];
+
+        $keyword = trim((string)$keyword);
+        if ($keyword !== '') {
+            $conditions[] = "(receiver.Username LIKE :keyword OR receiver.FullName LIKE :keyword OR receiver.Email LIKE :keyword OR n.Message LIKE :keyword)";
+            $params[':keyword'] = '%' . $keyword . '%';
+        }
+
+        if ($typeName !== '' && in_array($typeName, $allowedTypes, true)) {
+            $conditions[] = "nt.TypeName = :typeName";
+            $params[':typeName'] = $typeName;
+        }
+
+        if ($isRead !== '' && in_array((string)$isRead, ['0', '1'], true)) {
+            $conditions[] = "n.IsRead = :isRead";
+            $params[':isRead'] = (int)$isRead;
+        }
+
+        $whereSql = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
+        $sql = $this->notificationSelectSql() . $whereSql . " ORDER BY n.CreatedAt DESC";
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, $key === ':isRead' ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAdminNotificationDetail($notificationId) {
+        $sql = $this->notificationSelectSql() . " WHERE n.NotificationID = :notificationId LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':notificationId', $notificationId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function deleteAdminNotification($notificationId): bool {
+        $stmt = $this->conn->prepare("DELETE FROM notifications WHERE NotificationID = :notificationId");
+        $stmt->bindValue(':notificationId', $notificationId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount() > 0;
+    }
+
+    public function searchNotificationReceivers($keyword = '', $limit = 20): array {
+        $keyword = trim((string)$keyword);
+        $conditions = ["IsActive = 1"];
+        $params = [];
+        if ($keyword !== '') {
+            $conditions[] = "(Username LIKE :keyword OR FullName LIKE :keyword OR Email LIKE :keyword)";
+            $params[':keyword'] = '%' . $keyword . '%';
+        }
+
+        $sql = "SELECT UserID, Username, FullName, Email, ProfilePictureUrl
+                FROM users
+                WHERE " . implode(' AND ', $conditions) . "
+                ORDER BY FullName ASC, Username ASC
+                LIMIT :limit";
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getActiveNotificationReceiverById($userId) {
+        $sql = "SELECT UserID FROM users WHERE UserID = :userId AND IsActive = 1 LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function createSystemNotification($receiverUserId, $senderUserId, $message): bool {
+        $typeId = $this->getNotificationTypeIdByName('System');
+        if (!$typeId) {
+            return false;
+        }
+
+        $sql = "INSERT INTO notifications (NotificationTypeID, ReceiverUserID, SenderUserID, PostID, CommentID, Message, CreatedAt, IsRead)
+                VALUES (:typeId, :receiverUserId, :senderUserId, NULL, NULL, :message, NOW(), 0)";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':typeId', (int)$typeId, PDO::PARAM_INT);
+        $stmt->bindValue(':receiverUserId', (int)$receiverUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':senderUserId', (int)$senderUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+        return $stmt->execute();
+    }
+
+    public function createSystemNotificationsForActiveUsers($senderUserId, $message): int {
+        $typeId = $this->getNotificationTypeIdByName('System');
+        if (!$typeId) {
+            return 0;
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            $stmt = $this->conn->prepare("SELECT UserID FROM users WHERE IsActive = 1 AND RoleID <> 1 AND UserID <> :senderUserId");
+            $stmt->bindValue(':senderUserId', (int)$senderUserId, PDO::PARAM_INT);
+            $stmt->execute();
+            $userIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            $insert = $this->conn->prepare("INSERT INTO notifications (NotificationTypeID, ReceiverUserID, SenderUserID, PostID, CommentID, Message, CreatedAt, IsRead)
+                                            VALUES (:typeId, :receiverUserId, :senderUserId, NULL, NULL, :message, NOW(), 0)");
+            $count = 0;
+            foreach ($userIds as $userId) {
+                $insert->bindValue(':typeId', (int)$typeId, PDO::PARAM_INT);
+                $insert->bindValue(':receiverUserId', (int)$userId, PDO::PARAM_INT);
+                $insert->bindValue(':senderUserId', (int)$senderUserId, PDO::PARAM_INT);
+                $insert->bindValue(':message', $message, PDO::PARAM_STR);
+                $insert->execute();
+                $count++;
+            }
+
+            $this->conn->commit();
+            return $count;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function getAdminContentPosts($keyword = '', $status = '', $privacy = '') {

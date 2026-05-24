@@ -270,6 +270,33 @@ class AdminController {
         }
     }
 
+    public function updateAdminBio(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        $payload = $this->jsonPayload();
+        $bio = trim((string)($payload['Bio'] ?? ''));
+        if (mb_strlen($bio) > 500) {
+            $this->jsonResponse(false, 'Bio tối đa 500 ký tự.');
+            return;
+        }
+
+        $adminUserId = $this->currentAdminId();
+        try {
+            if (!$this->adminModel->updateAdminBio($adminUserId, $bio)) {
+                $this->jsonResponse(false, 'Không thể cập nhật bio.');
+                return;
+            }
+
+            $this->logAdminAction('UpdateBio', 'AdminProfile', $adminUserId, 'Cập nhật bio quản trị viên.');
+            $this->jsonResponse(true, 'Cập nhật bio thành công', ['Bio' => $bio]);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Lỗi khi cập nhật bio.');
+        }
+    }
+
     public function updateAdminAvatar(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
@@ -373,6 +400,33 @@ class AdminController {
         }
     }
 
+    public function overviewDetail(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!$this->isAdmin()) {
+            echo json_encode(['success' => false, 'message' => 'Bạn không có quyền quản trị viên.'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $metric = isset($_GET['metric']) ? trim((string)$_GET['metric']) : '';
+        try {
+            $detail = $this->adminModel->getOverviewDetail($metric);
+            if ($detail === null) {
+                echo json_encode(['success' => false, 'message' => 'Metric không hợp lệ.'], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+
+            echo json_encode([
+                'success' => true,
+                'title' => $detail['title'],
+                'columns' => $detail['columns'],
+                'data' => $detail['data']
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Không thể lấy chi tiết tổng quan.'], JSON_UNESCAPED_UNICODE);
+        }
+    }
+
     public function statisticsRankings(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
@@ -434,6 +488,140 @@ class AdminController {
             ]);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Lỗi khi lấy danh sách thành viên.');
+        }
+    }
+
+    public function listNotifications(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        try {
+            $notifications = $this->adminModel->getAdminNotifications(
+                $_GET['keyword'] ?? '',
+                $_GET['typeName'] ?? '',
+                $_GET['isRead'] ?? ''
+            );
+            $this->jsonResponse(true, 'Lấy danh sách thông báo thành công', ['notifications' => $notifications]);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Lỗi khi lấy danh sách thông báo.');
+        }
+    }
+
+    public function getNotificationDetail(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        $notificationId = $this->intParam('notificationId');
+        if (!$notificationId) {
+            $this->jsonResponse(false, 'NotificationID không hợp lệ.');
+            return;
+        }
+
+        try {
+            $notification = $this->adminModel->getAdminNotificationDetail($notificationId);
+            if (!$notification) {
+                $this->jsonResponse(false, 'Không tìm thấy thông báo.');
+                return;
+            }
+            $this->jsonResponse(true, 'Lấy chi tiết thông báo thành công', ['notification' => $notification]);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Không thể lấy chi tiết thông báo.');
+        }
+    }
+
+    public function deleteNotification(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        $payload = $this->jsonPayload();
+        $notificationId = $this->intPayloadParam($payload, 'NotificationID');
+        if (!$notificationId) {
+            $this->jsonResponse(false, 'NotificationID không hợp lệ.');
+            return;
+        }
+
+        try {
+            if (!$this->adminModel->deleteAdminNotification($notificationId)) {
+                $this->jsonResponse(false, 'Thông báo không tồn tại.');
+                return;
+            }
+            $this->logAdminAction('DeleteNotification', 'Notification', $notificationId, 'Xóa thông báo #' . $notificationId . '.');
+            $this->jsonResponse(true, 'Xóa thông báo thành công', ['NotificationID' => $notificationId]);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Không thể xóa thông báo.');
+        }
+    }
+
+    public function searchNotificationReceivers(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        try {
+            $keyword = trim((string)($_GET['keyword'] ?? ''));
+            if (mb_strlen($keyword) < 2) {
+                $this->jsonResponse(true, 'Tìm người nhận thành công', []);
+                return;
+            }
+
+            $users = $this->adminModel->searchNotificationReceivers($keyword, 20);
+            $this->jsonResponse(true, 'Tìm người nhận thành công', $users);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Không thể tìm người nhận.');
+        }
+    }
+
+    public function sendSystemNotification(): void {
+        if (!$this->isAdmin()) {
+            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        $payload = $this->jsonPayload();
+        $message = trim((string)($payload['message'] ?? $payload['Message'] ?? ''));
+        $sendAll = !empty($payload['sendToAll']) || !empty($payload['SendAll']);
+
+        if ($message === '' || mb_strlen($message) > 1000) {
+            $this->jsonResponse(false, 'Message không được rỗng và tối đa 1000 ký tự.');
+            return;
+        }
+
+        $adminUserId = $this->currentAdminId();
+        try {
+            if ($sendAll) {
+                $count = $this->adminModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
+                $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho ' . $count . ' thành viên.');
+                $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => $count]);
+                return;
+            }
+
+            $receiverUserId = $this->intPayloadParam($payload, 'receiverUserId') ?? $this->intPayloadParam($payload, 'ReceiverUserID');
+            if (!$receiverUserId) {
+                $this->jsonResponse(false, 'Vui lòng chọn người nhận.');
+                return;
+            }
+
+            if (!$this->adminModel->getActiveNotificationReceiverById($receiverUserId)) {
+                $this->jsonResponse(false, 'Người nhận không tồn tại hoặc đang bị khóa.');
+                return;
+            }
+
+            if (!$this->adminModel->createSystemNotification($receiverUserId, $adminUserId, $message)) {
+                $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
+                return;
+            }
+
+            $this->logAdminAction('SendSystemNotification', 'Notification', $receiverUserId, 'Gửi thông báo hệ thống cho UserID #' . $receiverUserId . '.');
+            $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => 1]);
+        } catch (Exception $e) {
+            $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
         }
     }
 
@@ -971,6 +1159,7 @@ if (isset($_GET['action'])) {
     $routes = [
         'processReport' => 'processReport',
         'overviewStats' => 'overviewStats',
+        'overviewDetail' => 'overviewDetail',
         'statisticsRankings' => 'statisticsRankings',
         'statisticsCharts' => 'statisticsCharts',
         'statisticsInsights' => 'statisticsInsights',
@@ -978,6 +1167,11 @@ if (isset($_GET['action'])) {
         'updateUserRole' => 'updateUserRole',
         'toggleUserActive' => 'toggleUserActive',
         'listMembers' => 'listMembers',
+        'listNotifications' => 'listNotifications',
+        'getNotificationDetail' => 'getNotificationDetail',
+        'deleteNotification' => 'deleteNotification',
+        'searchNotificationReceivers' => 'searchNotificationReceivers',
+        'sendSystemNotification' => 'sendSystemNotification',
         'listContentPosts' => 'listContentPosts',
         'getContentPostDetail' => 'getContentPostDetail',
         'toggleContentPostHidden' => 'toggleContentPostHidden',
@@ -991,6 +1185,7 @@ if (isset($_GET['action'])) {
         'deleteContentHashtag' => 'deleteContentHashtag',
         'getAdminProfile' => 'getAdminProfile',
         'updateAdminFullName' => 'updateAdminFullName',
+        'updateAdminBio' => 'updateAdminBio',
         'updateAdminAvatar' => 'updateAdminAvatar',
         'changeAdminPassword' => 'changeAdminPassword',
         'adminLogs' => 'adminLogs'

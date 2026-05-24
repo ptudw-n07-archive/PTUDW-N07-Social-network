@@ -79,7 +79,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
     <main class="container-fluid admin-main py-5">
         <div class="text-center mb-5">
             <h1 class="management-title">Trung tâm điều khiển</h1>
-            <p class="management-subtitle">Nơi điều phối và lưu giữ những khoảnh khắc của Archive.</p>
+            <p class="management-subtitle">Nơi điều phối và lưu giữ những khoảnh khắc của Archive</p>
         </div>
 
         <div class="d-flex justify-content-center mb-5">
@@ -95,6 +95,9 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab"><i class="bi bi-collection me-2"></i>Nội dung</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab"><i class="bi bi-bell me-2"></i>Thông báo</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members" type="button" role="tab"><i class="bi bi-person-badge me-2"></i>Thành viên</button>
@@ -119,9 +122,6 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                     ];
                 ?>
                 <div class="overview-header">
-                    <div>
-                        <h5>Tổng quan hệ thống</h5>
-                    </div>
                     <div class="admin-report-actions">
                         <small>Cập nhật lần cuối: <strong id="overviewLastUpdated"><?php echo htmlspecialchars($stats['lastUpdated'] ?? ''); ?></strong></small>
                         <button type="button" class="btn btn-outline-brown btn-sm" id="printOverviewBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
@@ -131,10 +131,11 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 <div class="row g-3 d-flex align-items-stretch overview-stat-grid" id="overviewStatsGrid">
                     <?php foreach ($overviewCards as $card): ?>
                     <div class="col-12 col-sm-6 col-lg-3 overview-stat-col">
-                        <div class="admin-stat-card overview-stat-card">
+                        <div class="admin-stat-card overview-stat-card overview-detail-card" role="button" tabindex="0" data-overview-metric="<?php echo htmlspecialchars($card['key']); ?>" data-overview-title="<?php echo htmlspecialchars($card['label']); ?>">
                             <i class="bi <?php echo $card['icon']; ?> mb-2 <?php echo !empty($card['danger']) ? 'text-danger' : 'pink-icon'; ?>"></i>
                             <span class="stat-label"><?php echo htmlspecialchars($card['label']); ?></span>
                             <h2 class="stat-value <?php echo !empty($card['danger']) ? 'text-danger' : ''; ?>" data-overview-stat="<?php echo $card['key']; ?>"><?php echo number_format((int)$card['value']); ?></h2>
+                            <small class="overview-card-hint">Nhấn để xem chi tiết</small>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -247,7 +248,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                                         <div id="recentHashtagsInsight" class="statistics-list statistics-list-left loading-state">Đang tải...</div>
                                     </div>
                                     <div class="statistics-panel">
-                                        <h6>Report mới nhất</h6>
+                                        <h6>Báo cáo mới nhất</h6>
                                         <div id="latestReportsInsight" class="statistics-list statistics-list-left loading-state">Đang tải...</div>
                                     </div>
                                 </div>
@@ -345,7 +346,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                                             <div class="report-actions-group">
                                                 <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="<?php echo $r['id']; ?>" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
                                                 <button class="btn btn-outline-secondary btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'ignore')">Bỏ qua</button>
-                                                <button class="btn btn-danger btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'hide')">Ẩn nội dung</button>
+                                                <button class="btn btn-danger btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'hide')">Ẩn</button>
                                                 <button class="btn btn-warning btn-sm text-white" onclick="handleReportAction(<?php echo $r['id']; ?>, 'warn')">Cảnh cáo</button>
                                             </div>
                                         <?php else: ?>
@@ -497,6 +498,62 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="notifications" role="tabpanel">
+                <div class="admin-table-container notification-admin-container">
+                    <div class="admin-tab-toolbar mb-3">
+                        <div class="content-toolbar mb-0">
+                            <div class="content-search-wrap">
+                                <i class="bi bi-search"></i>
+                                <input type="search" id="notificationSearchInput" class="form-control admin-control" placeholder="Tìm người nhận hoặc nội dung thông báo">
+                            </div>
+                            <select id="notificationTypeFilter" class="form-select admin-control content-filter">
+                                <option value="">Tất cả loại</option>
+                                <option value="Like">Like</option>
+                                <option value="Comment">Comment</option>
+                                <option value="Follow">Follow</option>
+                                <option value="ReportWarning">ReportWarning</option>
+                                <option value="ContentHidden">ContentHidden</option>
+                                <option value="RoleChanged">RoleChanged</option>
+                                <option value="AccountLocked">AccountLocked</option>
+                                <option value="AccountUnlocked">AccountUnlocked</option>
+                                <option value="System">System</option>
+                            </select>
+                            <select id="notificationReadFilter" class="form-select admin-control content-filter">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="1">Đã đọc</option>
+                                <option value="0">Chưa đọc</option>
+                            </select>
+                        </div>
+                        <div class="admin-report-actions">
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="openSendNotificationBtn"><i class="bi bi-send me-1"></i>Gửi thông báo</button>
+                            <button type="button" class="btn btn-outline-brown btn-sm" id="printNotificationsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
+                            <button type="button" class="btn btn-pink-admin btn-sm" id="exportNotificationsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
+                        </div>
+                    </div>
+                    <div id="notificationAlert" class="alert d-none" role="alert"></div>
+                    <div class="table-responsive notification-table-responsive">
+                        <table class="table align-middle notification-table">
+                            <thead>
+                                <tr>
+                                    <th>NotificationID</th>
+                                    <th>Loại</th>
+                                    <th>Người nhận</th>
+                                    <th>Người gửi</th>
+                                    <th>Message</th>
+                                    <th>Liên kết</th>
+                                    <th>Trạng thái</th>
+                                    <th>CreatedAt</th>
+                                    <th class="text-end">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notificationsTableBody">
+                                <tr><td colspan="9" class="text-center text-muted py-4">Đang tải dữ liệu...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -710,9 +767,78 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
         </div>
     </div>
 
+    <div class="modal fade" id="overviewDetailModal" tabindex="-1" aria-labelledby="overviewDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content admin-bootstrap-modal overview-detail-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="overviewDetailModalLabel">Chi tiết tổng quan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="overviewDetailLoading" class="text-center text-muted py-4 d-none">Đang tải dữ liệu...</div>
+                    <div id="overviewDetailError" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="overviewDetailBody"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="notificationDetailModal" tabindex="-1" aria-labelledby="notificationDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content admin-bootstrap-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notificationDetailModalLabel">Chi tiết thông báo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="notificationDetailLoading" class="text-center text-muted py-4 d-none">Đang tải chi tiết thông báo...</div>
+                    <div id="notificationDetailError" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="notificationDetailBody" class="notification-detail-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="sendNotificationModal" tabindex="-1" aria-labelledby="sendNotificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content admin-bootstrap-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sendNotificationModalLabel">Gửi thông báo hệ thống</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form id="sendNotificationForm">
+                    <div class="modal-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="sendNotificationAllCheckbox">
+                            <label class="form-check-label" for="sendNotificationAllCheckbox">Gửi cho tất cả thành viên đang hoạt động</label>
+                        </div>
+                        <div class="mb-3" id="singleReceiverWrap">
+                            <label for="notificationReceiverSearch" class="form-label">Người nhận</label>
+                            <input type="search" id="notificationReceiverSearch" class="form-control admin-control mb-2" placeholder="Tìm Username, FullName hoặc Email">
+                            <input type="hidden" id="notificationReceiverId" value="">
+                            <div id="notificationReceiverSelected" class="notification-receiver-selected d-none"></div>
+                            <div id="notificationReceiverResults" class="notification-receiver-results d-none"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="systemNotificationMessage" class="form-label">Message</label>
+                            <textarea id="systemNotificationMessage" class="form-control admin-control" rows="5" maxlength="1000" placeholder="Nhập nội dung thông báo..." required></textarea>
+                            <small class="text-muted"><span id="systemNotificationMessageCount">0</span>/1000 ký tự</small>
+                        </div>
+                        <div id="sendNotificationError" class="alert alert-danger d-none" role="alert"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-pink-admin" id="sendNotificationSubmitBtn"><i class="bi bi-send me-1"></i>Gửi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";
         window.ADMIN_OVERVIEW_STATS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewStats";
+        window.ADMIN_OVERVIEW_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewDetail";
         window.ADMIN_STATISTICS_RANKINGS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsRankings";
         window.ADMIN_STATISTICS_CHARTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsCharts";
         window.ADMIN_STATISTICS_INSIGHTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsInsights";
@@ -720,6 +846,11 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
         window.ADMIN_UPDATE_USER_ROLE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateUserRole";
         window.ADMIN_TOGGLE_USER_ACTIVE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleUserActive";
         window.ADMIN_LIST_MEMBERS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listMembers";
+        window.ADMIN_LIST_NOTIFICATIONS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listNotifications";
+        window.ADMIN_NOTIFICATION_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getNotificationDetail";
+        window.ADMIN_DELETE_NOTIFICATION_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteNotification";
+        window.ADMIN_SEARCH_NOTIFICATION_RECEIVERS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=searchNotificationReceivers";
+        window.ADMIN_SEND_SYSTEM_NOTIFICATION_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=sendSystemNotification";
         window.ADMIN_LIST_CONTENT_POSTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listContentPosts";
         window.ADMIN_CONTENT_POST_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getContentPostDetail";
         window.ADMIN_TOGGLE_CONTENT_POST_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleContentPostHidden";

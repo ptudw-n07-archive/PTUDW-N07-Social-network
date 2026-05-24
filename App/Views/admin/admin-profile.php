@@ -105,12 +105,10 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <span>Trạng thái</span>
                         <strong><?php echo htmlspecialchars($adminStatus); ?></strong>
                     </div>
-                    <?php if ($adminBio !== ''): ?>
                     <div class="admin-profile-meta-item admin-profile-meta-wide">
                         <span>Bio</span>
-                        <strong><?php echo htmlspecialchars($adminBio); ?></strong>
+                        <strong id="adminProfileBioText"><?php echo htmlspecialchars($adminBio !== '' ? $adminBio : 'Chưa có bio.'); ?></strong>
                     </div>
-                    <?php endif; ?>
                 </div>
             </section>
 
@@ -124,6 +122,20 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <div class="admin-profile-inline-form">
                             <input id="adminFullNameInput" name="FullName" class="form-control admin-control" maxlength="100" value="<?php echo htmlspecialchars($admin['FullName'] ?? '', ENT_QUOTES); ?>" required>
                             <button type="submit" class="btn btn-pink-admin">Lưu</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="admin-profile-panel">
+                    <div class="admin-profile-panel-heading">
+                        <h2>Bio</h2>
+                    </div>
+                    <form id="adminProfileBioForm" class="admin-profile-form">
+                        <label for="adminBioInput" class="form-label">Bio quản trị viên</label>
+                        <textarea id="adminBioInput" name="Bio" class="form-control admin-control" rows="4" maxlength="500" placeholder="Viết một mô tả ngắn về bạn..."><?php echo htmlspecialchars($admin['Bio'] ?? '', ENT_QUOTES); ?></textarea>
+                        <div class="admin-profile-form-footer">
+                            <small class="text-muted"><span id="adminBioCount"><?php echo mb_strlen((string)($admin['Bio'] ?? '')); ?></span>/500 ký tự</small>
+                            <button type="submit" class="btn btn-pink-admin"><i class="bi bi-pencil-square me-1"></i>Lưu bio</button>
                         </div>
                     </form>
                 </div>
@@ -196,6 +208,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
     <script>
         window.ADMIN_PROFILE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getAdminProfile";
         window.ADMIN_UPDATE_PROFILE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateAdminFullName";
+        window.ADMIN_UPDATE_BIO_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateAdminBio";
         window.ADMIN_UPDATE_AVATAR_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateAdminAvatar";
         window.ADMIN_CHANGE_PASSWORD_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=changeAdminPassword";
         window.ADMIN_LOGS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=adminLogs";
