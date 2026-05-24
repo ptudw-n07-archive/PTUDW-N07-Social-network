@@ -3,7 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('App/Views/auth/login.php'));
@@ -30,7 +30,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -41,11 +41,11 @@ if (!isset($_SESSION['user_id'])) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Trang chủ">
+                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Trang chủ">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn" title="Hồ sơ">
+                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn" title="Hồ sơ">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -59,7 +59,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'search'; include __DIR__ . '/partials/sidebar.php'; ?>
+                <?php $activePage = 'search'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../../../Config/Database.php';
 
 $activePage = $activePage ?? '';
 $showMoreMenu = $showMoreMenu ?? true;
@@ -14,7 +14,7 @@ $moreMenuLabels = array_merge([
 $unreadNotificationCount = $unreadNotificationCount ?? null;
 
 if ($unreadNotificationCount === null && isset($_SESSION['user_id'])) {
-    require_once __DIR__ . '/../../Controllers/NotificationController.php';
+    require_once __DIR__ . '/../../../Controllers/NotificationController.php';
     $sidebarNotificationController = new \App\Controllers\NotificationController();
     $unreadNotificationCount = $sidebarNotificationController->countUnreadForCurrentUser();
 }
@@ -30,7 +30,7 @@ function sidebarActiveClass($page, $activePage) {
     </div>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/feed.php"
+        href="<?php echo BASE_URL; ?>App/Views/post/feed.php"
         class="sidebar-icon<?= sidebarActiveClass('home', $activePage) ?>"
         title="Trang chủ"
     >
@@ -38,7 +38,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/search.php"
+        href="<?php echo BASE_URL; ?>App/Views/search/search.php"
         class="sidebar-icon<?= sidebarActiveClass('search', $activePage) ?>"
         title="Tìm kiếm"
     >
@@ -46,7 +46,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/createpost.php"
+        href="<?php echo BASE_URL; ?>App/Views/post/createpost.php"
         class="sidebar-icon<?= sidebarActiveClass('create', $activePage) ?>"
         title="Đăng bài"
     >
@@ -54,7 +54,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/notifications.php"
+        href="<?php echo BASE_URL; ?>App/Views/notifications/notifications.php"
         class="sidebar-icon sidebar-icon-with-badge<?= sidebarActiveClass('notifications', $activePage) ?>"
         title="Thông báo"
     >
@@ -65,7 +65,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/profile.php"
+        href="<?php echo BASE_URL; ?>App/Views/profile/profile.php"
         class="sidebar-icon<?= sidebarActiveClass('profile', $activePage) ?>"
         title="Hồ sơ"
     >

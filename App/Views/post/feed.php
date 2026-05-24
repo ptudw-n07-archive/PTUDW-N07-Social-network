@@ -3,7 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../../Config/Database.php';
 
 // 2. CHẶN LỖI: Nếu chưa đăng nhập, bắt buộc đá về trang login ngay lập tức
 if (!isset($_SESSION['user_id'])) {
@@ -17,9 +17,9 @@ $currentUsername = $_SESSION['username'];
 $currentFullName = $_SESSION['user_name'];
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? ''; 
 
-require_once __DIR__ . '/../Controllers/PostController.php';
-require_once __DIR__ . '/../Controllers/FollowController.php';
-require_once __DIR__ . '/../Controllers/NotificationController.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
+require_once __DIR__ . '/../../Controllers/FollowController.php';
+require_once __DIR__ . '/../../Controllers/NotificationController.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
@@ -89,7 +89,7 @@ function postMediaPath($path) {
     }
 
     if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
-        $localPath = __DIR__ . '/../../Public/' . $cleanPath;
+        $localPath = __DIR__ . '/../../../Public/' . $cleanPath;
         return is_file($localPath) ? $src : '';
     }
 
@@ -144,15 +144,15 @@ function timeAgo($datetime) {
 }
 
 function profileUrl($userId) {
-    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
 }
 
 function postDetailUrl($postId) {
-    return BASE_URL . "App/Views/post-detail.php?id=" . urlencode((string) $postId);
+    return BASE_URL . "App/Views/post/post-detail.php?id=" . urlencode((string) $postId);
 }
 
 function hashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
 }
 
 function renderPostContentWithHashtags($content) {
@@ -203,9 +203,9 @@ function renderPostContentWithHashtags($content) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo BASE_URL; ?>App/Views/search/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
                     <a href="#" class="header-star-btn"><i class="bi bi-star"></i></a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
+                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -222,7 +222,7 @@ function renderPostContentWithHashtags($content) {
             <div class="col-lg-1 d-none d-lg-block">
                 <?php
                     $activePage = 'home';
-                    include __DIR__ . '/partials/sidebar.php';
+                    include __DIR__ . '/../auth/partials/sidebar.php';
                 ?>
             </div>
             <div class="col-lg-7 col-md-8">

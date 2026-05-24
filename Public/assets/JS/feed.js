@@ -190,8 +190,8 @@ function addPostToUI(post) {
 
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
     const fullName = post.FullName || post.Username || "Bạn";
-    const profileHref = `/App/Views/profile.php?id=${encodeURIComponent(post.UserID || "")}`;
-    const postDetailHref = `/App/Views/post-detail.php?id=${encodeURIComponent(post.PostID || "")}`;
+    const profileHref = appUrl(`App/Views/profile/profile.php?id=${encodeURIComponent(post.UserID || "")}`);
+    const postDetailHref = appUrl(`App/Views/post/post-detail.php?id=${encodeURIComponent(post.PostID || "")}`);
     const imagesJson = JSON.stringify(images);
     const privacy = post.Privacy || "public";
 
@@ -335,7 +335,7 @@ function renderTrendingHashtags(hashtags) {
         const postCount = Number(item.post_count || 0);
         const link = document.createElement("a");
 
-        link.href = appUrl(`App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`);
+        link.href = appUrl(`App/Views/hashtags/hashtag.php?tag=${encodeURIComponent(tag)}`);
         link.className = "trending-hashtag-item";
         link.innerHTML = `
             <span>#${escapeHTML(tag)}</span>
@@ -452,7 +452,7 @@ function escapeHTML(text) {
 
 function renderContentWithHashtags(text) {
     return escapeHTML(text).replace(/#([\p{L}\p{N}_]+)/gu, function (match, tag) {
-        return `<a class="hashtag-link" href="${appUrl(`App/Views/hashtag.php?tag=${encodeURIComponent(tag)}`)}">#${tag}</a>`;
+        return `<a class="hashtag-link" href="${appUrl(`App/Views/hashtags/hashtag.php?tag=${encodeURIComponent(tag)}`)}">#${tag}</a>`;
     }).replace(/\n/g, "<br>");
 }
 
