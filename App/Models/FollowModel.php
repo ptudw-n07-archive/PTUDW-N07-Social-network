@@ -78,7 +78,7 @@ class FollowModel {
                 u.FullName,
                 u.ProfilePictureUrl
             FROM follows f
-            INNER JOIN Users u ON u.UserID = f.FollowedID
+            INNER JOIN users u ON u.UserID = f.FollowedID
             WHERE f.FollowerID = :userId
             ORDER BY f.CreatedAt DESC, u.FullName ASC, u.Username ASC
         ";
@@ -99,7 +99,7 @@ class FollowModel {
                 u.FullName,
                 u.ProfilePictureUrl
             FROM follows f
-            INNER JOIN Users u ON u.UserID = f.FollowerID
+            INNER JOIN users u ON u.UserID = f.FollowerID
             WHERE f.FollowedID = :userId
             ORDER BY f.CreatedAt DESC, u.FullName ASC, u.Username ASC
         ";

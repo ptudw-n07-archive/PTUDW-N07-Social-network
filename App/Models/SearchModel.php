@@ -21,7 +21,7 @@ class SearchModel {
                 u.ProfilePictureUrl,
                 u.Bio,
                 CASE WHEN f.FollowerID IS NULL THEN 0 ELSE 1 END AS IsFollowing
-            FROM Users u
+            FROM users u
             LEFT JOIN follows f
                 ON f.FollowedID = u.UserID
                 AND f.FollowerID = :followViewerId
@@ -70,7 +70,7 @@ class SearchModel {
                 u.FullName,
                 u.ProfilePictureUrl
             FROM posts p
-            JOIN Users u ON p.UserID = u.UserID
+            JOIN users u ON p.UserID = u.UserID
             WHERE p.IsHidden = 0
             AND p.Content LIKE :keyword
             ORDER BY p.CreatedAt DESC
