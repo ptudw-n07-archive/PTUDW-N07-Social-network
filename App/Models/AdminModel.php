@@ -24,6 +24,13 @@ class AdminModel {
         $allReports = $this->countScalar("SELECT COUNT(ReportID) FROM reports");
         $resolvedReports = $this->countScalar("SELECT COUNT(ReportID) FROM reports WHERE Status = 'Resolved'");
         $activityRate = $allReports > 0 ? round(($resolvedReports / $allReports) * 100, 1) . '%' : '100%';
+        $usersToday = $this->countScalar("SELECT COUNT(UserID) FROM users WHERE DATE(CreatedAt) = CURDATE()");
+        $usersThisWeek = $this->countScalar("SELECT COUNT(UserID) FROM users WHERE CreatedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $postsToday = $this->countScalar("SELECT COUNT(PostID) FROM posts WHERE DATE(CreatedAt) = CURDATE()");
+        $postsThisWeek = $this->countScalar("SELECT COUNT(PostID) FROM posts WHERE CreatedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $commentsToday = $this->countScalar("SELECT COUNT(CommentID) FROM comments WHERE DATE(CreatedAt) = CURDATE()");
+        $commentsThisWeek = $this->countScalar("SELECT COUNT(CommentID) FROM comments WHERE CreatedAt >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $reportsToday = $this->countScalar("SELECT COUNT(ReportID) FROM reports WHERE DATE(CreatedAt) = CURDATE()");
 
         return [
             'users' => number_format($totalUsers),
@@ -40,6 +47,18 @@ class AdminModel {
             'hiddenComments' => $hiddenComments,
             'pendingReports' => $pendingReports,
             'totalHashtags' => $totalHashtags,
+            'kpi' => [
+                'totalUsers' => '+' . $usersToday . ' hôm nay · +' . $usersThisWeek . ' 7 ngày',
+                'activeUsers' => $activeUsers . ' đang hoạt động',
+                'lockedUsers' => $lockedUsers . ' bị khóa',
+                'totalPosts' => '+' . $postsToday . ' hôm nay · +' . $postsThisWeek . ' 7 ngày',
+                'visiblePosts' => $visiblePosts . ' đang hiển thị',
+                'hiddenPosts' => $hiddenPosts . ' đã ẩn',
+                'totalComments' => '+' . $commentsToday . ' hôm nay · +' . $commentsThisWeek . ' 7 ngày',
+                'hiddenComments' => $hiddenComments . ' đã ẩn',
+                'pendingReports' => $pendingReports . ' đang chờ · +' . $reportsToday . ' hôm nay',
+                'totalHashtags' => $totalHashtags . ' hashtag đang có'
+            ],
             'lastUpdated' => date('d/m/Y H:i:s')
         ];
     }
