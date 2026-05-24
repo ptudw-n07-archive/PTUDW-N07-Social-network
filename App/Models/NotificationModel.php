@@ -119,7 +119,7 @@ class NotificationModel {
     }
 
     public function markAllAsRead($userId) {
-        $sql = "UPDATE notifications SET IsRead = 1 WHERE ReceiverUserID = :userId";
+        $sql = "UPDATE notifications SET IsRead = 1 WHERE ReceiverUserID = :userId AND IsRead = 0";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(":userId", (int) $userId, PDO::PARAM_INT);

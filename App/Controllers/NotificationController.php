@@ -71,9 +71,11 @@ class NotificationController {
             return;
         }
 
+        $success = $this->notificationModel->markAllAsRead($userId);
+
         echo json_encode([
-            "success" => $this->notificationModel->markAllAsRead($userId),
-            "unreadCount" => 0
+            "success" => $success,
+            "unreadCount" => $this->notificationModel->countUnread($userId)
         ]);
     }
 

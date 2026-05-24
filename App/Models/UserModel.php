@@ -21,6 +21,24 @@ class UserModel {
         return $stmt->rowCount() > 0;
     }
 
+    public function usernameExists(string $username): bool {
+        $query = "SELECT 1 FROM " . $this->table . " WHERE Username = :username LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':username', $username);
+        $stmt->execute();
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function emailExists(string $email): bool {
+        $query = "SELECT 1 FROM " . $this->table . " WHERE Email = :email LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':email', $email);
+        $stmt->execute();
+
+        return (bool) $stmt->fetchColumn();
+    }
+
     public function register($name, $username, $email, $password): bool {
         $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt)
                   VALUES (:name, :username, :email, :password, 2, 1, NOW())";

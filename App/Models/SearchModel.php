@@ -71,7 +71,8 @@ class SearchModel {
                 u.ProfilePictureUrl
             FROM posts p
             JOIN Users u ON p.UserID = u.UserID
-            WHERE p.Content LIKE :keyword
+            WHERE p.IsHidden = 0
+            AND p.Content LIKE :keyword
             ORDER BY p.CreatedAt DESC
             LIMIT :limit
         ";

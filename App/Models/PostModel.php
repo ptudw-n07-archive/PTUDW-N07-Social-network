@@ -35,7 +35,8 @@ class PostModel {
             LEFT JOIN likes l ON p.PostID = l.PostID
             $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
-            WHERE " . $this->visibilitySql($viewerId) . "
+            WHERE p.IsHidden = 0
+            AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             ORDER BY p.CreatedAt DESC
         ";
@@ -128,6 +129,7 @@ class PostModel {
             $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID
             WHERE p.PostID = :postId
+            AND p.IsHidden = 0
             AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             LIMIT 1
@@ -316,7 +318,9 @@ public function getTrendingHashtags($limit = 10) {
             COUNT(ph.PostID) AS TotalPosts
         FROM hashtags h
         JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
+        JOIN posts p ON p.PostID = ph.PostID
         WHERE ph.CreatedAt >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        AND p.IsHidden = 0
         GROUP BY h.HashtagID, h.HashtagName
         ORDER BY TotalPosts DESC
         LIMIT :limit
@@ -335,10 +339,13 @@ public function getTrendingHashtags($limit = 10) {
         SELECT
             h.HashtagID,
             h.HashtagName,
-            h.UsageCount AS TotalPosts
+            COUNT(DISTINCT ph.PostID) AS TotalPosts
         FROM hashtags h
-        WHERE h.UsageCount > 0
-        ORDER BY h.UsageCount DESC
+        JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
+        JOIN posts p ON p.PostID = ph.PostID AND p.IsHidden = 0
+        GROUP BY h.HashtagID, h.HashtagName
+        HAVING COUNT(DISTINCT ph.PostID) > 0
+        ORDER BY TotalPosts DESC, h.HashtagName ASC
         LIMIT :limit
     ";
 
@@ -371,6 +378,7 @@ public function getPostsByHashtag($tag, $viewerId = null) {
         LEFT JOIN likes l ON p.PostID = l.PostID
         LEFT JOIN comments c ON p.PostID = c.PostID
         WHERE h.HashtagName = :tag
+        AND p.IsHidden = 0
         AND " . $this->visibilitySql($viewerId) . "
         GROUP BY p.PostID
         ORDER BY p.CreatedAt DESC
