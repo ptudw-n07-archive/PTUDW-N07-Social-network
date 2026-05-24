@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showConfirmModal = (message, title = 'Xác nhận', confirmText = 'Xác nhận', cancelText = 'Hủy') => {
         if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            return Promise.resolve(false);
+            return Promise.resolve(window.confirm(message));
         }
 
         adminModalTitle.textContent = title;
@@ -45,7 +45,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showAlertModal = (message, title = 'Thông báo', confirmText = 'Đóng') => {
         if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            return Promise.resolve(false);
+            window.alert(message);
+            return Promise.resolve(true);
         }
 
         adminModalTitle.textContent = title;
@@ -67,15 +68,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminNoteModalEl = document.getElementById('adminNoteModal');
     const adminNoteTextarea = document.getElementById('adminNoteTextarea');
     const adminNoteSaveBtn = document.getElementById('adminNoteSaveBtn');
+    const adminNoteError = document.getElementById('adminNoteError');
     const adminNoteModal = adminNoteModalEl ? new bootstrap.Modal(adminNoteModalEl) : null;
     let adminNoteResolve = null;
+    let adminNoteRequired = false;
 
-    const showAdminNoteModal = () => {
+    const showAdminNoteModal = (required = false) => {
         if (!adminNoteModal || !adminNoteTextarea) {
             return Promise.resolve('');
         }
 
+        adminNoteRequired = required;
         adminNoteTextarea.value = '';
+        if (adminNoteError) adminNoteError.classList.add('d-none');
         adminNoteModal.show();
 
         return new Promise(resolve => {
@@ -96,12 +101,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (adminNoteSaveBtn) {
         adminNoteSaveBtn.addEventListener('click', () => {
-            closeAdminNoteModal(adminNoteTextarea.value.trim());
+            const note = adminNoteTextarea.value.trim();
+            if (adminNoteRequired && note === '') {
+                if (adminNoteError) adminNoteError.classList.remove('d-none');
+                adminNoteTextarea.focus();
+                return;
+            }
+            closeAdminNoteModal(note);
         });
     }
 
+    document.querySelectorAll('[data-note-chip]').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (!adminNoteTextarea) return;
+            const value = chip.dataset.noteChip || '';
+            const current = adminNoteTextarea.value.trim();
+            adminNoteTextarea.value = current === '' ? value : `${current}\n${value}`;
+            if (adminNoteError) adminNoteError.classList.add('d-none');
+            adminNoteTextarea.focus();
+        });
+    });
+
     if (adminNoteModalEl) {
         adminNoteModalEl.addEventListener('hidden.bs.modal', () => {
+            adminNoteRequired = false;
+            if (adminNoteError) adminNoteError.classList.add('d-none');
             if (adminNoteResolve) {
                 adminNoteResolve(null);
                 adminNoteResolve = null;
@@ -134,6 +158,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const exportContentCommentsCsvBtn = document.getElementById('exportContentCommentsCsvBtn');
     const printContentHashtagsBtn = document.getElementById('printContentHashtagsBtn');
     const exportContentHashtagsCsvBtn = document.getElementById('exportContentHashtagsCsvBtn');
+    const adminProfileNameForm = document.getElementById('adminProfileNameForm');
+    const adminFullNameInput = document.getElementById('adminFullNameInput');
+    const adminAvatarForm = document.getElementById('adminAvatarForm');
+    const adminAvatarInput = document.getElementById('adminAvatarInput');
+    const adminPasswordForm = document.getElementById('adminPasswordForm');
+    const adminCurrentPassword = document.getElementById('adminCurrentPassword');
+    const adminNewPassword = document.getElementById('adminNewPassword');
+    const adminConfirmPassword = document.getElementById('adminConfirmPassword');
+    const adminProfileAlert = document.getElementById('adminProfileAlert');
+    const adminProfileAvatarLarge = document.getElementById('adminProfileAvatarLarge');
+    const adminProfileNameText = document.getElementById('adminProfileNameText');
+    const adminHeaderName = document.getElementById('adminHeaderName');
+    const adminHeaderAvatar = document.getElementById('adminHeaderAvatar');
+    const adminLogsSearch = document.getElementById('adminLogsSearch');
+    const adminLogsActionFilter = document.getElementById('adminLogsActionFilter');
+    const adminLogsTableBody = document.getElementById('adminLogsTableBody');
     const editRoleModalEl = document.getElementById('editRoleModal');
     const editRoleSelect = document.getElementById('editRoleSelect');
     const editRoleSaveBtn = document.getElementById('editRoleSaveBtn');
@@ -434,6 +474,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 IsActive: updated.IsActive
             });
             updateRenderedRow(updated.UserID);
+            if (Array.isArray(updated.updatedReports)) {
+                markReportsResolved(updated.updatedReports);
+                applyReportFilters();
+            }
             await showAlertModal(data.message || 'Cập nhật trạng thái tài khoản thành công', 'Thành công', 'Đóng');
         } catch (err) {
             console.error('Toggle active error:', err);
@@ -713,8 +757,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!confirmed) return;
 
-        const adminNote = await showAdminNoteModal();
+        const requiresAdminNote = ['warn', 'hide', 'delete', 'lock'].includes(action);
+        const adminNote = await showAdminNoteModal(requiresAdminNote);
         if (adminNote === null) return;
+        if (requiresAdminNote && adminNote.trim() === '') {
+            await showAlertModal('Vui lòng nhập ghi chú xử lý.', 'Thiếu ghi chú', 'Đóng');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('reportId', reportId);
@@ -735,46 +784,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const reportIdValue = data.data && data.data.reportId ? data.data.reportId : reportId;
-            const reportElement = document.getElementById(`report-row-${reportIdValue}`);
-            if (reportElement) {
-                const statusBadge = reportElement.querySelector('td:nth-child(5) .badge');
-                const actionsCell = reportElement.querySelector('.report-actions');
-
-                if (statusBadge) {
-                    statusBadge.textContent = 'Đã xử lý';
-                    statusBadge.className = 'badge rounded-pill bg-success text-white report-status-badge';
-                }
-
-                if (actionsCell) {
-                    actionsCell.innerHTML = `<div class="report-actions-group is-completed">
-                        <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="${reportIdValue}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
-                        <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
-                    </div>`;
-                }
-            }
-
-            const cachedReport = currentReports.find(report => Number(report.ReportID) === Number(reportIdValue));
-            if (cachedReport && reportElement) {
-                cachedReport.Status = 'Đã xử lý';
-                cachedReport.StatusKey = 'resolved';
-                cachedReport.row = reportElement;
-                reportElement.dataset.report = JSON.stringify({
-                    ReportID: cachedReport.ReportID,
-                    Reporter: cachedReport.Reporter || '',
-                    ReportedUser: cachedReport.ReportedUser || '',
-                    ReportType: cachedReport.ReportType || '',
-                    Reason: cachedReport.Reason || '',
-                    Status: cachedReport.Status,
-                    StatusKey: 'resolved',
-                    CreatedAt: cachedReport.CreatedAt || ''
-                });
-            }
+            const responseUpdatedReports = Array.isArray(data.updatedReports) ? data.updatedReports : (data.data && Array.isArray(data.data.updatedReports) ? data.data.updatedReports : []);
+            const updatedReports = responseUpdatedReports.length
+                ? responseUpdatedReports
+                : [reportIdValue];
+            markReportsResolved(updatedReports);
             applyReportFilters();
 
             const reportStatElement = document.querySelector('#overview .stat-value.text-danger');
             if (reportStatElement) {
                 const currentCount = parseInt(reportStatElement.textContent, 10) || 0;
-                if (currentCount > 0) reportStatElement.textContent = currentCount - 1;
+                if (currentCount > 0) reportStatElement.textContent = Math.max(0, currentCount - updatedReports.length);
             }
 
             await showAlertModal(data.message, 'Thành công', 'Đóng');
@@ -795,6 +815,47 @@ document.addEventListener('DOMContentLoaded', function() {
             return { row };
         }
     });
+
+    function markReportsResolved(reportIds) {
+        (reportIds || []).forEach(reportId => {
+            const reportElement = document.getElementById(`report-row-${reportId}`);
+            if (reportElement) {
+                const statusBadge = reportElement.querySelector('td:nth-child(5) .badge');
+                const actionsCell = reportElement.querySelector('.report-actions');
+
+                if (statusBadge) {
+                    statusBadge.textContent = 'Đã xử lý';
+                    statusBadge.className = 'badge rounded-pill bg-success text-white report-status-badge';
+                }
+
+                if (actionsCell) {
+                    actionsCell.innerHTML = `<div class="report-actions-group is-completed">
+                        <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="${reportId}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
+                        <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
+                    </div>`;
+                }
+            }
+
+            const cachedReport = currentReports.find(report => Number(report.ReportID) === Number(reportId));
+            if (cachedReport) {
+                cachedReport.Status = 'Đã xử lý';
+                cachedReport.StatusKey = 'resolved';
+                if (reportElement) cachedReport.row = reportElement;
+                if (reportElement) {
+                    reportElement.dataset.report = JSON.stringify({
+                        ReportID: cachedReport.ReportID,
+                        Reporter: cachedReport.Reporter || '',
+                        ReportedUser: cachedReport.ReportedUser || '',
+                        ReportType: cachedReport.ReportType || '',
+                        Reason: cachedReport.Reason || '',
+                        Status: cachedReport.Status,
+                        StatusKey: 'resolved',
+                        CreatedAt: cachedReport.CreatedAt || ''
+                    });
+                }
+            }
+        });
+    }
 
     const filteredReportRows = () => {
         const keyword = reportSearchInput ? reportSearchInput.value.trim().toLowerCase() : '';
@@ -905,6 +966,148 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return data;
     };
+
+    const showAdminProfileAlert = (message, type = 'success') => {
+        if (!adminProfileAlert) return;
+        adminProfileAlert.textContent = message;
+        adminProfileAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-4`;
+    };
+
+    const adminProfileImageSrc = path => normalizeAssetPath(path || 'Public/assets/img/default-avatar.jpg');
+    const applyAdminProfile = profile => {
+        if (!profile) return;
+        const displayName = profile.FullName || profile.Username || 'Quản trị viên';
+        if (adminProfileNameText) adminProfileNameText.textContent = displayName;
+        if (adminFullNameInput) adminFullNameInput.value = profile.FullName || '';
+        if (adminHeaderName) adminHeaderName.textContent = displayName;
+
+        const avatarSrc = adminProfileImageSrc(profile.ProfilePictureUrl);
+        if (adminProfileAvatarLarge) adminProfileAvatarLarge.src = avatarSrc;
+        if (adminHeaderAvatar) adminHeaderAvatar.src = avatarSrc;
+    };
+
+    const renderAdminLogs = logs => {
+        if (!adminLogsTableBody) return;
+        if (!logs || logs.length === 0) {
+            adminLogsTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Chưa có log phù hợp.</td></tr>';
+            return;
+        }
+
+        adminLogsTableBody.innerHTML = logs.map(log => `
+            <tr>
+                <td><span class="content-pill">${escapeHtml(log.Action || '')}</span></td>
+                <td>${escapeHtml(log.TargetType || '')}</td>
+                <td>${escapeHtml(log.TargetID || '')}</td>
+                <td>${escapeHtml(log.Description || '')}</td>
+                <td class="text-muted small">${escapeHtml(log.CreatedAt || '')}</td>
+            </tr>
+        `).join('');
+    };
+
+    const updateAdminLogActions = actions => {
+        if (!adminLogsActionFilter || !Array.isArray(actions)) return;
+        const currentValue = adminLogsActionFilter.value;
+        adminLogsActionFilter.innerHTML = '<option value="">Tất cả action</option>' + actions.map(action => `<option value="${escapeHtml(action)}">${escapeHtml(action)}</option>`).join('');
+        adminLogsActionFilter.value = actions.includes(currentValue) ? currentValue : '';
+    };
+
+    const loadAdminLogs = async () => {
+        if (!window.ADMIN_LOGS_URL || !adminLogsTableBody) return;
+        const url = new URL(window.ADMIN_LOGS_URL, window.location.href);
+        url.searchParams.set('keyword', adminLogsSearch ? adminLogsSearch.value.trim() : '');
+        url.searchParams.set('actionFilter', adminLogsActionFilter ? adminLogsActionFilter.value : '');
+        try {
+            const data = await fetchJson(url.toString());
+            renderAdminLogs((data.data && data.data.logs) || []);
+            updateAdminLogActions((data.data && data.data.actions) || []);
+        } catch (err) {
+            adminLogsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+        }
+    };
+
+    let adminLogSearchTimer = null;
+    if (adminLogsSearch) {
+        adminLogsSearch.addEventListener('input', () => {
+            clearTimeout(adminLogSearchTimer);
+            adminLogSearchTimer = setTimeout(loadAdminLogs, 250);
+        });
+    }
+    if (adminLogsActionFilter) adminLogsActionFilter.addEventListener('change', loadAdminLogs);
+
+    if (adminProfileNameForm) {
+        adminProfileNameForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const data = await fetchJson(window.ADMIN_UPDATE_PROFILE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ FullName: adminFullNameInput ? adminFullNameInput.value.trim() : '' })
+                });
+                applyAdminProfile(data.data && data.data.profile);
+                showAdminProfileAlert(data.message || 'Cập nhật hồ sơ thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể cập nhật hồ sơ.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (adminAvatarForm) {
+        adminAvatarForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const formData = new FormData(adminAvatarForm);
+                const data = await fetchJson(window.ADMIN_UPDATE_AVATAR_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+                applyAdminProfile(data.data && data.data.profile);
+                if (adminAvatarInput) adminAvatarInput.value = '';
+                showAdminProfileAlert(data.message || 'Cập nhật avatar thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể cập nhật avatar.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (adminPasswordForm) {
+        adminPasswordForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = event.submitter;
+            if (submitButton) submitButton.disabled = true;
+            try {
+                const data = await fetchJson(window.ADMIN_CHANGE_PASSWORD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        CurrentPassword: adminCurrentPassword ? adminCurrentPassword.value : '',
+                        NewPassword: adminNewPassword ? adminNewPassword.value : '',
+                        ConfirmPassword: adminConfirmPassword ? adminConfirmPassword.value : ''
+                    })
+                });
+                adminPasswordForm.reset();
+                showAdminProfileAlert(data.message || 'Đổi mật khẩu thành công.', 'success');
+                loadAdminLogs();
+            } catch (err) {
+                showAdminProfileAlert(err.message || 'Không thể đổi mật khẩu.', 'danger');
+            } finally {
+                if (submitButton) submitButton.disabled = false;
+            }
+        });
+    }
+
+    if (window.ADMIN_LOGS_URL && adminLogsTableBody) {
+        loadAdminLogs();
+    }
 
     const formatNumber = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
     const rosePalette = ['#d69096', '#795d4a', '#e8b4c3', '#8aa889', '#f0c88a', '#c75d72'];
@@ -1060,8 +1263,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         target.innerHTML = users.map((user, index) => `
-            <div class="statistics-rank-item compact">
+            <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
+                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar">
                 <div class="rank-main">
                     <strong>${escapeHtml(personDisplayName(user))}</strong>
                     <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.RoleName || '-')}</span>
@@ -1667,6 +1871,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const item = data.data && (data.data.post || data.data.comment || data.data.hashtag);
             if (item) rerenderContentRow(type, item);
+            if (data.data && Array.isArray(data.data.updatedReports)) {
+                markReportsResolved(data.data.updatedReports);
+                applyReportFilters();
+            }
         } catch (err) {
             await showAlertModal(err.message || 'Không thể cập nhật trạng thái.', 'Lỗi', 'Đóng');
             button.disabled = false;
@@ -1705,6 +1913,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     currentContentHashtags = currentContentHashtags.filter(hashtag => Number(hashtag.HashtagID) !== id);
                 }
+            }
+            if (data.data && Array.isArray(data.data.updatedReports)) {
+                markReportsResolved(data.data.updatedReports);
+                applyReportFilters();
             }
         } catch (err) {
             await showAlertModal(err.message || `Không thể xóa ${labelMap[type]}.`, 'Lỗi', 'Đóng');

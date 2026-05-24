@@ -143,12 +143,12 @@ class AdminModel {
     }
 
     private function getTopReportedUsers($limit) {
-        $sql = "SELECT u.UserID, u.Username, u.FullName, u.IsActive, r.RoleName,
+        $sql = "SELECT u.UserID, u.Username, u.FullName, u.ProfilePictureUrl, u.IsActive, r.RoleName,
                        COUNT(rep.ReportID) AS ReportCount
                 FROM users u
                 JOIN reports rep ON rep.ReportedUserID = u.UserID
                 LEFT JOIN roles r ON r.RoleID = u.RoleID
-                GROUP BY u.UserID, u.Username, u.FullName, u.IsActive, r.RoleName
+                GROUP BY u.UserID, u.Username, u.FullName, u.ProfilePictureUrl, u.IsActive, r.RoleName
                 ORDER BY ReportCount DESC, u.UserID DESC
                 LIMIT :limit";
         $stmt = $this->conn->prepare($sql);
@@ -397,7 +397,7 @@ class AdminModel {
     }
 
     public function getUserById($userId) {
-        $sql = "SELECT u.UserID, u.FullName, u.Username, u.Email, u.RoleID, u.IsActive, u.CreatedAt,
+        $sql = "SELECT u.UserID, u.FullName, u.Username, u.Email, u.ProfilePictureUrl, u.Bio, u.RoleID, u.IsActive, u.CreatedAt,
                        r.RoleName,
                        COALESCE(pc.PostCount, 0) AS PostCount,
                        COALESCE(rc.ReportCount, 0) AS ReportCount
@@ -419,6 +419,106 @@ class AdminModel {
         $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getAdminProfileById($userId) {
+        $sql = "SELECT u.UserID, u.FullName, u.Username, u.Email, u.ProfilePictureUrl, u.Bio,
+                       u.RoleID, u.IsActive, u.CreatedAt, r.RoleName
+                FROM users u
+                JOIN roles r ON u.RoleID = r.RoleID
+                WHERE u.UserID = :userId AND u.RoleID = 1
+                LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getUserPasswordHash($userId): ?string {
+        $sql = "SELECT PasswordHash FROM users WHERE UserID = :userId LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        $hash = $stmt->fetchColumn();
+        return $hash !== false ? (string)$hash : null;
+    }
+
+    public function updateAdminFullName($userId, $fullName): bool {
+        $sql = "UPDATE users SET FullName = :fullName WHERE UserID = :userId AND RoleID = 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':fullName', $fullName, PDO::PARAM_STR);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    public function updateAdminAvatar($userId, $avatarPath): bool {
+        $sql = "UPDATE users SET ProfilePictureUrl = :avatarPath WHERE UserID = :userId AND RoleID = 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':avatarPath', $avatarPath, PDO::PARAM_STR);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    public function updateAdminPassword($userId, $passwordHash): bool {
+        $sql = "UPDATE users SET PasswordHash = :passwordHash WHERE UserID = :userId AND RoleID = 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':passwordHash', $passwordHash, PDO::PARAM_STR);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        return $stmt->execute();
+    }
+
+    public function addAdminLog($adminUserId, $action, $targetType, $targetId, $description): bool {
+        $sql = "INSERT INTO admin_logs (AdminUserID, Action, TargetType, TargetID, Description, CreatedAt)
+                VALUES (:adminUserId, :action, :targetType, :targetId, :description, NOW())";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':adminUserId', $adminUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':action', $action, PDO::PARAM_STR);
+        $stmt->bindValue(':targetType', $targetType, PDO::PARAM_STR);
+        $stmt->bindValue(':targetId', $targetId, PDO::PARAM_INT);
+        $stmt->bindValue(':description', $description, PDO::PARAM_STR);
+        return $stmt->execute();
+    }
+
+    public function getAdminLogs($adminUserId, $keyword = '', $action = '', $limit = 30): array {
+        $conditions = ['AdminUserID = :adminUserId'];
+        $params = [':adminUserId' => (int)$adminUserId];
+
+        $keyword = trim((string)$keyword);
+        if ($keyword !== '') {
+            $conditions[] = "(Action LIKE :keyword OR Description LIKE :keyword OR TargetType LIKE :keyword)";
+            $params[':keyword'] = '%' . $keyword . '%';
+        }
+
+        $action = trim((string)$action);
+        if ($action !== '') {
+            $conditions[] = "Action = :action";
+            $params[':action'] = $action;
+        }
+
+        $limit = max(1, min((int)$limit, 100));
+        $sql = "SELECT LogID, AdminUserID, Action, TargetType, TargetID, Description, CreatedAt
+                FROM admin_logs
+                WHERE " . implode(' AND ', $conditions) . "
+                ORDER BY CreatedAt DESC, LogID DESC
+                LIMIT :limit";
+        $stmt = $this->conn->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, $key === ':adminUserId' ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getAdminLogActions($adminUserId): array {
+        $sql = "SELECT DISTINCT Action
+                FROM admin_logs
+                WHERE AdminUserID = :adminUserId
+                ORDER BY Action ASC";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':adminUserId', $adminUserId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
     public function getRoleById($roleId) {
@@ -570,6 +670,73 @@ class AdminModel {
         $stmt->bindParam(':reportId', $reportId, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->rowCount() > 0;
+    }
+
+    public function resolvePendingReportsByPostId($postId, $adminNote): array {
+        return $this->resolvePendingReports('PostID', $postId, $adminNote);
+    }
+
+    public function resolvePendingReportsByCommentId($commentId, $adminNote): array {
+        return $this->resolvePendingReports('CommentID', $commentId, $adminNote);
+    }
+
+    public function resolvePendingReportsByReportedUserId($userId, $adminNote): array {
+        return $this->resolvePendingReports('ReportedUserID', $userId, $adminNote);
+    }
+
+    public function getPendingReportIdsByPostId($postId): array {
+        return $this->getPendingReportIds('PostID', $postId);
+    }
+
+    public function getPendingReportIdsByCommentId($commentId): array {
+        return $this->getPendingReportIds('CommentID', $commentId);
+    }
+
+    public function getPendingReportIdsByReportedUserId($userId): array {
+        return $this->getPendingReportIds('ReportedUserID', $userId);
+    }
+
+    private function getPendingReportIds($column, $value): array {
+        $allowedColumns = ['PostID', 'CommentID', 'ReportedUserID'];
+        if (!in_array($column, $allowedColumns, true)) {
+            return [];
+        }
+
+        $sql = "SELECT ReportID FROM reports WHERE {$column} = :value AND Status = 'Pending'";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':value', $value, PDO::PARAM_INT);
+        $stmt->execute();
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    private function resolvePendingReports($column, $value, $adminNote): array {
+        $reportIds = $this->getPendingReportIds($column, $value);
+        if (empty($reportIds)) {
+            return [];
+        }
+
+        $this->conn->beginTransaction();
+        try {
+            $sql = "UPDATE reports
+                    SET Status = 'Resolved',
+                        ResolvedAt = NOW(),
+                        AdminNote = CASE
+                            WHEN AdminNote IS NULL OR TRIM(AdminNote) = '' THEN :adminNote
+                            ELSE AdminNote
+                        END
+                    WHERE {$column} = :value AND Status = 'Pending'";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':adminNote', $adminNote, PDO::PARAM_STR);
+            $stmt->bindValue(':value', $value, PDO::PARAM_INT);
+            $stmt->execute();
+            $this->conn->commit();
+            return $reportIds;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function hidePostById($postId) {
@@ -748,13 +915,30 @@ class AdminModel {
                 $stmt = $this->conn->prepare("DELETE FROM notifications WHERE PostID = ? OR CommentID IN ($placeholders)");
                 $stmt->execute(array_merge([$postId], $commentIds));
 
-                $stmt = $this->conn->prepare("DELETE FROM reports WHERE PostID = ? OR CommentID IN ($placeholders)");
+                $stmt = $this->conn->prepare("UPDATE reports
+                    SET Status = 'Resolved',
+                        ResolvedAt = COALESCE(ResolvedAt, NOW()),
+                        AdminNote = CASE
+                            WHEN AdminNote IS NULL OR TRIM(AdminNote) = '' THEN 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.'
+                            ELSE AdminNote
+                        END,
+                        PostID = NULL,
+                        CommentID = NULL
+                    WHERE PostID = ? OR CommentID IN ($placeholders)");
                 $stmt->execute(array_merge([$postId], $commentIds));
             } else {
                 $stmt = $this->conn->prepare("DELETE FROM notifications WHERE PostID = ?");
                 $stmt->execute([$postId]);
 
-                $stmt = $this->conn->prepare("DELETE FROM reports WHERE PostID = ?");
+                $stmt = $this->conn->prepare("UPDATE reports
+                    SET Status = 'Resolved',
+                        ResolvedAt = COALESCE(ResolvedAt, NOW()),
+                        AdminNote = CASE
+                            WHEN AdminNote IS NULL OR TRIM(AdminNote) = '' THEN 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.'
+                            ELSE AdminNote
+                        END,
+                        PostID = NULL
+                    WHERE PostID = ?");
                 $stmt->execute([$postId]);
             }
 
@@ -891,7 +1075,15 @@ class AdminModel {
             $stmt = $this->conn->prepare("DELETE FROM notifications WHERE CommentID IN ($placeholders)");
             $stmt->execute($commentIds);
 
-            $stmt = $this->conn->prepare("DELETE FROM reports WHERE CommentID IN ($placeholders)");
+            $stmt = $this->conn->prepare("UPDATE reports
+                SET Status = 'Resolved',
+                    ResolvedAt = COALESCE(ResolvedAt, NOW()),
+                    AdminNote = CASE
+                        WHEN AdminNote IS NULL OR TRIM(AdminNote) = '' THEN 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.'
+                        ELSE AdminNote
+                    END,
+                    CommentID = NULL
+                WHERE CommentID IN ($placeholders)");
             $stmt->execute($commentIds);
 
             $stmt = $this->conn->prepare("DELETE FROM comments WHERE CommentID IN ($placeholders)");

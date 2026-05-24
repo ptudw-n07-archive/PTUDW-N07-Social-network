@@ -10,11 +10,32 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
     exit();
 }
 
+function adminAssetPath($path) {
+    $path = trim((string)$path);
+    if ($path === '') {
+        return BASE_URL . 'Public/assets/img/default-avatar.jpg';
+    }
+
+    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+        return $path;
+    }
+
+    $path = ltrim($path, '/');
+    if (str_starts_with($path, 'Public/')) {
+        return BASE_URL . $path;
+    }
+
+    return BASE_URL . 'Public/' . $path;
+}
+
 /** @var array $stats */
 /** @var array $reports */
 /** @var array $members */
 /** @var array $roles */
 /** @var int|null $currentAdminId */
+/** @var array|null $currentAdmin */
+$adminProfileUrl = BASE_URL . 'App/Views/admin/profile.php';
+$adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
 ?>
 
 <!DOCTYPE html>
@@ -43,10 +64,10 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                     <div class="header-badge"><i class="bi bi-stars"></i></div>
                 </div>
                 <div class="col-4 d-flex justify-content-end align-items-center gap-3">
-                    <div class="d-none d-md-flex align-items-center gap-2 me-2">
-                        <span class="text-muted small fw-bold">Quản trị viên</span>
-                        <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
-                    </div>
+                    <a href="<?php echo htmlspecialchars($adminProfileUrl, ENT_QUOTES); ?>" class="admin-profile-link d-flex align-items-center gap-2 me-2" title="Admin Profile">
+                        <span class="text-muted small fw-bold d-none d-md-inline" id="adminHeaderName">Quản trị viên</span>
+                        <img id="adminHeaderAvatar" class="admin-profile-avatar" src="<?php echo htmlspecialchars($adminAvatarUrl, ENT_QUOTES); ?>" alt="Admin avatar">
+                    </a>
                     <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
@@ -594,7 +615,18 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="adminNoteTextarea" class="form-label">Ghi chú của quản trị viên</label>
+                        <div class="admin-note-chip-list mb-3" aria-label="Gợi ý ghi chú xử lý">
+                            <button type="button" class="admin-note-chip" data-note-chip="Spam quảng cáo">Spam quảng cáo</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Ngôn từ xúc phạm">Ngôn từ xúc phạm</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Quấy rối người dùng">Quấy rối người dùng</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Nội dung sai sự thật">Nội dung sai sự thật</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Nội dung phản cảm">Nội dung phản cảm</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Vi phạm tiêu chuẩn cộng đồng">Vi phạm tiêu chuẩn cộng đồng</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Báo cáo không hợp lệ">Báo cáo không hợp lệ</button>
+                            <button type="button" class="admin-note-chip" data-note-chip="Tái phạm nhiều lần">Tái phạm nhiều lần</button>
+                        </div>
                         <textarea id="adminNoteTextarea" class="form-control admin-control" rows="4" placeholder="Nhập ghi chú xử lý báo cáo..."></textarea>
+                        <div id="adminNoteError" class="admin-note-error d-none">Vui lòng nhập ghi chú xử lý.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
