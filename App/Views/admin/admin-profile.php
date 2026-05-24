@@ -63,6 +63,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-person-badge"></i></div>
+                    <div class="header-clock d-none d-lg-inline-flex ms-2"><i class="bi bi-clock"></i><span data-admin-clock>--:--:-- · --/--/----</span></div>
                 </div>
                 <div class="col-4 d-flex justify-content-end align-items-center gap-2">
                     <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php" class="btn btn-outline-brown btn-sm"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
@@ -184,26 +185,18 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="table-responsive admin-profile-log-table-wrap">
-                        <table class="table align-middle admin-profile-log-table">
-                            <thead>
-                                <tr>
-                                    <th>Action</th>
-                                    <th>TargetType</th>
-                                    <th>TargetID</th>
-                                    <th>Description</th>
-                                    <th>CreatedAt</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminLogsTableBody">
-                                <tr><td colspan="5" class="text-center text-muted py-4">Đang tải logs...</td></tr>
-                            </tbody>
-                        </table>
+                    <div id="adminLogsTableBody" class="admin-log-timeline">
+                        <div class="admin-loading-state">
+                            <span class="admin-spinner"></span>
+                            <span>Đang tải logs...</span>
+                        </div>
                     </div>
                 </div>
             </section>
         </div>
     </main>
+
+    <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <script>
         window.ADMIN_PROFILE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getAdminProfile";

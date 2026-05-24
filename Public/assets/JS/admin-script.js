@@ -10,6 +10,49 @@ document.addEventListener('DOMContentLoaded', function() {
     const adminModalBackdrop = adminModal ? adminModal.querySelector('.admin-modal-backdrop') : null;
     let modalResolve = null;
 
+    const ensureToastContainer = () => {
+        let container = document.getElementById('adminToastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'adminToastContainer';
+            container.className = 'admin-toast-container';
+            container.setAttribute('aria-live', 'polite');
+            container.setAttribute('aria-atomic', 'true');
+            document.body.appendChild(container);
+        }
+        return container;
+    };
+
+    const showToast = (message, type = 'info') => {
+        const container = ensureToastContainer();
+        const normalizedType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+        const iconMap = {
+            success: 'bi-check-circle-fill',
+            error: 'bi-exclamation-triangle-fill',
+            warning: 'bi-exclamation-circle-fill',
+            info: 'bi-info-circle-fill'
+        };
+        const toast = document.createElement('div');
+        toast.className = `admin-toast ${normalizedType}`;
+        toast.setAttribute('role', 'status');
+        toast.innerHTML = `
+            <i class="bi ${iconMap[normalizedType]} admin-toast-icon"></i>
+            <div class="admin-toast-message"></div>
+            <button type="button" class="admin-toast-close" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
+        `;
+        const messageNode = toast.querySelector('.admin-toast-message');
+        if (messageNode) messageNode.textContent = message || '';
+        const closeToast = () => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 220);
+        };
+        const closeButton = toast.querySelector('.admin-toast-close');
+        if (closeButton) closeButton.addEventListener('click', closeToast);
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(closeToast, 3800);
+    };
+
     const openModal = () => {
         if (!adminModal) return;
         adminModal.classList.remove('d-none');
@@ -45,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const showAlertModal = (message, title = 'Thông báo', confirmText = 'Đóng') => {
         if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            window.alert(message);
+            showToast(message, 'info');
             return Promise.resolve(true);
         }
 
@@ -239,6 +282,49 @@ document.addEventListener('DOMContentLoaded', function() {
         "'": '&#039;'
     }[char]));
 
+    const emptyStateHtml = (message = 'Không có dữ liệu phù hợp.', icon = 'bi-inbox') => `
+        <div class="admin-empty-state">
+            <i class="bi ${icon}"></i>
+            <span>${escapeHtml(message)}</span>
+        </div>
+    `;
+
+    const tableEmptyRow = (colspan, message = 'Không có dữ liệu phù hợp.', icon = 'bi-inbox') => (
+        `<tr><td colspan="${colspan}">${emptyStateHtml(message, icon)}</td></tr>`
+    );
+
+    const loadingStateHtml = (message = 'Đang tải dữ liệu...') => `
+        <div class="admin-loading-state">
+            <span class="admin-spinner"></span>
+            <span>${escapeHtml(message)}</span>
+        </div>
+    `;
+
+    const tableLoadingRow = (colspan, message = 'Đang tải dữ liệu...') => (
+        `<tr><td colspan="${colspan}">${loadingStateHtml(message)}</td></tr>`
+    );
+
+    const formatClientTime = (date = new Date(), withDate = false) => {
+        const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        if (!withDate) return time;
+        return `${time} · ${date.toLocaleDateString('vi-VN')}`;
+    };
+
+    const setLastUpdated = id => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = formatClientTime();
+    };
+
+    const updateRealtimeClock = () => {
+        const value = formatClientTime(new Date(), true);
+        document.querySelectorAll('[data-admin-clock]').forEach(element => {
+            element.textContent = value;
+        });
+    };
+
+    updateRealtimeClock();
+    setInterval(updateRealtimeClock, 1000);
+
     const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const downloadCsv = (filename, headers, rows) => {
         const csv = [
@@ -254,6 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         link.click();
         link.remove();
         URL.revokeObjectURL(url);
+        showToast('Đã xuất CSV.', 'success');
     };
 
     const reportDateSlug = () => new Date().toISOString().slice(0, 10);
@@ -283,6 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </table>
         `;
         window.print();
+        showToast('Đang mở hộp thoại in.', 'info');
     };
 
     const normalizeAssetPath = path => {
@@ -367,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentMembers = (members || []).map(normalizeMember);
 
         if (currentMembers.length === 0) {
-            membersTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Không tìm thấy thành viên phù hợp</td></tr>';
+            membersTableBody.innerHTML = tableEmptyRow(6, 'Không tìm thấy thành viên phù hợp.', 'bi-person-x');
             return;
         }
 
@@ -388,6 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('roleId', memberRoleFilter ? memberRoleFilter.value : '');
 
         try {
+            if (membersTableBody) membersTableBody.innerHTML = tableLoadingRow(6, 'Đang tải thành viên...');
             const res = await fetch(url.toString(), {
                 method: 'GET',
                 credentials: 'same-origin',
@@ -396,14 +485,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                await showAlertModal(data.message || 'Không thể tải danh sách thành viên.', 'Lỗi', 'Đóng');
+                showToast(data.message || 'Không thể tải danh sách thành viên.', 'error');
+                membersTableBody.innerHTML = tableEmptyRow(6, 'Không thể tải danh sách thành viên.', 'bi-exclamation-triangle');
                 return;
             }
 
             renderMembers((data.data && data.data.members) || []);
         } catch (err) {
             console.error('List members error:', err);
-            await showAlertModal('Có lỗi khi tải danh sách thành viên.', 'Lỗi AJAX', 'Đóng');
+            showToast('Có lỗi khi tải danh sách thành viên.', 'error');
+            if (membersTableBody) membersTableBody.innerHTML = tableEmptyRow(6, 'Có lỗi khi tải danh sách thành viên.', 'bi-exclamation-triangle');
         }
     };
 
@@ -469,10 +560,11 @@ document.addEventListener('DOMContentLoaded', function() {
             updateRenderedRow(updated.UserID);
 
             if (editRoleModal) editRoleModal.hide();
-            await showAlertModal(data.message || 'Cập nhật vai trò thành công', 'Thành công', 'Đóng');
+            showToast(data.message || 'Cập nhật vai trò thành công.', 'success');
         } catch (err) {
             console.error('Update role error:', err);
             setEditRoleError('Có lỗi khi gửi yêu cầu cập nhật vai trò.');
+            showToast('Có lỗi khi cập nhật vai trò.', 'error');
         }
     }
 
@@ -507,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                await showAlertModal(data.message || 'Không thể cập nhật trạng thái tài khoản.', 'Lỗi', 'Đóng');
+                showToast(data.message || 'Không thể cập nhật trạng thái tài khoản.', 'error');
                 return;
             }
 
@@ -522,10 +614,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 markReportsResolved(updated.updatedReports);
                 applyReportFilters();
             }
-            await showAlertModal(data.message || 'Cập nhật trạng thái tài khoản thành công', 'Thành công', 'Đóng');
+            showToast(data.message || 'Cập nhật trạng thái tài khoản thành công.', 'success');
         } catch (err) {
             console.error('Toggle active error:', err);
-            await showAlertModal('Có lỗi khi cập nhật trạng thái tài khoản.', 'Lỗi AJAX', 'Đóng');
+            showToast('Có lỗi khi cập nhật trạng thái tài khoản.', 'error');
         } finally {
             button.disabled = false;
         }
@@ -629,12 +721,13 @@ document.addEventListener('DOMContentLoaded', function() {
         : '<span class="badge rounded-pill content-status-badge is-hidden">Chưa đọc</span>';
 
     const showNotificationAlert = (message, type = 'success') => {
+        showToast(message, type === 'success' ? 'success' : 'error');
         if (!notificationAlert) return;
         notificationAlert.textContent = message;
         notificationAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mb-3`;
     };
 
-    const notificationEmptyRow = message => `<tr><td colspan="9" class="text-center text-muted py-4">${escapeHtml(message || 'Không có thông báo phù hợp')}</td></tr>`;
+    const notificationEmptyRow = message => tableEmptyRow(9, message || 'Chưa có thông báo nào.', 'bi-bell');
 
     const renderNotificationRow = item => {
         const links = [
@@ -680,12 +773,15 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('typeName', notificationTypeFilter ? notificationTypeFilter.value : '');
         url.searchParams.set('isRead', notificationReadFilter ? notificationReadFilter.value : '');
         try {
+            notificationsTableBody.innerHTML = tableLoadingRow(9, 'Đang tải thông báo...');
             const data = await fetchJson(url.toString());
             const notifications = (data.data && data.data.notifications) || [];
             currentNotifications = notifications;
             notificationsTableBody.innerHTML = notifications.length ? notifications.map(renderNotificationRow).join('') : notificationEmptyRow();
+            setLastUpdated('notificationLastUpdated');
         } catch (err) {
-            notificationsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+            notificationsTableBody.innerHTML = tableEmptyRow(9, err.message || 'Không thể tải thông báo.', 'bi-exclamation-triangle');
+            showToast(err.message || 'Không thể tải thông báo.', 'error');
         }
     };
 
@@ -764,6 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 notificationDetailError.textContent = err.message || 'Không thể tải chi tiết thông báo.';
                 notificationDetailError.classList.remove('d-none');
             }
+            showToast(err.message || 'Không thể tải chi tiết thông báo.', 'error');
         } finally {
             if (notificationDetailLoading) notificationDetailLoading.classList.add('d-none');
         }
@@ -860,6 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const url = new URL(window.ADMIN_SEARCH_NOTIFICATION_RECEIVERS_URL, window.location.href);
         url.searchParams.set('keyword', keyword);
         try {
+            notificationReceiverResults.innerHTML = loadingStateHtml('Đang tìm người dùng...');
+            notificationReceiverResults.classList.remove('d-none');
             const data = await fetchJson(url.toString());
             const users = Array.isArray(data.data) ? data.data : ((data.data && data.data.users) || []);
             renderReceiverResults(users);
@@ -954,10 +1053,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (message === '' || message.length > 1000) {
                 setSendNotificationError('Message không được rỗng và tối đa 1000 ký tự.');
+                showToast('Message không được rỗng và tối đa 1000 ký tự.', 'warning');
                 return;
             }
             if (!sendAll && !receiverUserId) {
                 setSendNotificationError('Vui lòng chọn người nhận.');
+                showToast('Vui lòng chọn người nhận.', 'warning');
                 return;
             }
 
@@ -985,6 +1086,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotificationAlert(`${data.message || 'Gửi thông báo thành công'} (${(data.data && data.data.sentCount) || 0})`, 'success');
             } catch (err) {
                 setSendNotificationError(err.message || 'Không thể gửi thông báo.');
+                showToast(err.message || 'Không thể gửi thông báo.', 'error');
             } finally {
                 if (submitButton) submitButton.disabled = false;
             }
@@ -1149,6 +1251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 reportDetailError.textContent = err.message || 'Không thể lấy chi tiết báo cáo.';
                 reportDetailError.classList.remove('d-none');
             }
+            showToast(err.message || 'Không thể lấy chi tiết báo cáo.', 'error');
         } finally {
             if (reportDetailLoading) reportDetailLoading.classList.add('d-none');
         }
@@ -1181,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const adminNote = await showAdminNoteModal(requiresAdminNote);
         if (adminNote === null) return;
         if (requiresAdminNote && adminNote.trim() === '') {
-            await showAlertModal('Vui lòng nhập ghi chú xử lý.', 'Thiếu ghi chú', 'Đóng');
+            showToast('Vui lòng nhập ghi chú xử lý.', 'warning');
             return;
         }
 
@@ -1199,7 +1302,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await res.json();
             if (!res.ok || !data.success) {
-                await showAlertModal(data.message || 'Không thể xử lý báo cáo.', 'Lỗi', 'Đóng');
+                showToast(data.message || 'Không thể xử lý báo cáo.', 'error');
                 return;
             }
 
@@ -1217,10 +1320,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (currentCount > 0) reportStatElement.textContent = Math.max(0, currentCount - updatedReports.length);
             }
 
-            await showAlertModal(data.message, 'Thành công', 'Đóng');
+            showToast(data.message || 'Xử lý báo cáo thành công.', 'success');
         } catch (err) {
             console.error('Report action error:', err);
-            await showAlertModal('Có lỗi xảy ra khi gọi API xử lý báo cáo.', 'Lỗi AJAX', 'Đóng');
+            showToast('Có lỗi xảy ra khi gọi API xử lý báo cáo.', 'error');
         }
     }
 
@@ -1347,7 +1450,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentContentComments = [];
     let currentContentHashtags = [];
 
-    const contentEmptyRow = colspan => `<tr><td colspan="${colspan}" class="text-center text-muted py-4">Không tìm thấy dữ liệu phù hợp</td></tr>`;
+    const contentEmptyRow = colspan => tableEmptyRow(colspan, 'Không tìm thấy dữ liệu phù hợp.', 'bi-folder2-open');
     const compactText = (value, max = 120) => {
         const text = String(value || '').replace(/\s+/g, ' ').trim();
         return text.length > max ? `${text.slice(0, max - 3)}...` : text;
@@ -1388,6 +1491,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const showAdminProfileAlert = (message, type = 'success') => {
+        showToast(message, type === 'success' ? 'success' : 'error');
         if (!adminProfileAlert) return;
         adminProfileAlert.textContent = message;
         adminProfileAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-4`;
@@ -1412,18 +1516,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const renderAdminLogs = logs => {
         if (!adminLogsTableBody) return;
         if (!logs || logs.length === 0) {
-            adminLogsTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Chưa có log phù hợp.</td></tr>';
+            adminLogsTableBody.innerHTML = emptyStateHtml('Chưa có nhật ký hoạt động.', 'bi-clock-history');
             return;
         }
 
         adminLogsTableBody.innerHTML = logs.map(log => `
-            <tr>
-                <td><span class="content-pill">${escapeHtml(log.Action || '')}</span></td>
-                <td>${escapeHtml(log.TargetType || '')}</td>
-                <td>${escapeHtml(log.TargetID || '')}</td>
-                <td>${escapeHtml(log.Description || '')}</td>
-                <td class="text-muted small">${escapeHtml(log.CreatedAt || '')}</td>
-            </tr>
+            <div class="admin-log-item">
+                <div class="admin-log-dot"><i class="bi bi-activity"></i></div>
+                <div class="admin-log-main">
+                    <div class="admin-log-head">
+                        <span class="content-pill">${escapeHtml(log.Action || 'Action')}</span>
+                        <time>${escapeHtml(log.CreatedAt || '')}</time>
+                    </div>
+                    <p>${escapeHtml(log.Description || 'Không có mô tả.')}</p>
+                    <div class="admin-log-meta">
+                        <span><i class="bi bi-bullseye"></i>${escapeHtml(log.TargetType || '-')}</span>
+                        <span><i class="bi bi-hash"></i>${escapeHtml(log.TargetID || '-')}</span>
+                    </div>
+                </div>
+            </div>
         `).join('');
     };
 
@@ -1440,11 +1551,13 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('keyword', adminLogsSearch ? adminLogsSearch.value.trim() : '');
         url.searchParams.set('actionFilter', adminLogsActionFilter ? adminLogsActionFilter.value : '');
         try {
+            adminLogsTableBody.innerHTML = loadingStateHtml('Đang tải logs...');
             const data = await fetchJson(url.toString());
             renderAdminLogs((data.data && data.data.logs) || []);
             updateAdminLogActions((data.data && data.data.actions) || []);
         } catch (err) {
-            adminLogsTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+            adminLogsTableBody.innerHTML = emptyStateHtml(err.message || 'Không thể tải admin logs.', 'bi-exclamation-triangle');
+            showToast(err.message || 'Không thể tải admin logs.', 'error');
         }
     };
 
@@ -1599,10 +1712,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        document.querySelectorAll('[data-overview-kpi]').forEach(element => {
+            const key = element.dataset.overviewKpi;
+            if (stats.kpi && Object.prototype.hasOwnProperty.call(stats.kpi, key)) {
+                element.textContent = stats.kpi[key] || '';
+            }
+        });
+
         const lastUpdated = document.getElementById('overviewLastUpdated');
         if (lastUpdated && stats.lastUpdated) {
             lastUpdated.textContent = stats.lastUpdated;
         }
+        setLastUpdated('overviewLastUpdated');
     };
 
     const loadOverviewStats = async () => {
@@ -1612,6 +1733,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateOverviewStats(data.data || {});
         } catch (err) {
             console.error('Overview stats error:', err);
+            showToast('Không thể tải số liệu tổng quan.', 'error');
         }
     };
 
@@ -1642,7 +1764,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const safeRows = Array.isArray(rows) ? rows : [];
 
         if (!safeColumns.length || !safeRows.length) {
-            overviewDetailBody.innerHTML = '<div class="overview-detail-empty"><i class="bi bi-inbox"></i><span>Không có dữ liệu phù hợp.</span></div>';
+            overviewDetailBody.innerHTML = emptyStateHtml('Không có dữ liệu phù hợp.', 'bi-inbox');
             return;
         }
 
@@ -1697,6 +1819,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setOverviewDetailState('ready');
         } catch (error) {
             setOverviewDetailState('error', error.message || 'Không thể tải dữ liệu chi tiết.');
+            showToast(error.message || 'Không thể tải dữ liệu chi tiết.', 'error');
         }
     };
 
@@ -1713,7 +1836,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (exportOverviewCsvBtn) exportOverviewCsvBtn.addEventListener('click', exportOverviewCsv);
     if (printOverviewBtn) printOverviewBtn.addEventListener('click', printOverviewReport);
 
-    const statisticsEmpty = message => `<div class="statistics-empty">${escapeHtml(message || 'Không có dữ liệu phù hợp')}</div>`;
+    const statisticsEmpty = message => emptyStateHtml(message || 'Không có dữ liệu thống kê.', 'bi-bar-chart');
     const visibilityBadge = isHidden => Number(isHidden) === 1
         ? '<span class="badge rounded-pill content-status-badge is-hidden">Đã ẩn</span>'
         : '<span class="badge rounded-pill content-status-badge is-visible">Hiển thị</span>';
@@ -1959,7 +2082,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const target = document.getElementById(id);
             if (target) {
                 target.classList.add('loading-state');
-                target.innerHTML = 'Đang tải...';
+                target.innerHTML = loadingStateHtml('Đang tải ranking...');
             }
         });
     };
@@ -2017,17 +2140,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadStatistics = async () => {
         if (statisticsLoaded) return;
         statisticsLoaded = true;
+        setRankingLoading();
+        ['mostActiveUsersInsight', 'peakPostHourInsight', 'recentHashtagsInsight', 'latestReportsInsight'].forEach(id => {
+            const target = document.getElementById(id);
+            if (target) {
+                target.classList.add('loading-state');
+                target.innerHTML = loadingStateHtml('Đang tải insights...');
+            }
+        });
         try {
             await Promise.all([
                 loadStatisticsRankings(),
                 loadStatisticsCharts(),
                 loadStatisticsInsights()
             ]);
+            setLastUpdated('statisticsLastUpdated');
         } catch (err) {
             console.error('Statistics load error:', err);
             document.querySelectorAll('#statistics .loading-state').forEach(element => {
                 element.innerHTML = statisticsEmpty('Không thể tải dữ liệu thống kê');
             });
+            showToast('Không thể tải dữ liệu thống kê.', 'error');
         }
     };
 
@@ -2142,6 +2275,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setRankingLoading();
             try {
                 await loadStatisticsRankings();
+                setLastUpdated('statisticsLastUpdated');
             } catch (err) {
                 console.error('Statistics ranking limit error:', err);
                 clearRankingLoading();
@@ -2149,6 +2283,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const target = document.getElementById(id);
                     if (target) target.innerHTML = statisticsEmpty('Không thể tải dữ liệu ranking');
                 });
+                showToast('Không thể tải dữ liệu ranking.', 'error');
             }
         });
     }
@@ -2215,12 +2350,14 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('status', contentPostStatusFilter ? contentPostStatusFilter.value : '');
         url.searchParams.set('privacy', contentPostPrivacyFilter ? contentPostPrivacyFilter.value : '');
         try {
+            contentPostsTableBody.innerHTML = tableLoadingRow(9, 'Đang tải bài viết...');
             const data = await fetchJson(url.toString());
             const posts = (data.data && data.data.posts) || [];
             currentContentPosts = posts;
             contentPostsTableBody.innerHTML = posts.length ? posts.map(renderContentPostRow).join('') : contentEmptyRow(9);
         } catch (err) {
-            contentPostsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+            contentPostsTableBody.innerHTML = tableEmptyRow(9, err.message || 'Không thể tải bài viết.', 'bi-exclamation-triangle');
+            showToast(err.message || 'Không thể tải bài viết.', 'error');
         }
     };
 
@@ -2230,12 +2367,14 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('keyword', contentCommentSearch ? contentCommentSearch.value.trim() : '');
         url.searchParams.set('status', contentCommentStatusFilter ? contentCommentStatusFilter.value : '');
         try {
+            contentCommentsTableBody.innerHTML = tableLoadingRow(9, 'Đang tải bình luận...');
             const data = await fetchJson(url.toString());
             const comments = (data.data && data.data.comments) || [];
             currentContentComments = comments;
             contentCommentsTableBody.innerHTML = comments.length ? comments.map(renderContentCommentRow).join('') : contentEmptyRow(9);
         } catch (err) {
-            contentCommentsTableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+            contentCommentsTableBody.innerHTML = tableEmptyRow(9, err.message || 'Không thể tải bình luận.', 'bi-exclamation-triangle');
+            showToast(err.message || 'Không thể tải bình luận.', 'error');
         }
     };
 
@@ -2245,12 +2384,14 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.set('keyword', contentHashtagSearch ? contentHashtagSearch.value.trim() : '');
         url.searchParams.set('status', contentHashtagStatusFilter ? contentHashtagStatusFilter.value : '');
         try {
+            contentHashtagsTableBody.innerHTML = tableLoadingRow(7, 'Đang tải hashtag...');
             const data = await fetchJson(url.toString());
             const hashtags = (data.data && data.data.hashtags) || [];
             currentContentHashtags = hashtags;
             contentHashtagsTableBody.innerHTML = hashtags.length ? hashtags.map(renderContentHashtagRow).join('') : contentEmptyRow(7);
         } catch (err) {
-            contentHashtagsTableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${escapeHtml(err.message)}</td></tr>`;
+            contentHashtagsTableBody.innerHTML = tableEmptyRow(7, err.message || 'Không thể tải hashtag.', 'bi-exclamation-triangle');
+            showToast(err.message || 'Không thể tải hashtag.', 'error');
         }
     };
 
@@ -2380,6 +2521,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 contentDetailError.textContent = err.message;
                 contentDetailError.classList.remove('d-none');
             }
+            showToast(err.message || 'Không thể tải chi tiết nội dung.', 'error');
         } finally {
             if (contentDetailLoading) contentDetailLoading.classList.add('d-none');
         }
@@ -2418,8 +2560,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 markReportsResolved(data.data.updatedReports);
                 applyReportFilters();
             }
+            showToast(data.message || 'Cập nhật trạng thái nội dung thành công.', 'success');
         } catch (err) {
-            await showAlertModal(err.message || 'Không thể cập nhật trạng thái.', 'Lỗi', 'Đóng');
+            showToast(err.message || 'Không thể cập nhật trạng thái.', 'error');
             button.disabled = false;
         }
     };
@@ -2461,8 +2604,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 markReportsResolved(data.data.updatedReports);
                 applyReportFilters();
             }
+            showToast(data.message || `Đã xóa ${labelMap[type]}.`, 'success');
         } catch (err) {
-            await showAlertModal(err.message || `Không thể xóa ${labelMap[type]}.`, 'Lỗi', 'Đóng');
+            showToast(err.message || `Không thể xóa ${labelMap[type]}.`, 'error');
             button.disabled = false;
         }
     };
@@ -2534,6 +2678,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.showConfirmModal = showConfirmModal;
     window.showAlertModal = showAlertModal;
+    window.showToast = showToast;
     window.showAdminNoteModal = showAdminNoteModal;
     window.handleReportAction = handleReportAction;
     window.showReportDetails = showReportDetails;

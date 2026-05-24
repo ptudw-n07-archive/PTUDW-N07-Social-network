@@ -80,6 +80,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
         <div class="text-center mb-5">
             <h1 class="management-title">Trung tâm điều khiển</h1>
             <p class="management-subtitle">Nơi điều phối và lưu giữ những khoảnh khắc của Archive</p>
+            <div class="admin-live-clock"><i class="bi bi-clock-history"></i><span data-admin-clock>--:--:-- · --/--/----</span></div>
         </div>
 
         <div class="d-flex justify-content-center mb-5">
@@ -135,6 +136,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                             <i class="bi <?php echo $card['icon']; ?> mb-2 <?php echo !empty($card['danger']) ? 'text-danger' : 'pink-icon'; ?>"></i>
                             <span class="stat-label"><?php echo htmlspecialchars($card['label']); ?></span>
                             <h2 class="stat-value <?php echo !empty($card['danger']) ? 'text-danger' : ''; ?>" data-overview-stat="<?php echo $card['key']; ?>"><?php echo number_format((int)$card['value']); ?></h2>
+                            <small class="overview-kpi-indicator" data-overview-kpi="<?php echo $card['key']; ?>"><?php echo htmlspecialchars($stats['kpi'][$card['key']] ?? ''); ?></small>
                             <small class="overview-card-hint">Nhấn để xem chi tiết</small>
                         </div>
                     </div>
@@ -157,6 +159,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                             </li>
                         </ul>
                         <div class="admin-report-actions">
+                            <small class="admin-last-updated">Cập nhật lần cuối: <strong id="statisticsLastUpdated">--:--:--</strong></small>
                             <button type="button" class="btn btn-outline-brown btn-sm" id="printStatisticsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
                             <button type="button" class="btn btn-pink-admin btn-sm" id="exportStatisticsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
                         </div>
@@ -529,6 +532,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                             </select>
                         </div>
                         <div class="admin-report-actions">
+                            <small class="admin-last-updated">Cập nhật lần cuối: <strong id="notificationLastUpdated">--:--:--</strong></small>
                             <button type="button" class="btn btn-pink-admin btn-sm" id="openSendNotificationBtn"><i class="bi bi-send me-1"></i>Gửi thông báo</button>
                             <button type="button" class="btn btn-outline-brown btn-sm" id="printNotificationsBtn"><i class="bi bi-printer me-1"></i>In báo cáo</button>
                             <button type="button" class="btn btn-pink-admin btn-sm" id="exportNotificationsCsvBtn"><i class="bi bi-filetype-csv me-1"></i>Xuất CSV</button>
@@ -642,6 +646,8 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
             </div>
         </div>
     </main>
+
+    <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <div id="adminModal" class="admin-modal d-none" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="admin-modal-backdrop" data-admin-modal-close></div>
