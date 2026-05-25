@@ -16,7 +16,7 @@ $unreadNotificationCount = $unreadNotificationCount ?? null;
 if ($unreadNotificationCount === null && isset($_SESSION['user_id'])) {
     require_once __DIR__ . '/../../../Controllers/NotificationController.php';
     $sidebarNotificationController = new \App\Controllers\NotificationController();
-    $unreadNotificationCount = $sidebarNotificationController->countUnreadForCurrentUser();
+    $unreadNotificationCount = $sidebarNotificationController->countBadgeForCurrentUser();
 }
 
 function sidebarActiveClass($page, $activePage) {
