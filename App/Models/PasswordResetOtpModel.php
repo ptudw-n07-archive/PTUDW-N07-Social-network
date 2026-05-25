@@ -11,9 +11,10 @@ class PasswordResetOtpModel {
         $this->ensureTable();
     }
 
-    public function create(int $userId, string $email, string $otpHash, int $ttlMinutes = 5): bool {
+    public function create(int $userId, string $email, string $otp, int $ttlMinutes = 5): bool {
         $this->invalidateActiveOtps($userId);
 
+        $otpHash = password_hash($otp, PASSWORD_DEFAULT);
         $expiresAt = date('Y-m-d H:i:s', time() + ($ttlMinutes * 60));
         $query = "
             INSERT INTO password_reset_otps (UserID, Email, OtpHash, ExpiresAt, CreatedAt)
@@ -27,6 +28,26 @@ class PasswordResetOtpModel {
         $stmt->bindValue(':expiresAt', $expiresAt);
 
         return $stmt->execute();
+    }
+
+    public function findLatestActiveByUserAndEmail(int $userId, string $email): ?array {
+        $query = "
+            SELECT *
+            FROM password_reset_otps
+            WHERE UserID = :userId
+            AND Email = :email
+            AND UsedAt IS NULL
+            ORDER BY CreatedAt DESC, OtpID DESC
+            LIMIT 1
+        ";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':email', $email);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
     }
 
     public function findLatestActiveByEmail(string $email): ?array {

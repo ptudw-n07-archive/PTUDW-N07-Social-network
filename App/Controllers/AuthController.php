@@ -162,10 +162,9 @@ class AuthController {
         }
 
         $otp = (string) random_int(100000, 999999);
-        $otpHash = password_hash($otp, PASSWORD_DEFAULT);
         $userId = (int) $user['UserID'];
 
-        if (!$this->passwordResetOtpModel->create($userId, $user['Email'], $otpHash)) {
+        if (!$this->passwordResetOtpModel->create($userId, $user['Email'], $otp)) {
             $_SESSION['error'] = "Không thể tạo mã OTP lúc này.";
             header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
             exit();
@@ -174,6 +173,12 @@ class AuthController {
         try {
             $this->gmailService->sendOtp($user['Email'], $otp);
         } catch (Throwable $e) {
+            error_log(sprintf(
+                '[PasswordResetOtp] Gmail send failed for user_id=%d email_hash=%s: %s',
+                $userId,
+                hash('sha256', (string) $user['Email']),
+                $e->getMessage()
+            ));
             $this->passwordResetOtpModel->invalidateActiveOtps($userId);
             $_SESSION['error'] = "Không thể gửi OTP qua Gmail. Vui lòng thử lại.";
             header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
@@ -224,7 +229,8 @@ class AuthController {
                 exit();
             }
 
-            $otpRecord = $this->passwordResetOtpModel->findLatestActiveByEmail($email);
+            $userId = (int) $user['UserID'];
+            $otpRecord = $this->passwordResetOtpModel->findLatestActiveByUserAndEmail($userId, $email);
             if (!$otpRecord) {
                 $_SESSION['error'] = "Mã OTP không tồn tại hoặc đã được sử dụng.";
                 header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
@@ -249,6 +255,14 @@ class AuthController {
 
             if (!password_verify($otp, $otpRecord['OtpHash'])) {
                 $this->passwordResetOtpModel->incrementAttempts((int) $otpRecord['OtpID']);
+                if ((int) ($otpRecord['Attempts'] ?? 0) + 1 >= 5) {
+                    $this->passwordResetOtpModel->markUsed((int) $otpRecord['OtpID']);
+                    unset($_SESSION['password_reset_email']);
+                    $_SESSION['error'] = "Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng gửi mã mới.";
+                    header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                    exit();
+                }
+
                 $_SESSION['password_reset_email'] = $email;
                 $_SESSION['error'] = "Mã OTP không chính xác.";
                 header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));

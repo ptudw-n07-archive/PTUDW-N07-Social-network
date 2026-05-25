@@ -20,8 +20,20 @@ class GmailService
         $fromEmail = app_env('GMAIL_SENDER_EMAIL');
         $fromName = app_env('GMAIL_SENDER_NAME', 'Archive');
 
-        if (!$clientId || !$clientSecret || !$refreshToken || !$fromEmail) {
-            throw new Exception('Missing Gmail API environment variables.');
+        $missingKeys = [];
+        foreach ([
+            'GOOGLE_CLIENT_ID' => $clientId,
+            'GOOGLE_CLIENT_SECRET' => $clientSecret,
+            'GOOGLE_REFRESH_TOKEN' => $refreshToken,
+            'GMAIL_SENDER_EMAIL' => $fromEmail
+        ] as $key => $value) {
+            if (!$value) {
+                $missingKeys[] = $key;
+            }
+        }
+
+        if (!empty($missingKeys)) {
+            throw new Exception('Missing Gmail API environment variables: ' . implode(', ', $missingKeys));
         }
 
         $client = new Client();
