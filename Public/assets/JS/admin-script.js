@@ -2,102 +2,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
     const appUrl = path => APP_BASE_URL + String(path || '').replace(/^\/+/, '');
 
-    // --- Modal, toast và helper UI dùng chung ---
+    // Helper chung đã được tách sang admin-core.js để file chính chỉ giữ flow từng module.
+    const {
+        showToast,
+        showConfirmModal,
+        escapeHtml,
+        emptyStateHtml,
+        tableEmptyRow,
+        loadingStateHtml,
+        tableLoadingRow,
+        formatClientTime,
+        downloadCsv,
+        reportDateSlug,
+        printTableReport
+    } = window.AdminCore || {};
 
-    const adminModal = document.getElementById('adminModal');
-    const adminModalTitle = adminModal ? adminModal.querySelector('.admin-modal-title') : null;
-    const adminModalMessage = adminModal ? adminModal.querySelector('.admin-modal-message') : null;
-    const adminModalConfirm = adminModal ? adminModal.querySelector('[data-admin-modal-confirm]') : null;
-    const adminModalCancel = adminModal ? adminModal.querySelector('[data-admin-modal-cancel]') : null;
-    const adminModalClose = adminModal ? adminModal.querySelector('.admin-modal-close') : null;
-    const adminModalBackdrop = adminModal ? adminModal.querySelector('.admin-modal-backdrop') : null;
-    let modalResolve = null;
-
-    const ensureToastContainer = () => {
-        let container = document.getElementById('adminToastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'adminToastContainer';
-            container.className = 'admin-toast-container';
-            container.setAttribute('aria-live', 'polite');
-            container.setAttribute('aria-atomic', 'true');
-            document.body.appendChild(container);
-        }
-        return container;
-    };
-
-    const showToast = (message, type = 'info') => {
-        const container = ensureToastContainer();
-        const normalizedType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
-        const iconMap = {
-            success: 'bi-check-circle-fill',
-            error: 'bi-exclamation-triangle-fill',
-            warning: 'bi-exclamation-circle-fill',
-            info: 'bi-info-circle-fill'
-        };
-        const toast = document.createElement('div');
-        toast.className = `admin-toast ${normalizedType}`;
-        toast.setAttribute('role', 'status');
-        toast.innerHTML = `
-            <i class="bi ${iconMap[normalizedType]} admin-toast-icon"></i>
-            <div class="admin-toast-message"></div>
-            <button type="button" class="admin-toast-close" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
-        `;
-        const messageNode = toast.querySelector('.admin-toast-message');
-        if (messageNode) messageNode.textContent = message || '';
-        const closeToast = () => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 220);
-        };
-        const closeButton = toast.querySelector('.admin-toast-close');
-        if (closeButton) closeButton.addEventListener('click', closeToast);
-        container.appendChild(toast);
-        requestAnimationFrame(() => toast.classList.add('show'));
-        setTimeout(closeToast, 3800);
-    };
-
-    const openModal = () => {
-        if (!adminModal) return;
-        adminModal.classList.remove('d-none');
-        requestAnimationFrame(() => adminModal.classList.add('active'));
-    };
-
-    const closeModal = (result = false) => {
-        if (!adminModal) return;
-        adminModal.classList.remove('active');
-        setTimeout(() => adminModal.classList.add('d-none'), 250);
-        if (modalResolve) {
-            modalResolve(result);
-            modalResolve = null;
-        }
-    };
-
-    const showConfirmModal = (message, title = 'Xác nhận', confirmText = 'Xác nhận', cancelText = 'Hủy') => {
-        if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            return Promise.resolve(window.confirm(message));
-        }
-
-        adminModalTitle.textContent = title;
-        adminModalMessage.textContent = message;
-        adminModalConfirm.textContent = confirmText;
-        adminModalCancel.textContent = cancelText;
-        adminModalCancel.style.display = 'inline-flex';
-        openModal();
-
-        return new Promise(resolve => {
-            modalResolve = resolve;
-        });
-    };
-
-    if (adminModalConfirm) adminModalConfirm.addEventListener('click', () => closeModal(true));
-    if (adminModalCancel) adminModalCancel.addEventListener('click', () => closeModal(false));
-    if (adminModalClose) adminModalClose.addEventListener('click', () => closeModal(false));
-    if (adminModalBackdrop) adminModalBackdrop.addEventListener('click', () => closeModal(false));
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && adminModal && !adminModal.classList.contains('d-none')) {
-            closeModal(false);
-        }
-    });
+    if (!window.AdminCore) {
+        console.error('AdminCore chưa được tải trước admin-script.js.');
+        return;
+    }
 
     const adminNoteModalEl = document.getElementById('adminNoteModal');
     const adminNoteTextarea = document.getElementById('adminNoteTextarea');
@@ -260,43 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let notificationReceiverTimer = null;
     let notificationsLoaded = false;
 
-    // Escape dữ liệu trước khi render bằng innerHTML để hạn chế XSS.
-    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    }[char]));
-
-    const emptyStateHtml = (message = 'Không có dữ liệu phù hợp.', icon = 'bi-inbox') => `
-        <div class="admin-empty-state">
-            <i class="bi ${icon}"></i>
-            <span>${escapeHtml(message)}</span>
-        </div>
-    `;
-
-    const tableEmptyRow = (colspan, message = 'Không có dữ liệu phù hợp.', icon = 'bi-inbox') => (
-        `<tr><td colspan="${colspan}">${emptyStateHtml(message, icon)}</td></tr>`
-    );
-
-    const loadingStateHtml = (message = 'Đang tải dữ liệu...') => `
-        <div class="admin-loading-state">
-            <span class="admin-spinner"></span>
-            <span>${escapeHtml(message)}</span>
-        </div>
-    `;
-
-    const tableLoadingRow = (colspan, message = 'Đang tải dữ liệu...') => (
-        `<tr><td colspan="${colspan}">${loadingStateHtml(message)}</td></tr>`
-    );
-
-    const formatClientTime = (date = new Date(), withDate = false) => {
-        const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        if (!withDate) return time;
-        return `${time} · ${date.toLocaleDateString('vi-VN')}`;
-    };
-
     const setLastUpdated = id => {
         const element = document.getElementById(id);
         if (element) element.textContent = formatClientTime();
@@ -311,58 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateRealtimeClock();
     setInterval(updateRealtimeClock, 1000);
-
-    // --- Export CSV và in báo cáo ---
-
-    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const downloadCsv = (filename, headers, rows) => {
-        // Tự tạo file CSV ở trình duyệt để admin xuất báo cáo nhanh, không cần gọi server.
-        const csv = [
-            headers.join(','),
-            ...rows.map(row => headers.map(header => csvCell(row[header])).join(','))
-        ].join('\r\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-        showToast('Đã xuất CSV.', 'success');
-    };
-
-    const reportDateSlug = () => new Date().toISOString().slice(0, 10);
-    const ensurePrintArea = () => {
-        let printArea = document.getElementById('adminPrintArea');
-        if (!printArea) {
-            printArea = document.createElement('div');
-            printArea.id = 'adminPrintArea';
-            document.body.appendChild(printArea);
-        }
-        return printArea;
-    };
-
-    const printTableReport = (title, headers, rows, introHtml = '') => {
-        // Dồn dữ liệu cần in vào một vùng riêng để CSS print chỉ hiện phần báo cáo.
-        const printArea = ensurePrintArea();
-        printArea.innerHTML = `
-            <h1>${escapeHtml(title)}</h1>
-            <p>Thời gian xuất báo cáo: ${escapeHtml(new Date().toLocaleString('vi-VN'))}</p>
-            ${introHtml}
-            <table>
-                <thead><tr>${headers.map(header => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
-                <tbody>
-                    ${rows.length
-                        ? rows.map(row => `<tr>${headers.map(header => `<td>${escapeHtml(row[header])}</td>`).join('')}</tr>`).join('')
-                        : `<tr><td colspan="${headers.length}">Không có dữ liệu phù hợp</td></tr>`}
-                </tbody>
-            </table>
-        `;
-        window.print();
-        showToast('Đang mở hộp thoại in.', 'info');
-    };
 
     const normalizeAssetPath = path => {
         if (!path) return '';
