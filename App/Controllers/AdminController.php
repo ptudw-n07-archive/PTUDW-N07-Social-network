@@ -6,24 +6,68 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../Config/Database.php';
-require_once __DIR__ . '/../Models/AdminModel.php';
+require_once __DIR__ . '/../Models/AdminStatsModel.php';
+require_once __DIR__ . '/../Models/AdminReportModel.php';
+require_once __DIR__ . '/../Models/AdminMemberModel.php';
+require_once __DIR__ . '/../Models/AdminNotificationModel.php';
+require_once __DIR__ . '/../Models/AdminContentModel.php';
+require_once __DIR__ . '/../Models/AdminProfileModel.php';
+require_once __DIR__ . '/Admin/AdminStatsController.php';
+require_once __DIR__ . '/Admin/AdminReportController.php';
+require_once __DIR__ . '/Admin/AdminMemberController.php';
+require_once __DIR__ . '/Admin/AdminContentController.php';
+require_once __DIR__ . '/Admin/AdminNotificationController.php';
+require_once __DIR__ . '/Admin/AdminProfileController.php';
 
-use App\Models\AdminModel;
+use App\Models\AdminStatsModel;
+use App\Models\AdminReportModel;
+use App\Models\AdminMemberModel;
+use App\Models\AdminContentModel;
+use App\Models\AdminNotificationModel;
+use App\Models\AdminProfileModel;
+use App\Controllers\Admin\AdminStatsController;
+use App\Controllers\Admin\AdminReportController;
+use App\Controllers\Admin\AdminMemberController;
+use App\Controllers\Admin\AdminContentController;
+use App\Controllers\Admin\AdminNotificationController;
+use App\Controllers\Admin\AdminProfileController;
 use Database;
 use Exception;
 
 class AdminController {
-    private AdminModel $adminModel;
+    private AdminStatsModel $adminStatsModel;
+    private AdminReportModel $adminReportModel;
+    private AdminMemberModel $adminMemberModel;
+    private AdminContentModel $adminContentModel;
+    private AdminNotificationModel $adminNotificationModel;
+    private AdminProfileModel $adminProfileModel;
+    private AdminStatsController $adminStatsController;
+    private AdminReportController $adminReportController;
+    private AdminMemberController $adminMemberController;
+    private AdminContentController $adminContentController;
+    private AdminNotificationController $adminNotificationController;
+    private AdminProfileController $adminProfileController;
 
     public function __construct() {
         $database = new Database();
         $db = $database->connect();
-        $this->adminModel = new AdminModel($db);
+        $this->adminStatsModel = new AdminStatsModel($db);
+        $this->adminReportModel = new AdminReportModel($db);
+        $this->adminMemberModel = new AdminMemberModel($db);
+        $this->adminNotificationModel = new AdminNotificationModel($db);
+        $this->adminContentModel = new AdminContentModel($db, $this->adminNotificationModel);
+        $this->adminProfileModel = new AdminProfileModel($db);
+        $this->adminStatsController = new AdminStatsController($this, $this->adminStatsModel);
+        $this->adminReportController = new AdminReportController($this, $this->adminReportModel, $this->adminNotificationModel, $this->adminMemberModel);
+        $this->adminMemberController = new AdminMemberController($this, $this->adminMemberModel, $this->adminNotificationModel, $this->adminReportModel);
+        $this->adminContentController = new AdminContentController($this, $this->adminContentModel, $this->adminReportModel);
+        $this->adminNotificationController = new AdminNotificationController($this, $this->adminNotificationModel);
+        $this->adminProfileController = new AdminProfileController($this, $this->adminProfileModel);
     }
 
     // --- Helper dùng chung cho các API admin ---
 
-    private function jsonResponse(bool $success, string $message, $data = null): void {
+    public function jsonResponse(bool $success, string $message, $data = null): void {
         // Format response JSON thống nhất cho các request AJAX.
         header('Content-Type: application/json; charset=utf-8');
         $response = [
@@ -41,7 +85,7 @@ class AdminController {
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
     }
 
-    private function jsonPayload(): array {
+    public function jsonPayload(): array {
         // Đọc body JSON từ frontend, nếu không phải JSON thì trả mảng rỗng.
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (stripos($contentType, 'application/json') === false) {
@@ -52,11 +96,11 @@ class AdminController {
         return is_array($payload) ? $payload : [];
     }
 
-    private function currentAdminId(): ?int {
+    public function currentAdminId(): ?int {
         return isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
     }
 
-    private function intParam(string $name, string $method = 'GET'): ?int {
+    public function intParam(string $name, string $method = 'GET'): ?int {
         $source = $method === 'POST' ? $_POST : $_GET;
         if (!isset($source[$name]) || !filter_var($source[$name], FILTER_VALIDATE_INT)) {
             return null;
@@ -66,7 +110,7 @@ class AdminController {
         return $value > 0 ? $value : null;
     }
 
-    private function intPayloadParam(array $payload, string $name): ?int {
+    public function intPayloadParam(array $payload, string $name): ?int {
         if (!isset($payload[$name]) || !filter_var($payload[$name], FILTER_VALIDATE_INT)) {
             return null;
         }
@@ -75,14 +119,14 @@ class AdminController {
         return $value > 0 ? $value : null;
     }
 
-    private function isAdmin(): bool {
+    public function isAdmin(): bool {
         $currentAdminId = $this->currentAdminId();
         if (!$currentAdminId) {
             return false;
         }
 
         // Kiểm tra lại trong DB để tránh session cũ vẫn được dùng làm admin.
-        $user = $this->adminModel->getUserById($currentAdminId);
+        $user = $this->adminMemberModel->getUserById($currentAdminId);
         if ($user && (int)$user['RoleID'] === 1 && (int)$user['IsActive'] === 1) {
             $_SESSION['role_id'] = 1;
             $_SESSION['role'] = $user['RoleName'];
@@ -92,7 +136,7 @@ class AdminController {
         return false;
     }
 
-    private function adminProfilePayload(array $admin): array {
+    public function adminProfilePayload(array $admin): array {
         return [
             'UserID' => (int)$admin['UserID'],
             'FullName' => $admin['FullName'] ?? '',
@@ -106,20 +150,20 @@ class AdminController {
         ];
     }
 
-    private function logAdminAction(string $action, string $targetType, int $targetId, string $description): void {
+    public function logAdminAction(string $action, string $targetType, int $targetId, string $description): void {
         $adminUserId = $this->currentAdminId();
         if (!$adminUserId) {
             return;
         }
 
         try {
-            $this->adminModel->addAdminLog($adminUserId, $action, $targetType, $targetId, $description);
+            $this->adminProfileModel->addAdminLog($adminUserId, $action, $targetType, $targetId, $description);
         } catch (Exception $e) {
             // Logging must not break the admin action itself.
         }
     }
 
-    private function mergeReportIds(array ...$sets): array {
+    public function mergeReportIds(array ...$sets): array {
         // Gộp các ReportID bị ảnh hưởng để frontend chỉ cập nhật đúng các dòng cần đổi.
         $merged = [];
         foreach ($sets as $set) {
@@ -133,7 +177,7 @@ class AdminController {
         return array_values($merged);
     }
 
-    private function saveAdminAvatar(int $adminUserId): string {
+    public function saveAdminAvatar(int $adminUserId): string {
         // Kiểm tra file upload kỹ hơn vì avatar là dữ liệu người dùng gửi lên server.
         if (empty($_FILES['avatar']) || $_FILES['avatar']['error'] === UPLOAD_ERR_NO_FILE) {
             throw new Exception('Vui lòng chọn ảnh avatar.');
@@ -184,12 +228,12 @@ class AdminController {
         }
 
         try {
-            $stats = $this->adminModel->getOverviewStats();
-            $reports = $this->adminModel->getReportsList();
-            $members = $this->adminModel->getMembersList();
-            $roles = $this->adminModel->getAllRoles();
+            $stats = $this->adminStatsModel->getOverviewStats();
+            $reports = $this->adminReportModel->getReportsList();
+            $members = $this->adminMemberModel->getMembersList();
+            $roles = $this->adminMemberModel->getAllRoles();
             $currentAdminId = $this->currentAdminId();
-            $currentAdmin = $this->adminModel->getAdminProfileById($currentAdminId);
+            $currentAdmin = $this->adminProfileModel->getAdminProfileById($currentAdminId);
         } catch (Exception $e) {
             $stats = [
                 'users' => 0,
@@ -225,962 +269,123 @@ class AdminController {
         }
 
         $currentAdminId = $this->currentAdminId();
-        $admin = $this->adminModel->getAdminProfileById($currentAdminId);
+        $admin = $this->adminProfileModel->getAdminProfileById($currentAdminId);
         if (!$admin) {
             header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 
-        $logActions = $this->adminModel->getAdminLogActions($currentAdminId);
+        $logActions = $this->adminProfileModel->getAdminLogActions($currentAdminId);
         require_once __DIR__ . '/../Views/admin/admin-profile.php';
     }
 
     // --- API cập nhật thông tin admin ---
 
     public function getAdminProfile(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $admin = $this->adminModel->getAdminProfileById($this->currentAdminId());
-        if (!$admin) {
-            $this->jsonResponse(false, 'Không tìm thấy hồ sơ admin.');
-            return;
-        }
-
-        $this->jsonResponse(true, 'Lấy hồ sơ admin thành công', ['profile' => $this->adminProfilePayload($admin)]);
+        $this->adminProfileController->getAdminProfile();
     }
-
     public function updateAdminFullName(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $fullName = trim((string)($payload['FullName'] ?? ''));
-        if ($fullName === '' || mb_strlen($fullName) > 100) {
-            $this->jsonResponse(false, 'FullName không được rỗng và tối đa 100 ký tự.');
-            return;
-        }
-
-        $adminUserId = $this->currentAdminId();
-        try {
-            if (!$this->adminModel->updateAdminFullName($adminUserId, $fullName)) {
-                $this->jsonResponse(false, 'Không thể cập nhật FullName.');
-                return;
-            }
-
-            $_SESSION['user_name'] = $fullName;
-            $admin = $this->adminModel->getAdminProfileById($adminUserId);
-            $this->logAdminAction('UpdateProfile', 'AdminProfile', $adminUserId, 'Cập nhật FullName hồ sơ admin.');
-            $this->jsonResponse(true, 'Cập nhật FullName thành công.', ['profile' => $this->adminProfilePayload($admin)]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi cập nhật FullName.');
-        }
+        $this->adminProfileController->updateAdminFullName();
     }
-
     public function updateAdminBio(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $bio = trim((string)($payload['Bio'] ?? ''));
-        if (mb_strlen($bio) > 500) {
-            $this->jsonResponse(false, 'Bio tối đa 500 ký tự.');
-            return;
-        }
-
-        $adminUserId = $this->currentAdminId();
-        try {
-            if (!$this->adminModel->updateAdminBio($adminUserId, $bio)) {
-                $this->jsonResponse(false, 'Không thể cập nhật bio.');
-                return;
-            }
-
-            $this->logAdminAction('UpdateBio', 'AdminProfile', $adminUserId, 'Cập nhật bio quản trị viên.');
-            $this->jsonResponse(true, 'Cập nhật bio thành công', ['Bio' => $bio]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi cập nhật bio.');
-        }
+        $this->adminProfileController->updateAdminBio();
     }
-
     public function updateAdminAvatar(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $adminUserId = $this->currentAdminId();
-        try {
-            $avatarPath = $this->saveAdminAvatar($adminUserId);
-            if (!$this->adminModel->updateAdminAvatar($adminUserId, $avatarPath)) {
-                $this->jsonResponse(false, 'Không thể cập nhật avatar.');
-                return;
-            }
-
-            $_SESSION['avatar'] = $avatarPath;
-            $_SESSION['ProfilePictureUrl'] = $avatarPath;
-            $admin = $this->adminModel->getAdminProfileById($adminUserId);
-            $this->logAdminAction('UpdateAvatar', 'AdminProfile', $adminUserId, 'Cập nhật avatar hồ sơ admin.');
-            $this->jsonResponse(true, 'Cập nhật avatar thành công.', ['profile' => $this->adminProfilePayload($admin)]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, $e->getMessage());
-        }
+        $this->adminProfileController->updateAdminAvatar();
     }
-
     public function changeAdminPassword(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $currentPassword = (string)($payload['CurrentPassword'] ?? '');
-        $newPassword = (string)($payload['NewPassword'] ?? '');
-        $confirmPassword = (string)($payload['ConfirmPassword'] ?? '');
-
-        if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
-            $this->jsonResponse(false, 'Vui lòng nhập đầy đủ thông tin mật khẩu.');
-            return;
-        }
-
-        // Đổi mật khẩu chỉ cho phép khi mật khẩu hiện tại khớp với hash trong DB.
-        if (strlen($newPassword) < 8) {
-            $this->jsonResponse(false, 'Mật khẩu mới phải có ít nhất 8 ký tự.');
-            return;
-        }
-
-        if ($newPassword !== $confirmPassword) {
-            $this->jsonResponse(false, 'Mật khẩu mới và xác nhận không khớp.');
-            return;
-        }
-
-        $adminUserId = $this->currentAdminId();
-        $currentHash = $this->adminModel->getUserPasswordHash($adminUserId);
-        if (!$currentHash || !password_verify($currentPassword, $currentHash)) {
-            $this->jsonResponse(false, 'Mật khẩu hiện tại không đúng.');
-            return;
-        }
-
-        try {
-            $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-            if (!$this->adminModel->updateAdminPassword($adminUserId, $newHash)) {
-                $this->jsonResponse(false, 'Không thể đổi mật khẩu.');
-                return;
-            }
-
-            $this->logAdminAction('ChangePassword', 'AdminProfile', $adminUserId, 'Đổi mật khẩu hồ sơ admin.');
-            $this->jsonResponse(true, 'Đổi mật khẩu thành công.');
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi đổi mật khẩu.');
-        }
+        $this->adminProfileController->changeAdminPassword();
     }
-
     // --- Admin logs và thống kê dashboard ---
 
     public function adminLogs(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $adminUserId = $this->currentAdminId();
-            $logs = $this->adminModel->getAdminLogs($adminUserId, $_GET['keyword'] ?? '', $_GET['actionFilter'] ?? '', 50);
-            $actions = $this->adminModel->getAdminLogActions($adminUserId);
-            $this->jsonResponse(true, 'Lấy admin logs thành công', [
-                'logs' => $logs,
-                'actions' => $actions
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy admin logs.');
-        }
+        $this->adminProfileController->adminLogs();
     }
-
     public function overviewStats(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $this->jsonResponse(true, 'Lấy thống kê tổng quan thành công', $this->adminModel->getOverviewStats());
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy thống kê tổng quan.');
-        }
+        $this->adminStatsController->overviewStats();
     }
-
     public function overviewDetail(): void {
-        header('Content-Type: application/json; charset=utf-8');
-
-        if (!$this->isAdmin()) {
-            echo json_encode(['success' => false, 'message' => 'Bạn không có quyền quản trị viên.'], JSON_UNESCAPED_UNICODE);
-            return;
-        }
-
-        $metric = isset($_GET['metric']) ? trim((string)$_GET['metric']) : '';
-        try {
-            $detail = $this->adminModel->getOverviewDetail($metric);
-            if ($detail === null) {
-                echo json_encode(['success' => false, 'message' => 'Metric không hợp lệ.'], JSON_UNESCAPED_UNICODE);
-                return;
-            }
-
-            echo json_encode([
-                'success' => true,
-                'title' => $detail['title'],
-                'columns' => $detail['columns'],
-                'data' => $detail['data']
-            ], JSON_UNESCAPED_UNICODE);
-        } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Không thể lấy chi tiết tổng quan.'], JSON_UNESCAPED_UNICODE);
-        }
+        $this->adminStatsController->overviewDetail();
     }
-
     public function statisticsRankings(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5;
-            if (!in_array($limit, [5, 10, 15, 20], true)) {
-                $limit = 5;
-            }
-
-            $this->jsonResponse(true, 'Lấy top ranking thành công', $this->adminModel->getStatisticsTopRankings($limit));
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy top ranking.');
-        }
+        $this->adminStatsController->statisticsRankings();
     }
-
     public function statisticsCharts(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $this->jsonResponse(true, 'Lấy dữ liệu biểu đồ thành công', $this->adminModel->getStatisticsChartData());
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy dữ liệu biểu đồ.');
-        }
+        $this->adminStatsController->statisticsCharts();
     }
-
     public function statisticsInsights(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $this->jsonResponse(true, 'Lấy activity insights thành công', $this->adminModel->getStatisticsActivityInsights());
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy activity insights.');
-        }
+        $this->adminStatsController->statisticsInsights();
     }
-
     // --- Quản lý thành viên ---
 
     public function listMembers(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $keyword = $_GET['keyword'] ?? '';
-        $roleId = $_GET['roleId'] ?? '';
-
-        try {
-            $members = $this->adminModel->getMembersList($keyword, $roleId);
-            $this->jsonResponse(true, 'Lấy danh sách thành viên thành công', [
-                'members' => $members,
-                'currentAdminId' => $this->currentAdminId()
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi lấy danh sách thành viên.');
-        }
+        $this->adminMemberController->listMembers();
     }
-
     // --- Quản lý thông báo ---
 
     public function listNotifications(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $notifications = $this->adminModel->getAdminNotifications(
-                $_GET['keyword'] ?? '',
-                $_GET['typeName'] ?? '',
-                $_GET['isRead'] ?? ''
-            );
-            $this->jsonResponse(true, 'Lấy danh sách thông báo thành công', ['notifications' => $notifications]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi lấy danh sách thông báo.');
-        }
+        $this->adminNotificationController->listNotifications();
     }
-
     public function getNotificationDetail(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $notificationId = $this->intParam('notificationId');
-        if (!$notificationId) {
-            $this->jsonResponse(false, 'NotificationID không hợp lệ.');
-            return;
-        }
-
-        try {
-            $notification = $this->adminModel->getAdminNotificationDetail($notificationId);
-            if (!$notification) {
-                $this->jsonResponse(false, 'Không tìm thấy thông báo.');
-                return;
-            }
-            $this->jsonResponse(true, 'Lấy chi tiết thông báo thành công', ['notification' => $notification]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy chi tiết thông báo.');
-        }
+        $this->adminNotificationController->getNotificationDetail();
     }
-
     public function deleteNotification(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $notificationId = $this->intPayloadParam($payload, 'NotificationID');
-        if (!$notificationId) {
-            $this->jsonResponse(false, 'NotificationID không hợp lệ.');
-            return;
-        }
-
-        try {
-            if (!$this->adminModel->deleteAdminNotification($notificationId)) {
-                $this->jsonResponse(false, 'Thông báo không tồn tại.');
-                return;
-            }
-            $this->logAdminAction('DeleteNotification', 'Notification', $notificationId, 'Xóa thông báo #' . $notificationId . '.');
-            $this->jsonResponse(true, 'Xóa thông báo thành công', ['NotificationID' => $notificationId]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể xóa thông báo.');
-        }
+        $this->adminNotificationController->deleteNotification();
     }
-
     public function searchNotificationReceivers(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $keyword = trim((string)($_GET['keyword'] ?? ''));
-            if (mb_strlen($keyword) < 2) {
-                $this->jsonResponse(true, 'Tìm người nhận thành công', []);
-                return;
-            }
-
-            $users = $this->adminModel->searchNotificationReceivers($keyword, 20);
-            $this->jsonResponse(true, 'Tìm người nhận thành công', $users);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể tìm người nhận.');
-        }
+        $this->adminNotificationController->searchNotificationReceivers();
     }
-
     public function sendSystemNotification(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $message = trim((string)($payload['message'] ?? $payload['Message'] ?? ''));
-        $sendAll = !empty($payload['sendToAll']) || !empty($payload['SendAll']);
-
-        if ($message === '' || mb_strlen($message) > 1000) {
-            $this->jsonResponse(false, 'Message không được rỗng và tối đa 1000 ký tự.');
-            return;
-        }
-
-        $adminUserId = $this->currentAdminId();
-        try {
-            // Có thể gửi một người hoặc gửi hàng loạt cho các tài khoản đang hoạt động.
-            if ($sendAll) {
-                $count = $this->adminModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
-                $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho ' . $count . ' thành viên.');
-                $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => $count]);
-                return;
-            }
-
-            $receiverUserId = $this->intPayloadParam($payload, 'receiverUserId') ?? $this->intPayloadParam($payload, 'ReceiverUserID');
-            if (!$receiverUserId) {
-                $this->jsonResponse(false, 'Vui lòng chọn người nhận.');
-                return;
-            }
-
-            if (!$this->adminModel->getActiveNotificationReceiverById($receiverUserId)) {
-                $this->jsonResponse(false, 'Người nhận không tồn tại hoặc đang bị khóa.');
-                return;
-            }
-
-            if (!$this->adminModel->createSystemNotification($receiverUserId, $adminUserId, $message)) {
-                $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
-                return;
-            }
-
-            $this->logAdminAction('SendSystemNotification', 'Notification', $receiverUserId, 'Gửi thông báo hệ thống cho UserID #' . $receiverUserId . '.');
-            $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => 1]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
-        }
+        $this->adminNotificationController->sendSystemNotification();
     }
-
     // --- Kiểm duyệt báo cáo ---
 
     public function processReport(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $reportId = isset($_POST['reportId']) ? (int)$_POST['reportId'] : null;
-        $action = $_POST['action'] ?? null;
-        $adminNote = trim((string)($_POST['adminNote'] ?? ''));
-
-        if (!$reportId || !$action) {
-            $this->jsonResponse(false, 'Thiếu thông tin ReportID hoặc hành động.');
-            return;
-        }
-
-        $allowed = ['ignore', 'hide', 'warn'];
-        if (!in_array($action, $allowed, true)) {
-            $this->jsonResponse(false, 'Hành động không hợp lệ.');
-            return;
-        }
-
-        if (in_array($action, ['hide', 'warn'], true) && $adminNote === '') {
-            $this->jsonResponse(false, 'Vui lòng nhập ghi chú xử lý.');
-            return;
-        }
-
-        $report = $this->adminModel->getReportById($reportId);
-        if (!$report) {
-            $this->jsonResponse(false, 'Báo cáo không tồn tại.');
-            return;
-        }
-
-        try {
-            $adminUserId = $this->currentAdminId();
-            $updatedReports = [];
-            // Mỗi action report có cách xử lý riêng nhưng đều trả ReportID để frontend cập nhật UI.
-            if ($action === 'ignore') {
-                $this->adminModel->markReportResolved($reportId, $adminNote);
-                $updatedReports = [$reportId];
-                $msg = 'Báo cáo đã bị bỏ qua.';
-            } elseif ($action === 'hide') {
-                $hidden = false;
-                if (!empty($report['PostID'])) {
-                    $this->adminModel->hidePostById((int)$report['PostID']);
-                    // Khi một nội dung đã bị ẩn, các report pending liên quan cũng được hoàn tất.
-                    $updatedReports = $this->mergeReportIds(
-                        $updatedReports,
-                        $this->adminModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
-                    );
-                    $hidden = true;
-                }
-                if (!empty($report['CommentID'])) {
-                    $this->adminModel->hideCommentById((int)$report['CommentID']);
-                    $updatedReports = $this->mergeReportIds(
-                        $updatedReports,
-                        $this->adminModel->resolvePendingReportsByCommentId((int)$report['CommentID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
-                    );
-                    $hidden = true;
-                }
-                $this->adminModel->markReportResolved($reportId, $adminNote);
-                $updatedReports = $this->mergeReportIds($updatedReports, [$reportId]);
-                if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ContentHidden');
-                }
-                $msg = $hidden ? 'Nội dung đã được ẩn và báo cáo được đánh dấu hoàn tất.' : 'Không có nội dung để ẩn; báo cáo đã được đánh dấu hoàn tất.';
-            } else {
-                $this->adminModel->markReportResolved($reportId, $adminNote);
-                $updatedReports = [$reportId];
-                if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ReportWarning');
-                }
-                $msg = 'Người dùng đã được cảnh cáo; báo cáo đã xử lý.';
-            }
-
-            $this->logAdminAction('ProcessReport', 'Report', $reportId, 'Xử lý report #' . $reportId . ' với action ' . $action . '.');
-            if ($action === 'hide' && !empty($updatedReports)) {
-                $targetType = !empty($report['CommentID']) ? 'Comment' : (!empty($report['PostID']) ? 'Post' : 'Report');
-                $targetId = !empty($report['CommentID']) ? (int)$report['CommentID'] : (!empty($report['PostID']) ? (int)$report['PostID'] : $reportId);
-                $this->logAdminAction('ModerateReport', $targetType, $targetId, 'Ẩn nội dung và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, $msg, [
-                'reportId' => $reportId,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi xử lý báo cáo.');
-        }
+        $this->adminReportController->processReport();
     }
-
     public function getReportDetail(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $reportId = isset($_GET['reportId']) ? (int)$_GET['reportId'] : null;
-        if (!$reportId) {
-            $this->jsonResponse(false, 'Thiếu ReportID.');
-            return;
-        }
-
-        try {
-            $detail = $this->adminModel->getReportDetailById($reportId);
-            if (!$detail) {
-                $this->jsonResponse(false, 'Không tìm thấy báo cáo');
-                return;
-            }
-
-            $this->jsonResponse(true, 'Lấy chi tiết báo cáo thành công', $detail);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy chi tiết báo cáo.');
-        }
+        $this->adminReportController->getReportDetail();
     }
-
     public function updateUserRole(): void {
-        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['fetch']) && $_GET['fetch'] === 'roles') {
-            if (!$this->isAdmin()) {
-                $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-                return;
-            }
-
-            try {
-                $roles = $this->adminModel->getAllRoles();
-                $this->jsonResponse(true, 'Lấy danh sách vai trò thành công', ['roles' => $roles]);
-            } catch (Exception $e) {
-                $this->jsonResponse(false, 'Lỗi khi lấy danh sách vai trò.');
-            }
-            return;
-        }
-
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $userId = isset($payload['UserID']) ? (int)$payload['UserID'] : (isset($_POST['userId']) ? (int)$_POST['userId'] : null);
-        $roleId = isset($payload['RoleID']) ? (int)$payload['RoleID'] : (isset($_POST['roleId']) ? (int)$_POST['roleId'] : null);
-        $currentAdminId = $this->currentAdminId();
-
-        if (!$userId || !$roleId) {
-            $this->jsonResponse(false, 'Thiếu thông tin UserID hoặc RoleID.');
-            return;
-        }
-
-        // Không cho admin tự đổi quyền của chính mình để tránh tự khóa quyền quản trị.
-        if ($userId === $currentAdminId) {
-            $this->jsonResponse(false, 'Bạn không thể thay đổi quyền hoặc khóa chính tài khoản đang đăng nhập.');
-            return;
-        }
-
-        $user = $this->adminModel->getUserById($userId);
-        if (!$user) {
-            $this->jsonResponse(false, 'Người dùng không tồn tại.');
-            return;
-        }
-
-        $role = $this->adminModel->getRoleById($roleId);
-        if (!$role) {
-            $this->jsonResponse(false, 'Vai trò không hợp lệ.');
-            return;
-        }
-
-        try {
-            $result = $this->adminModel->updateUserRole($userId, $roleId);
-            if (!$result) {
-                $this->jsonResponse(false, 'Cập nhật thất bại.');
-                return;
-            }
-
-            if ($currentAdminId) {
-                $this->adminModel->createNotificationByType($userId, $currentAdminId, 'RoleChanged');
-            }
-
-            $updatedUser = $this->adminModel->getUserById($userId);
-            $this->logAdminAction('UpdateUserRole', 'User', $userId, 'Cập nhật vai trò user #' . $userId . ' thành ' . $role['RoleName'] . '.');
-            $this->jsonResponse(true, 'Cập nhật vai trò thành công', [
-                'UserID' => $userId,
-                'RoleID' => $roleId,
-                'RoleName' => $role['RoleName'],
-                'member' => $updatedUser
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi cơ sở dữ liệu.');
-        }
+        $this->adminMemberController->updateUserRole();
     }
-
     public function toggleUserActive(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $userId = isset($payload['UserID']) ? (int)$payload['UserID'] : null;
-        $isActive = isset($payload['IsActive']) ? (int)$payload['IsActive'] : null;
-        $currentAdminId = $this->currentAdminId();
-
-        if (!$userId || !in_array($isActive, [0, 1], true)) {
-            $this->jsonResponse(false, 'Thiếu thông tin UserID hoặc trạng thái tài khoản.');
-            return;
-        }
-
-        if ($userId === $currentAdminId) {
-            $this->jsonResponse(false, 'Bạn không thể thay đổi quyền hoặc khóa chính tài khoản đang đăng nhập.');
-            return;
-        }
-
-        $user = $this->adminModel->getUserById($userId);
-        if (!$user) {
-            $this->jsonResponse(false, 'Người dùng không tồn tại.');
-            return;
-        }
-
-        try {
-            $updatedReports = [];
-            $result = $this->adminModel->updateUserActiveStatus($userId, $isActive);
-            if (!$result) {
-                $this->jsonResponse(false, 'Cập nhật trạng thái tài khoản thất bại.');
-                return;
-            }
-
-            if ($currentAdminId) {
-                $typeName = $isActive === 1 ? 'AccountUnlocked' : 'AccountLocked';
-                $this->adminModel->createNotificationByType($userId, $currentAdminId, $typeName);
-            }
-
-            if ($isActive === 0) {
-                // Khóa tài khoản xong thì các report pending về user này không cần xử lý lại.
-                $updatedReports = $this->adminModel->resolvePendingReportsByReportedUserId($userId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
-            }
-
-            $updatedUser = $this->adminModel->getUserById($userId);
-            $this->logAdminAction($isActive === 1 ? 'UnlockUser' : 'LockUser', 'User', $userId, ($isActive === 1 ? 'Mở khóa' : 'Khóa') . ' user #' . $userId . '.');
-            if ($isActive === 0 && !empty($updatedReports)) {
-                $this->logAdminAction('AutoResolveReports', 'User', $userId, 'Khóa tài khoản và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, $isActive === 1 ? 'Mở khóa tài khoản thành công' : 'Khóa tài khoản thành công', [
-                'UserID' => $userId,
-                'IsActive' => $isActive,
-                'StatusText' => $isActive === 1 ? 'Hoạt động' : 'Bị khóa',
-                'member' => $updatedUser,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi cơ sở dữ liệu.');
-        }
+        $this->adminMemberController->toggleUserActive();
     }
-
     // --- Quản lý nội dung: bài viết, bình luận, hashtag ---
 
     public function listContentPosts(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $posts = $this->adminModel->getAdminContentPosts($_GET['keyword'] ?? '', $_GET['status'] ?? '', $_GET['privacy'] ?? '');
-            $this->jsonResponse(true, 'Lấy danh sách bài viết thành công', ['posts' => $posts]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi lấy danh sách bài viết.');
-        }
+        $this->adminContentController->listContentPosts();
     }
-
     public function getContentPostDetail(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $postId = $this->intParam('postId');
-        if (!$postId) {
-            $this->jsonResponse(false, 'PostID không hợp lệ.');
-            return;
-        }
-
-        try {
-            $post = $this->adminModel->getAdminContentPostDetail($postId);
-            if (!$post) {
-                $this->jsonResponse(false, 'Bài viết không tồn tại.');
-                return;
-            }
-            $this->jsonResponse(true, 'Lấy chi tiết bài viết thành công', $post);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy chi tiết bài viết.');
-        }
+        $this->adminContentController->getContentPostDetail();
     }
-
     public function toggleContentPostHidden(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $postId = $this->intPayloadParam($payload, 'PostID');
-        $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
-        if (!$postId || !in_array($isHidden, [0, 1], true)) {
-            $this->jsonResponse(false, 'Thiếu PostID hoặc trạng thái ẩn/hiện.');
-            return;
-        }
-
-        try {
-            $post = $this->adminModel->updatePostHiddenStatus($postId, $isHidden, $this->currentAdminId());
-            if (!$post) {
-                $this->jsonResponse(false, 'Bài viết không tồn tại.');
-                return;
-            }
-            $updatedReports = [];
-            if ($isHidden === 1) {
-                // Ẩn bài viết từ tab nội dung cũng đồng bộ trạng thái các report liên quan.
-                $updatedReports = $this->adminModel->resolvePendingReportsByPostId($postId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
-            }
-            $this->logAdminAction($isHidden === 1 ? 'HidePost' : 'ShowPost', 'Post', $postId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bài viết #' . $postId . '.');
-            if ($isHidden === 1 && !empty($updatedReports)) {
-                $this->logAdminAction('AutoResolveReports', 'Post', $postId, 'Ẩn bài viết và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, $isHidden === 1 ? 'Đã ẩn bài viết.' : 'Đã hiện lại bài viết.', [
-                'post' => $post,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể cập nhật trạng thái bài viết.');
-        }
+        $this->adminContentController->toggleContentPostHidden();
     }
-
     public function deleteContentPost(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $postId = $this->intPayloadParam($payload, 'PostID');
-        if (!$postId) {
-            $this->jsonResponse(false, 'PostID không hợp lệ.');
-            return;
-        }
-
-        try {
-            // Lưu lại các report pending trước khi xóa để frontend biết dòng nào cần cập nhật.
-            $updatedReports = $this->adminModel->getPendingReportIdsByPostId($postId);
-            if (!$this->adminModel->deleteAdminContentPost($postId, $this->currentAdminId())) {
-                $this->jsonResponse(false, 'Bài viết không tồn tại.');
-                return;
-            }
-            $this->logAdminAction('DeletePost', 'Post', $postId, 'Xóa bài viết #' . $postId . '.');
-            if (!empty($updatedReports)) {
-                $this->logAdminAction('AutoResolveReports', 'Post', $postId, 'Xóa bài viết và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, 'Đã xóa bài viết.', [
-                'PostID' => $postId,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể xóa bài viết. Transaction đã rollback.');
-        }
+        $this->adminContentController->deleteContentPost();
     }
-
     public function listContentComments(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $comments = $this->adminModel->getAdminContentComments($_GET['keyword'] ?? '', $_GET['status'] ?? '');
-            $this->jsonResponse(true, 'Lấy danh sách bình luận thành công', ['comments' => $comments]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi lấy danh sách bình luận.');
-        }
+        $this->adminContentController->listContentComments();
     }
-
     public function getContentCommentDetail(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $commentId = $this->intParam('commentId');
-        if (!$commentId) {
-            $this->jsonResponse(false, 'CommentID không hợp lệ.');
-            return;
-        }
-
-        try {
-            $comment = $this->adminModel->getAdminContentCommentDetail($commentId);
-            if (!$comment) {
-                $this->jsonResponse(false, 'Bình luận không tồn tại.');
-                return;
-            }
-            $this->jsonResponse(true, 'Lấy chi tiết bình luận thành công', $comment);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể lấy chi tiết bình luận.');
-        }
+        $this->adminContentController->getContentCommentDetail();
     }
-
     public function toggleContentCommentHidden(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $commentId = $this->intPayloadParam($payload, 'CommentID');
-        $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
-        if (!$commentId || !in_array($isHidden, [0, 1], true)) {
-            $this->jsonResponse(false, 'Thiếu CommentID hoặc trạng thái ẩn/hiện.');
-            return;
-        }
-
-        try {
-            $comment = $this->adminModel->updateCommentHiddenStatus($commentId, $isHidden, $this->currentAdminId());
-            if (!$comment) {
-                $this->jsonResponse(false, 'Bình luận không tồn tại.');
-                return;
-            }
-            $updatedReports = [];
-            if ($isHidden === 1) {
-                // Ẩn bình luận cũng tự hoàn tất các report đang chờ của bình luận đó.
-                $updatedReports = $this->adminModel->resolvePendingReportsByCommentId($commentId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
-            }
-            $this->logAdminAction($isHidden === 1 ? 'HideComment' : 'ShowComment', 'Comment', $commentId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bình luận #' . $commentId . '.');
-            if ($isHidden === 1 && !empty($updatedReports)) {
-                $this->logAdminAction('AutoResolveReports', 'Comment', $commentId, 'Ẩn bình luận và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, $isHidden === 1 ? 'Đã ẩn bình luận.' : 'Đã hiện lại bình luận.', [
-                'comment' => $comment,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể cập nhật trạng thái bình luận.');
-        }
+        $this->adminContentController->toggleContentCommentHidden();
     }
-
     public function deleteContentComment(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $commentId = $this->intPayloadParam($payload, 'CommentID');
-        if (!$commentId) {
-            $this->jsonResponse(false, 'CommentID không hợp lệ.');
-            return;
-        }
-
-        try {
-            // Comment có thể có nhiều comment con, nên model trả về danh sách ID đã xóa.
-            $updatedReports = $this->adminModel->getPendingReportIdsByCommentId($commentId);
-            $deletedCommentIds = $this->adminModel->deleteAdminContentComment($commentId, $this->currentAdminId());
-            if (!$deletedCommentIds) {
-                $this->jsonResponse(false, 'Bình luận không tồn tại.');
-                return;
-            }
-            $this->logAdminAction('DeleteComment', 'Comment', $commentId, 'Xóa bình luận #' . $commentId . '.');
-            if (!empty($updatedReports)) {
-                $this->logAdminAction('AutoResolveReports', 'Comment', $commentId, 'Xóa bình luận và tự động resolve các report liên quan.');
-            }
-            $this->jsonResponse(true, 'Đã xóa bình luận.', [
-                'CommentID' => $commentId,
-                'DeletedCommentIDs' => $deletedCommentIds,
-                'updatedReports' => $updatedReports
-            ]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể xóa bình luận. Transaction đã rollback.');
-        }
+        $this->adminContentController->deleteContentComment();
     }
-
     public function listContentHashtags(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        try {
-            $hashtags = $this->adminModel->getAdminContentHashtags($_GET['keyword'] ?? '', $_GET['status'] ?? '');
-            $this->jsonResponse(true, 'Lấy danh sách hashtag thành công', ['hashtags' => $hashtags]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Lỗi khi lấy danh sách hashtag.');
-        }
+        $this->adminContentController->listContentHashtags();
     }
-
     public function toggleContentHashtagHidden(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $hashtagId = $this->intPayloadParam($payload, 'HashtagID');
-        $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
-        if (!$hashtagId || !in_array($isHidden, [0, 1], true)) {
-            $this->jsonResponse(false, 'Thiếu HashtagID hoặc trạng thái ẩn/hiện.');
-            return;
-        }
-
-        try {
-            $hashtag = $this->adminModel->updateHashtagHiddenStatus($hashtagId, $isHidden);
-            if (!$hashtag) {
-                $this->jsonResponse(false, 'Hashtag không tồn tại.');
-                return;
-            }
-            $this->logAdminAction($isHidden === 1 ? 'HideHashtag' : 'ShowHashtag', 'Hashtag', $hashtagId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' hashtag #' . $hashtagId . '.');
-            $this->jsonResponse(true, $isHidden === 1 ? 'Đã ẩn hashtag.' : 'Đã hiện lại hashtag.', ['hashtag' => $hashtag]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể cập nhật trạng thái hashtag.');
-        }
+        $this->adminContentController->toggleContentHashtagHidden();
     }
-
     public function deleteContentHashtag(): void {
-        if (!$this->isAdmin()) {
-            $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
-            return;
-        }
-
-        $payload = $this->jsonPayload();
-        $hashtagId = $this->intPayloadParam($payload, 'HashtagID');
-        if (!$hashtagId) {
-            $this->jsonResponse(false, 'HashtagID không hợp lệ.');
-            return;
-        }
-
-        try {
-            if (!$this->adminModel->deleteAdminContentHashtag($hashtagId)) {
-                $this->jsonResponse(false, 'Hashtag không tồn tại.');
-                return;
-            }
-            $this->logAdminAction('DeleteHashtag', 'Hashtag', $hashtagId, 'Xóa hashtag #' . $hashtagId . '.');
-            $this->jsonResponse(true, 'Đã xóa hashtag.', ['HashtagID' => $hashtagId]);
-        } catch (Exception $e) {
-            $this->jsonResponse(false, 'Không thể xóa hashtag. Transaction đã rollback.');
-        }
+        $this->adminContentController->deleteContentHashtag();
     }
 }
 
