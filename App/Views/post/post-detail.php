@@ -261,6 +261,7 @@ function renderDetailPostContent($content) {
                                                         <img
                                                             src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>"
                                                             class="img-fluid rounded-4 mb-3"
+                                                            style="max-height: 450px; object-fit: contain;"
                                                             alt="post image"
                                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
                                                         >
