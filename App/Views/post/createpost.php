@@ -92,7 +92,7 @@ function imagePath($path) {
         <div class="row g-4">
 
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'create'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'create'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-8 mx-auto">

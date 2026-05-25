@@ -20,7 +20,7 @@ $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 require_once __DIR__ . '/../../Controllers/PostController.php';
 require_once __DIR__ . '/../../Controllers/FollowController.php';
 require_once __DIR__ . '/../../Controllers/NotificationController.php';
-require_once __DIR__ . '/../auth/partials/post-menu.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
@@ -223,7 +223,7 @@ function renderPostContentWithHashtags($content) {
             <div class="col-lg-1 d-none d-lg-block">
                 <?php
                     $activePage = 'home';
-                    include __DIR__ . '/../auth/partials/sidebar.php';
+                    include __DIR__ . '/partials/sidebar.php';
                 ?>
             </div>
             <div class="col-lg-7 col-md-8">

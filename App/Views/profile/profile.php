@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../../Config/Database.php';
 
 require_once __DIR__ . '/../../Controllers/ProfileController.php';
-require_once __DIR__ . '/../auth/partials/post-menu.php';
+require_once __DIR__ . '/../post/partials/post-menu.php';
 
 use App\Controllers\ProfileController;
 
@@ -245,7 +245,7 @@ foreach ($posts as $post) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'profile'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'profile'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <?php if ($profileNotFound): ?>

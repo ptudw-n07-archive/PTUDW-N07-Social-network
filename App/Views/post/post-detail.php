@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../../Controllers/PostController.php';
-require_once __DIR__ . '/../auth/partials/post-menu.php';
+require_once __DIR__ . '/partials/post-menu.php';
 
 $postId = (int) ($_GET['id'] ?? 0);
 $highlightCommentId = (int) ($_GET['comment'] ?? 0);
@@ -202,7 +202,7 @@ function renderDetailPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'post'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'post'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-10 mx-auto">
