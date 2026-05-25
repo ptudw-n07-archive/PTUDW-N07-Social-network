@@ -15,6 +15,7 @@ if (!isset($admin) || !is_array($admin)) {
     exit();
 }
 
+// Chuẩn hóa đường dẫn avatar để view luôn có ảnh hợp lệ để hiển thị.
 function adminProfileAssetPath($path) {
     $path = trim((string)$path);
     if ($path === '') {
@@ -59,7 +60,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
         <div class="container-fluid px-4 px-lg-5">
             <div class="row align-items-center py-3">
                 <div class="col-4 d-flex align-items-center">
-                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php#overview" class="brand-logo text-decoration-none">ARCHIVE</a>
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-person-badge"></i></div>
@@ -199,6 +200,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
     <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <script>
+        // Các endpoint riêng của trang profile admin.
         window.ADMIN_PROFILE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getAdminProfile";
         window.ADMIN_UPDATE_PROFILE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateAdminFullName";
         window.ADMIN_UPDATE_BIO_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateAdminBio";

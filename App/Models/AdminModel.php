@@ -10,7 +10,10 @@ class AdminModel {
         $this->conn = $db_connection;
     }
 
+    // --- Tổng quan dashboard ---
+
     public function getOverviewStats() {
+        // Gom các số liệu chính cho dashboard admin.
         $totalUsers = $this->countScalar("SELECT COUNT(UserID) FROM users");
         $activeUsers = $this->countScalar("SELECT COUNT(UserID) FROM users WHERE IsActive = 1");
         $lockedUsers = $this->countScalar("SELECT COUNT(UserID) FROM users WHERE IsActive = 0");
@@ -64,6 +67,7 @@ class AdminModel {
     }
 
     public function getOverviewDetail(string $metric): ?array {
+        // Whitelist các metric được phép xem chi tiết, tránh truyền tên bảng/cột trực tiếp từ request.
         $configs = [
             'totalUsers' => ['title' => 'Tổng thành viên', 'type' => 'users', 'where' => ''],
             'activeUsers' => ['title' => 'Tài khoản đang hoạt động', 'type' => 'users', 'where' => 'WHERE u.IsActive = 1'],
@@ -87,6 +91,7 @@ class AdminModel {
 
         switch ($config['type']) {
             case 'users':
+                // Mỗi loại metric có bộ cột riêng để frontend render bảng chi tiết.
                 $columns = ['UserID', 'Username', 'FullName', 'Email', 'Vai trò', 'Trạng thái', 'Ngày tạo'];
                 $sql = "SELECT u.UserID, u.Username, u.FullName, u.Email, r.RoleName,
                                CASE WHEN u.IsActive = 1 THEN 'Hoạt động' ELSE 'Bị khóa' END AS StatusText,
@@ -202,6 +207,8 @@ class AdminModel {
             'data' => $rows
         ];
     }
+
+    // --- Thống kê nâng cao ---
 
     public function getStatisticsTopRankings($limit = 5) {
         $limit = in_array((int)$limit, [5, 10, 15, 20], true) ? (int)$limit : 5;
@@ -454,6 +461,8 @@ class AdminModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // --- Báo cáo và thành viên ---
+
     public function getReportsList() {
         $query = "SELECT r.ReportID AS id, u.FullName AS user, u.ProfilePictureUrl AS avatar,
                          reporter.Username AS ReporterUsername,
@@ -580,6 +589,8 @@ class AdminModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    // --- Admin profile và logs ---
+
     public function getAdminProfileById($userId) {
         $sql = "SELECT u.UserID, u.FullName, u.Username, u.Email, u.ProfilePictureUrl, u.Bio,
                        u.RoleID, u.IsActive, u.CreatedAt, r.RoleName
@@ -696,14 +707,7 @@ class AdminModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function updateReportStatus($reportId, $status) {
-        $sql = "UPDATE reports SET Status = :status WHERE ReportID = :reportId";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bindParam(':status', $status, PDO::PARAM_STR);
-        $stmt->bindParam(':reportId', $reportId, PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->rowCount() > 0;
-    }
+    // --- Chi tiết và xử lý report ---
 
     public function getReportById($reportId) {
         $sql = "SELECT * FROM reports WHERE ReportID = :reportId LIMIT 1";
@@ -714,6 +718,7 @@ class AdminModel {
     }
 
     public function getReportDetailById($reportId) {
+        // Lấy đủ người báo cáo, người bị báo cáo và nội dung liên quan để admin xem trong modal.
         $sql = "SELECT
                     r.ReportID,
                     r.PostID AS ReportPostID,
@@ -864,6 +869,7 @@ class AdminModel {
     }
 
     private function getPendingReportIds($column, $value): array {
+        // Chỉ cho phép các cột report đã định nghĩa sẵn để SQL động vẫn an toàn.
         $allowedColumns = ['PostID', 'CommentID', 'ReportedUserID'];
         if (!in_array($column, $allowedColumns, true)) {
             return [];
@@ -882,6 +888,7 @@ class AdminModel {
             return [];
         }
 
+        // Dùng transaction để nếu cập nhật report lỗi thì không bị trạng thái nửa chừng.
         $this->conn->beginTransaction();
         try {
             $sql = "UPDATE reports
@@ -921,6 +928,8 @@ class AdminModel {
         $stmt->execute();
         return $stmt->rowCount() > 0;
     }
+
+    // --- Quản lý thông báo ---
 
     public function getNotificationTypeIdByName($typeName) {
         $sql = "SELECT NotificationTypeID FROM notificationtypes WHERE TypeName = :typeName LIMIT 1";
@@ -1069,6 +1078,7 @@ class AdminModel {
         }
 
         try {
+            // Gửi hàng loạt nên bọc transaction để đếm và rollback dễ hơn nếu có lỗi.
             $this->conn->beginTransaction();
 
             $stmt = $this->conn->prepare("SELECT UserID FROM users WHERE IsActive = 1 AND RoleID <> 1 AND UserID <> :senderUserId");
@@ -1097,6 +1107,8 @@ class AdminModel {
             throw $e;
         }
     }
+
+    // --- Quản lý nội dung ---
 
     public function getAdminContentPosts($keyword = '', $status = '', $privacy = '') {
         $conditions = [];
@@ -1209,6 +1221,7 @@ class AdminModel {
         }
 
         try {
+            // Xóa bài viết kéo theo nhiều bảng liên quan, nên cần transaction.
             $this->conn->beginTransaction();
 
             if ($adminUserId) {
@@ -1371,6 +1384,7 @@ class AdminModel {
         $commentIds = $this->getDescendantCommentIds($commentId);
 
         try {
+            // Xóa comment cha thì xóa luôn các comment con để không còn dữ liệu mồ côi.
             $this->conn->beginTransaction();
 
             if ($adminUserId) {
@@ -1468,6 +1482,7 @@ class AdminModel {
         }
 
         try {
+            // Hashtag chỉ liên kết qua bảng trung gian nên xóa liên kết trước, rồi xóa hashtag.
             $this->conn->beginTransaction();
 
             $stmt = $this->conn->prepare("DELETE FROM posthashtags WHERE HashtagID = ?");
@@ -1486,6 +1501,8 @@ class AdminModel {
         }
     }
 
+    // --- Helper nội bộ của model ---
+
     private function getCommentIdsByPostId($postId) {
         $stmt = $this->conn->prepare("SELECT CommentID FROM comments WHERE PostID = :postId");
         $stmt->bindValue(':postId', $postId, PDO::PARAM_INT);
@@ -1494,6 +1511,7 @@ class AdminModel {
     }
 
     private function getDescendantCommentIds($commentId) {
+        // Duyệt cây comment theo hàng đợi để lấy cả comment con nhiều cấp.
         $ids = [(int)$commentId];
         $queue = [(int)$commentId];
 
