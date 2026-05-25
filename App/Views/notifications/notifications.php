@@ -137,7 +137,7 @@ function notificationMessage($notification) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'notifications'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'notifications'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-10 mx-auto">

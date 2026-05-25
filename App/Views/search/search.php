@@ -59,7 +59,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'search'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'search'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">

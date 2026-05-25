@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once __DIR__ . '/../../Controllers/PostController.php';
-require_once __DIR__ . '/../auth/partials/post-menu.php';
+require_once __DIR__ . '/../post/partials/post-menu.php';
 
 use App\Controllers\PostController;
 
@@ -190,7 +190,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <?php $activePage = 'hashtag'; include __DIR__ . '/../auth/partials/sidebar.php'; ?>
+                <?php $activePage = 'hashtag'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">
