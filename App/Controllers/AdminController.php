@@ -6,19 +6,39 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../Config/Database.php';
-require_once __DIR__ . '/../Models/AdminModel.php';
+require_once __DIR__ . '/../Models/AdminStatsModel.php';
+require_once __DIR__ . '/../Models/AdminReportModel.php';
+require_once __DIR__ . '/../Models/AdminMemberModel.php';
+require_once __DIR__ . '/../Models/AdminNotificationModel.php';
+require_once __DIR__ . '/../Models/AdminContentModel.php';
+require_once __DIR__ . '/../Models/AdminProfileModel.php';
 
-use App\Models\AdminModel;
+use App\Models\AdminStatsModel;
+use App\Models\AdminReportModel;
+use App\Models\AdminMemberModel;
+use App\Models\AdminContentModel;
+use App\Models\AdminNotificationModel;
+use App\Models\AdminProfileModel;
 use Database;
 use Exception;
 
 class AdminController {
-    private AdminModel $adminModel;
+    private AdminStatsModel $adminStatsModel;
+    private AdminReportModel $adminReportModel;
+    private AdminMemberModel $adminMemberModel;
+    private AdminContentModel $adminContentModel;
+    private AdminNotificationModel $adminNotificationModel;
+    private AdminProfileModel $adminProfileModel;
 
     public function __construct() {
         $database = new Database();
         $db = $database->connect();
-        $this->adminModel = new AdminModel($db);
+        $this->adminStatsModel = new AdminStatsModel($db);
+        $this->adminReportModel = new AdminReportModel($db);
+        $this->adminMemberModel = new AdminMemberModel($db);
+        $this->adminNotificationModel = new AdminNotificationModel($db);
+        $this->adminContentModel = new AdminContentModel($db, $this->adminNotificationModel);
+        $this->adminProfileModel = new AdminProfileModel($db);
     }
 
     // --- Helper dùng chung cho các API admin ---
@@ -82,7 +102,7 @@ class AdminController {
         }
 
         // Kiểm tra lại trong DB để tránh session cũ vẫn được dùng làm admin.
-        $user = $this->adminModel->getUserById($currentAdminId);
+        $user = $this->adminMemberModel->getUserById($currentAdminId);
         if ($user && (int)$user['RoleID'] === 1 && (int)$user['IsActive'] === 1) {
             $_SESSION['role_id'] = 1;
             $_SESSION['role'] = $user['RoleName'];
@@ -113,7 +133,7 @@ class AdminController {
         }
 
         try {
-            $this->adminModel->addAdminLog($adminUserId, $action, $targetType, $targetId, $description);
+            $this->adminProfileModel->addAdminLog($adminUserId, $action, $targetType, $targetId, $description);
         } catch (Exception $e) {
             // Logging must not break the admin action itself.
         }
@@ -184,12 +204,12 @@ class AdminController {
         }
 
         try {
-            $stats = $this->adminModel->getOverviewStats();
-            $reports = $this->adminModel->getReportsList();
-            $members = $this->adminModel->getMembersList();
-            $roles = $this->adminModel->getAllRoles();
+            $stats = $this->adminStatsModel->getOverviewStats();
+            $reports = $this->adminReportModel->getReportsList();
+            $members = $this->adminMemberModel->getMembersList();
+            $roles = $this->adminMemberModel->getAllRoles();
             $currentAdminId = $this->currentAdminId();
-            $currentAdmin = $this->adminModel->getAdminProfileById($currentAdminId);
+            $currentAdmin = $this->adminProfileModel->getAdminProfileById($currentAdminId);
         } catch (Exception $e) {
             $stats = [
                 'users' => 0,
@@ -225,13 +245,13 @@ class AdminController {
         }
 
         $currentAdminId = $this->currentAdminId();
-        $admin = $this->adminModel->getAdminProfileById($currentAdminId);
+        $admin = $this->adminProfileModel->getAdminProfileById($currentAdminId);
         if (!$admin) {
             header('Location: ' . app_url('App/Views/auth/login.php'));
             exit();
         }
 
-        $logActions = $this->adminModel->getAdminLogActions($currentAdminId);
+        $logActions = $this->adminProfileModel->getAdminLogActions($currentAdminId);
         require_once __DIR__ . '/../Views/admin/admin-profile.php';
     }
 
@@ -243,7 +263,7 @@ class AdminController {
             return;
         }
 
-        $admin = $this->adminModel->getAdminProfileById($this->currentAdminId());
+        $admin = $this->adminProfileModel->getAdminProfileById($this->currentAdminId());
         if (!$admin) {
             $this->jsonResponse(false, 'Không tìm thấy hồ sơ admin.');
             return;
@@ -267,13 +287,13 @@ class AdminController {
 
         $adminUserId = $this->currentAdminId();
         try {
-            if (!$this->adminModel->updateAdminFullName($adminUserId, $fullName)) {
+            if (!$this->adminProfileModel->updateAdminFullName($adminUserId, $fullName)) {
                 $this->jsonResponse(false, 'Không thể cập nhật FullName.');
                 return;
             }
 
             $_SESSION['user_name'] = $fullName;
-            $admin = $this->adminModel->getAdminProfileById($adminUserId);
+            $admin = $this->adminProfileModel->getAdminProfileById($adminUserId);
             $this->logAdminAction('UpdateProfile', 'AdminProfile', $adminUserId, 'Cập nhật FullName hồ sơ admin.');
             $this->jsonResponse(true, 'Cập nhật FullName thành công.', ['profile' => $this->adminProfilePayload($admin)]);
         } catch (Exception $e) {
@@ -296,7 +316,7 @@ class AdminController {
 
         $adminUserId = $this->currentAdminId();
         try {
-            if (!$this->adminModel->updateAdminBio($adminUserId, $bio)) {
+            if (!$this->adminProfileModel->updateAdminBio($adminUserId, $bio)) {
                 $this->jsonResponse(false, 'Không thể cập nhật bio.');
                 return;
             }
@@ -317,14 +337,14 @@ class AdminController {
         $adminUserId = $this->currentAdminId();
         try {
             $avatarPath = $this->saveAdminAvatar($adminUserId);
-            if (!$this->adminModel->updateAdminAvatar($adminUserId, $avatarPath)) {
+            if (!$this->adminProfileModel->updateAdminAvatar($adminUserId, $avatarPath)) {
                 $this->jsonResponse(false, 'Không thể cập nhật avatar.');
                 return;
             }
 
             $_SESSION['avatar'] = $avatarPath;
             $_SESSION['ProfilePictureUrl'] = $avatarPath;
-            $admin = $this->adminModel->getAdminProfileById($adminUserId);
+            $admin = $this->adminProfileModel->getAdminProfileById($adminUserId);
             $this->logAdminAction('UpdateAvatar', 'AdminProfile', $adminUserId, 'Cập nhật avatar hồ sơ admin.');
             $this->jsonResponse(true, 'Cập nhật avatar thành công.', ['profile' => $this->adminProfilePayload($admin)]);
         } catch (Exception $e) {
@@ -360,7 +380,7 @@ class AdminController {
         }
 
         $adminUserId = $this->currentAdminId();
-        $currentHash = $this->adminModel->getUserPasswordHash($adminUserId);
+        $currentHash = $this->adminProfileModel->getUserPasswordHash($adminUserId);
         if (!$currentHash || !password_verify($currentPassword, $currentHash)) {
             $this->jsonResponse(false, 'Mật khẩu hiện tại không đúng.');
             return;
@@ -368,7 +388,7 @@ class AdminController {
 
         try {
             $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
-            if (!$this->adminModel->updateAdminPassword($adminUserId, $newHash)) {
+            if (!$this->adminProfileModel->updateAdminPassword($adminUserId, $newHash)) {
                 $this->jsonResponse(false, 'Không thể đổi mật khẩu.');
                 return;
             }
@@ -390,8 +410,8 @@ class AdminController {
 
         try {
             $adminUserId = $this->currentAdminId();
-            $logs = $this->adminModel->getAdminLogs($adminUserId, $_GET['keyword'] ?? '', $_GET['actionFilter'] ?? '', 50);
-            $actions = $this->adminModel->getAdminLogActions($adminUserId);
+            $logs = $this->adminProfileModel->getAdminLogs($adminUserId, $_GET['keyword'] ?? '', $_GET['actionFilter'] ?? '', 50);
+            $actions = $this->adminProfileModel->getAdminLogActions($adminUserId);
             $this->jsonResponse(true, 'Lấy admin logs thành công', [
                 'logs' => $logs,
                 'actions' => $actions
@@ -408,7 +428,7 @@ class AdminController {
         }
 
         try {
-            $this->jsonResponse(true, 'Lấy thống kê tổng quan thành công', $this->adminModel->getOverviewStats());
+            $this->jsonResponse(true, 'Lấy thống kê tổng quan thành công', $this->adminStatsModel->getOverviewStats());
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể lấy thống kê tổng quan.');
         }
@@ -424,7 +444,7 @@ class AdminController {
 
         $metric = isset($_GET['metric']) ? trim((string)$_GET['metric']) : '';
         try {
-            $detail = $this->adminModel->getOverviewDetail($metric);
+            $detail = $this->adminStatsModel->getOverviewDetail($metric);
             if ($detail === null) {
                 echo json_encode(['success' => false, 'message' => 'Metric không hợp lệ.'], JSON_UNESCAPED_UNICODE);
                 return;
@@ -453,7 +473,7 @@ class AdminController {
                 $limit = 5;
             }
 
-            $this->jsonResponse(true, 'Lấy top ranking thành công', $this->adminModel->getStatisticsTopRankings($limit));
+            $this->jsonResponse(true, 'Lấy top ranking thành công', $this->adminStatsModel->getStatisticsTopRankings($limit));
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể lấy top ranking.');
         }
@@ -466,7 +486,7 @@ class AdminController {
         }
 
         try {
-            $this->jsonResponse(true, 'Lấy dữ liệu biểu đồ thành công', $this->adminModel->getStatisticsChartData());
+            $this->jsonResponse(true, 'Lấy dữ liệu biểu đồ thành công', $this->adminStatsModel->getStatisticsChartData());
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể lấy dữ liệu biểu đồ.');
         }
@@ -479,7 +499,7 @@ class AdminController {
         }
 
         try {
-            $this->jsonResponse(true, 'Lấy activity insights thành công', $this->adminModel->getStatisticsActivityInsights());
+            $this->jsonResponse(true, 'Lấy activity insights thành công', $this->adminStatsModel->getStatisticsActivityInsights());
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể lấy activity insights.');
         }
@@ -497,7 +517,7 @@ class AdminController {
         $roleId = $_GET['roleId'] ?? '';
 
         try {
-            $members = $this->adminModel->getMembersList($keyword, $roleId);
+            $members = $this->adminMemberModel->getMembersList($keyword, $roleId);
             $this->jsonResponse(true, 'Lấy danh sách thành viên thành công', [
                 'members' => $members,
                 'currentAdminId' => $this->currentAdminId()
@@ -516,7 +536,7 @@ class AdminController {
         }
 
         try {
-            $notifications = $this->adminModel->getAdminNotifications(
+            $notifications = $this->adminNotificationModel->getAdminNotifications(
                 $_GET['keyword'] ?? '',
                 $_GET['typeName'] ?? '',
                 $_GET['isRead'] ?? ''
@@ -540,7 +560,7 @@ class AdminController {
         }
 
         try {
-            $notification = $this->adminModel->getAdminNotificationDetail($notificationId);
+            $notification = $this->adminNotificationModel->getAdminNotificationDetail($notificationId);
             if (!$notification) {
                 $this->jsonResponse(false, 'Không tìm thấy thông báo.');
                 return;
@@ -565,7 +585,7 @@ class AdminController {
         }
 
         try {
-            if (!$this->adminModel->deleteAdminNotification($notificationId)) {
+            if (!$this->adminNotificationModel->deleteAdminNotification($notificationId)) {
                 $this->jsonResponse(false, 'Thông báo không tồn tại.');
                 return;
             }
@@ -589,7 +609,7 @@ class AdminController {
                 return;
             }
 
-            $users = $this->adminModel->searchNotificationReceivers($keyword, 20);
+            $users = $this->adminNotificationModel->searchNotificationReceivers($keyword, 20);
             $this->jsonResponse(true, 'Tìm người nhận thành công', $users);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể tìm người nhận.');
@@ -615,7 +635,7 @@ class AdminController {
         try {
             // Có thể gửi một người hoặc gửi hàng loạt cho các tài khoản đang hoạt động.
             if ($sendAll) {
-                $count = $this->adminModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
+                $count = $this->adminNotificationModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
                 $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho ' . $count . ' thành viên.');
                 $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => $count]);
                 return;
@@ -627,12 +647,12 @@ class AdminController {
                 return;
             }
 
-            if (!$this->adminModel->getActiveNotificationReceiverById($receiverUserId)) {
+            if (!$this->adminNotificationModel->getActiveNotificationReceiverById($receiverUserId)) {
                 $this->jsonResponse(false, 'Người nhận không tồn tại hoặc đang bị khóa.');
                 return;
             }
 
-            if (!$this->adminModel->createSystemNotification($receiverUserId, $adminUserId, $message)) {
+            if (!$this->adminNotificationModel->createSystemNotification($receiverUserId, $adminUserId, $message)) {
                 $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
                 return;
             }
@@ -672,7 +692,7 @@ class AdminController {
             return;
         }
 
-        $report = $this->adminModel->getReportById($reportId);
+        $report = $this->adminReportModel->getReportById($reportId);
         if (!$report) {
             $this->jsonResponse(false, 'Báo cáo không tồn tại.');
             return;
@@ -683,39 +703,39 @@ class AdminController {
             $updatedReports = [];
             // Mỗi action report có cách xử lý riêng nhưng đều trả ReportID để frontend cập nhật UI.
             if ($action === 'ignore') {
-                $this->adminModel->markReportResolved($reportId, $adminNote);
+                $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = [$reportId];
                 $msg = 'Báo cáo đã bị bỏ qua.';
             } elseif ($action === 'hide') {
                 $hidden = false;
                 if (!empty($report['PostID'])) {
-                    $this->adminModel->hidePostById((int)$report['PostID']);
+                    $this->adminReportModel->hidePostById((int)$report['PostID']);
                     // Khi một nội dung đã bị ẩn, các report pending liên quan cũng được hoàn tất.
                     $updatedReports = $this->mergeReportIds(
                         $updatedReports,
-                        $this->adminModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
+                        $this->adminReportModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
                     );
                     $hidden = true;
                 }
                 if (!empty($report['CommentID'])) {
-                    $this->adminModel->hideCommentById((int)$report['CommentID']);
+                    $this->adminReportModel->hideCommentById((int)$report['CommentID']);
                     $updatedReports = $this->mergeReportIds(
                         $updatedReports,
-                        $this->adminModel->resolvePendingReportsByCommentId((int)$report['CommentID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
+                        $this->adminReportModel->resolvePendingReportsByCommentId((int)$report['CommentID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
                     );
                     $hidden = true;
                 }
-                $this->adminModel->markReportResolved($reportId, $adminNote);
+                $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = $this->mergeReportIds($updatedReports, [$reportId]);
                 if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ContentHidden');
+                    $this->adminNotificationModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ContentHidden');
                 }
                 $msg = $hidden ? 'Nội dung đã được ẩn và báo cáo được đánh dấu hoàn tất.' : 'Không có nội dung để ẩn; báo cáo đã được đánh dấu hoàn tất.';
             } else {
-                $this->adminModel->markReportResolved($reportId, $adminNote);
+                $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = [$reportId];
                 if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ReportWarning');
+                    $this->adminNotificationModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ReportWarning');
                 }
                 $msg = 'Người dùng đã được cảnh cáo; báo cáo đã xử lý.';
             }
@@ -748,7 +768,7 @@ class AdminController {
         }
 
         try {
-            $detail = $this->adminModel->getReportDetailById($reportId);
+            $detail = $this->adminReportModel->getReportDetailById($reportId);
             if (!$detail) {
                 $this->jsonResponse(false, 'Không tìm thấy báo cáo');
                 return;
@@ -768,7 +788,7 @@ class AdminController {
             }
 
             try {
-                $roles = $this->adminModel->getAllRoles();
+                $roles = $this->adminMemberModel->getAllRoles();
                 $this->jsonResponse(true, 'Lấy danh sách vai trò thành công', ['roles' => $roles]);
             } catch (Exception $e) {
                 $this->jsonResponse(false, 'Lỗi khi lấy danh sách vai trò.');
@@ -797,30 +817,30 @@ class AdminController {
             return;
         }
 
-        $user = $this->adminModel->getUserById($userId);
+        $user = $this->adminMemberModel->getUserById($userId);
         if (!$user) {
             $this->jsonResponse(false, 'Người dùng không tồn tại.');
             return;
         }
 
-        $role = $this->adminModel->getRoleById($roleId);
+        $role = $this->adminMemberModel->getRoleById($roleId);
         if (!$role) {
             $this->jsonResponse(false, 'Vai trò không hợp lệ.');
             return;
         }
 
         try {
-            $result = $this->adminModel->updateUserRole($userId, $roleId);
+            $result = $this->adminMemberModel->updateUserRole($userId, $roleId);
             if (!$result) {
                 $this->jsonResponse(false, 'Cập nhật thất bại.');
                 return;
             }
 
             if ($currentAdminId) {
-                $this->adminModel->createNotificationByType($userId, $currentAdminId, 'RoleChanged');
+                $this->adminNotificationModel->createNotificationByType($userId, $currentAdminId, 'RoleChanged');
             }
 
-            $updatedUser = $this->adminModel->getUserById($userId);
+            $updatedUser = $this->adminMemberModel->getUserById($userId);
             $this->logAdminAction('UpdateUserRole', 'User', $userId, 'Cập nhật vai trò user #' . $userId . ' thành ' . $role['RoleName'] . '.');
             $this->jsonResponse(true, 'Cập nhật vai trò thành công', [
                 'UserID' => $userId,
@@ -854,7 +874,7 @@ class AdminController {
             return;
         }
 
-        $user = $this->adminModel->getUserById($userId);
+        $user = $this->adminMemberModel->getUserById($userId);
         if (!$user) {
             $this->jsonResponse(false, 'Người dùng không tồn tại.');
             return;
@@ -862,7 +882,7 @@ class AdminController {
 
         try {
             $updatedReports = [];
-            $result = $this->adminModel->updateUserActiveStatus($userId, $isActive);
+            $result = $this->adminMemberModel->updateUserActiveStatus($userId, $isActive);
             if (!$result) {
                 $this->jsonResponse(false, 'Cập nhật trạng thái tài khoản thất bại.');
                 return;
@@ -870,15 +890,15 @@ class AdminController {
 
             if ($currentAdminId) {
                 $typeName = $isActive === 1 ? 'AccountUnlocked' : 'AccountLocked';
-                $this->adminModel->createNotificationByType($userId, $currentAdminId, $typeName);
+                $this->adminNotificationModel->createNotificationByType($userId, $currentAdminId, $typeName);
             }
 
             if ($isActive === 0) {
                 // Khóa tài khoản xong thì các report pending về user này không cần xử lý lại.
-                $updatedReports = $this->adminModel->resolvePendingReportsByReportedUserId($userId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
+                $updatedReports = $this->adminReportModel->resolvePendingReportsByReportedUserId($userId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
 
-            $updatedUser = $this->adminModel->getUserById($userId);
+            $updatedUser = $this->adminMemberModel->getUserById($userId);
             $this->logAdminAction($isActive === 1 ? 'UnlockUser' : 'LockUser', 'User', $userId, ($isActive === 1 ? 'Mở khóa' : 'Khóa') . ' user #' . $userId . '.');
             if ($isActive === 0 && !empty($updatedReports)) {
                 $this->logAdminAction('AutoResolveReports', 'User', $userId, 'Khóa tài khoản và tự động resolve các report liên quan.');
@@ -904,7 +924,7 @@ class AdminController {
         }
 
         try {
-            $posts = $this->adminModel->getAdminContentPosts($_GET['keyword'] ?? '', $_GET['status'] ?? '', $_GET['privacy'] ?? '');
+            $posts = $this->adminContentModel->getAdminContentPosts($_GET['keyword'] ?? '', $_GET['status'] ?? '', $_GET['privacy'] ?? '');
             $this->jsonResponse(true, 'Lấy danh sách bài viết thành công', ['posts' => $posts]);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Lỗi khi lấy danh sách bài viết.');
@@ -924,7 +944,7 @@ class AdminController {
         }
 
         try {
-            $post = $this->adminModel->getAdminContentPostDetail($postId);
+            $post = $this->adminContentModel->getAdminContentPostDetail($postId);
             if (!$post) {
                 $this->jsonResponse(false, 'Bài viết không tồn tại.');
                 return;
@@ -950,7 +970,7 @@ class AdminController {
         }
 
         try {
-            $post = $this->adminModel->updatePostHiddenStatus($postId, $isHidden, $this->currentAdminId());
+            $post = $this->adminContentModel->updatePostHiddenStatus($postId, $isHidden, $this->currentAdminId());
             if (!$post) {
                 $this->jsonResponse(false, 'Bài viết không tồn tại.');
                 return;
@@ -958,7 +978,7 @@ class AdminController {
             $updatedReports = [];
             if ($isHidden === 1) {
                 // Ẩn bài viết từ tab nội dung cũng đồng bộ trạng thái các report liên quan.
-                $updatedReports = $this->adminModel->resolvePendingReportsByPostId($postId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
+                $updatedReports = $this->adminReportModel->resolvePendingReportsByPostId($postId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
             $this->logAdminAction($isHidden === 1 ? 'HidePost' : 'ShowPost', 'Post', $postId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bài viết #' . $postId . '.');
             if ($isHidden === 1 && !empty($updatedReports)) {
@@ -988,8 +1008,8 @@ class AdminController {
 
         try {
             // Lưu lại các report pending trước khi xóa để frontend biết dòng nào cần cập nhật.
-            $updatedReports = $this->adminModel->getPendingReportIdsByPostId($postId);
-            if (!$this->adminModel->deleteAdminContentPost($postId, $this->currentAdminId())) {
+            $updatedReports = $this->adminReportModel->getPendingReportIdsByPostId($postId);
+            if (!$this->adminContentModel->deleteAdminContentPost($postId, $this->currentAdminId())) {
                 $this->jsonResponse(false, 'Bài viết không tồn tại.');
                 return;
             }
@@ -1013,7 +1033,7 @@ class AdminController {
         }
 
         try {
-            $comments = $this->adminModel->getAdminContentComments($_GET['keyword'] ?? '', $_GET['status'] ?? '');
+            $comments = $this->adminContentModel->getAdminContentComments($_GET['keyword'] ?? '', $_GET['status'] ?? '');
             $this->jsonResponse(true, 'Lấy danh sách bình luận thành công', ['comments' => $comments]);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Lỗi khi lấy danh sách bình luận.');
@@ -1033,7 +1053,7 @@ class AdminController {
         }
 
         try {
-            $comment = $this->adminModel->getAdminContentCommentDetail($commentId);
+            $comment = $this->adminContentModel->getAdminContentCommentDetail($commentId);
             if (!$comment) {
                 $this->jsonResponse(false, 'Bình luận không tồn tại.');
                 return;
@@ -1059,7 +1079,7 @@ class AdminController {
         }
 
         try {
-            $comment = $this->adminModel->updateCommentHiddenStatus($commentId, $isHidden, $this->currentAdminId());
+            $comment = $this->adminContentModel->updateCommentHiddenStatus($commentId, $isHidden, $this->currentAdminId());
             if (!$comment) {
                 $this->jsonResponse(false, 'Bình luận không tồn tại.');
                 return;
@@ -1067,7 +1087,7 @@ class AdminController {
             $updatedReports = [];
             if ($isHidden === 1) {
                 // Ẩn bình luận cũng tự hoàn tất các report đang chờ của bình luận đó.
-                $updatedReports = $this->adminModel->resolvePendingReportsByCommentId($commentId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
+                $updatedReports = $this->adminReportModel->resolvePendingReportsByCommentId($commentId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
             $this->logAdminAction($isHidden === 1 ? 'HideComment' : 'ShowComment', 'Comment', $commentId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bình luận #' . $commentId . '.');
             if ($isHidden === 1 && !empty($updatedReports)) {
@@ -1097,8 +1117,8 @@ class AdminController {
 
         try {
             // Comment có thể có nhiều comment con, nên model trả về danh sách ID đã xóa.
-            $updatedReports = $this->adminModel->getPendingReportIdsByCommentId($commentId);
-            $deletedCommentIds = $this->adminModel->deleteAdminContentComment($commentId, $this->currentAdminId());
+            $updatedReports = $this->adminReportModel->getPendingReportIdsByCommentId($commentId);
+            $deletedCommentIds = $this->adminContentModel->deleteAdminContentComment($commentId, $this->currentAdminId());
             if (!$deletedCommentIds) {
                 $this->jsonResponse(false, 'Bình luận không tồn tại.');
                 return;
@@ -1124,7 +1144,7 @@ class AdminController {
         }
 
         try {
-            $hashtags = $this->adminModel->getAdminContentHashtags($_GET['keyword'] ?? '', $_GET['status'] ?? '');
+            $hashtags = $this->adminContentModel->getAdminContentHashtags($_GET['keyword'] ?? '', $_GET['status'] ?? '');
             $this->jsonResponse(true, 'Lấy danh sách hashtag thành công', ['hashtags' => $hashtags]);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Lỗi khi lấy danh sách hashtag.');
@@ -1146,7 +1166,7 @@ class AdminController {
         }
 
         try {
-            $hashtag = $this->adminModel->updateHashtagHiddenStatus($hashtagId, $isHidden);
+            $hashtag = $this->adminContentModel->updateHashtagHiddenStatus($hashtagId, $isHidden);
             if (!$hashtag) {
                 $this->jsonResponse(false, 'Hashtag không tồn tại.');
                 return;
@@ -1172,7 +1192,7 @@ class AdminController {
         }
 
         try {
-            if (!$this->adminModel->deleteAdminContentHashtag($hashtagId)) {
+            if (!$this->adminContentModel->deleteAdminContentHashtag($hashtagId)) {
                 $this->jsonResponse(false, 'Hashtag không tồn tại.');
                 return;
             }
