@@ -21,7 +21,10 @@ class AdminController {
         $this->adminModel = new AdminModel($db);
     }
 
+    // --- Helper dùng chung cho các API admin ---
+
     private function jsonResponse(bool $success, string $message, $data = null): void {
+        // Format response JSON thống nhất cho các request AJAX.
         header('Content-Type: application/json; charset=utf-8');
         $response = [
             'success' => $success,
@@ -39,6 +42,7 @@ class AdminController {
     }
 
     private function jsonPayload(): array {
+        // Đọc body JSON từ frontend, nếu không phải JSON thì trả mảng rỗng.
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
         if (stripos($contentType, 'application/json') === false) {
             return [];
@@ -77,6 +81,7 @@ class AdminController {
             return false;
         }
 
+        // Kiểm tra lại trong DB để tránh session cũ vẫn được dùng làm admin.
         $user = $this->adminModel->getUserById($currentAdminId);
         if ($user && (int)$user['RoleID'] === 1 && (int)$user['IsActive'] === 1) {
             $_SESSION['role_id'] = 1;
@@ -115,6 +120,7 @@ class AdminController {
     }
 
     private function mergeReportIds(array ...$sets): array {
+        // Gộp các ReportID bị ảnh hưởng để frontend chỉ cập nhật đúng các dòng cần đổi.
         $merged = [];
         foreach ($sets as $set) {
             foreach ($set as $id) {
@@ -128,6 +134,7 @@ class AdminController {
     }
 
     private function saveAdminAvatar(int $adminUserId): string {
+        // Kiểm tra file upload kỹ hơn vì avatar là dữ liệu người dùng gửi lên server.
         if (empty($_FILES['avatar']) || $_FILES['avatar']['error'] === UPLOAD_ERR_NO_FILE) {
             throw new Exception('Vui lòng chọn ảnh avatar.');
         }
@@ -167,6 +174,8 @@ class AdminController {
 
         return 'Public/uploads/avatars/' . $fileName;
     }
+
+    // --- Trang dashboard và admin profile ---
 
     public function index() {
         if (!$this->isAdmin()) {
@@ -225,6 +234,8 @@ class AdminController {
         $logActions = $this->adminModel->getAdminLogActions($currentAdminId);
         require_once __DIR__ . '/../Views/admin/admin-profile.php';
     }
+
+    // --- API cập nhật thông tin admin ---
 
     public function getAdminProfile(): void {
         if (!$this->isAdmin()) {
@@ -337,6 +348,7 @@ class AdminController {
             return;
         }
 
+        // Đổi mật khẩu chỉ cho phép khi mật khẩu hiện tại khớp với hash trong DB.
         if (strlen($newPassword) < 8) {
             $this->jsonResponse(false, 'Mật khẩu mới phải có ít nhất 8 ký tự.');
             return;
@@ -367,6 +379,8 @@ class AdminController {
             $this->jsonResponse(false, 'Lỗi khi đổi mật khẩu.');
         }
     }
+
+    // --- Admin logs và thống kê dashboard ---
 
     public function adminLogs(): void {
         if (!$this->isAdmin()) {
@@ -471,6 +485,8 @@ class AdminController {
         }
     }
 
+    // --- Quản lý thành viên ---
+
     public function listMembers(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
@@ -490,6 +506,8 @@ class AdminController {
             $this->jsonResponse(false, 'Lỗi khi lấy danh sách thành viên.');
         }
     }
+
+    // --- Quản lý thông báo ---
 
     public function listNotifications(): void {
         if (!$this->isAdmin()) {
@@ -595,6 +613,7 @@ class AdminController {
 
         $adminUserId = $this->currentAdminId();
         try {
+            // Có thể gửi một người hoặc gửi hàng loạt cho các tài khoản đang hoạt động.
             if ($sendAll) {
                 $count = $this->adminModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
                 $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho ' . $count . ' thành viên.');
@@ -624,6 +643,8 @@ class AdminController {
             $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
         }
     }
+
+    // --- Kiểm duyệt báo cáo ---
 
     public function processReport(): void {
         if (!$this->isAdmin()) {
@@ -660,6 +681,7 @@ class AdminController {
         try {
             $adminUserId = $this->currentAdminId();
             $updatedReports = [];
+            // Mỗi action report có cách xử lý riêng nhưng đều trả ReportID để frontend cập nhật UI.
             if ($action === 'ignore') {
                 $this->adminModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = [$reportId];
@@ -668,6 +690,7 @@ class AdminController {
                 $hidden = false;
                 if (!empty($report['PostID'])) {
                     $this->adminModel->hidePostById((int)$report['PostID']);
+                    // Khi một nội dung đã bị ẩn, các report pending liên quan cũng được hoàn tất.
                     $updatedReports = $this->mergeReportIds(
                         $updatedReports,
                         $this->adminModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
@@ -768,6 +791,7 @@ class AdminController {
             return;
         }
 
+        // Không cho admin tự đổi quyền của chính mình để tránh tự khóa quyền quản trị.
         if ($userId === $currentAdminId) {
             $this->jsonResponse(false, 'Bạn không thể thay đổi quyền hoặc khóa chính tài khoản đang đăng nhập.');
             return;
@@ -850,6 +874,7 @@ class AdminController {
             }
 
             if ($isActive === 0) {
+                // Khóa tài khoản xong thì các report pending về user này không cần xử lý lại.
                 $updatedReports = $this->adminModel->resolvePendingReportsByReportedUserId($userId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
 
@@ -869,6 +894,8 @@ class AdminController {
             $this->jsonResponse(false, 'Lỗi cơ sở dữ liệu.');
         }
     }
+
+    // --- Quản lý nội dung: bài viết, bình luận, hashtag ---
 
     public function listContentPosts(): void {
         if (!$this->isAdmin()) {
@@ -930,6 +957,7 @@ class AdminController {
             }
             $updatedReports = [];
             if ($isHidden === 1) {
+                // Ẩn bài viết từ tab nội dung cũng đồng bộ trạng thái các report liên quan.
                 $updatedReports = $this->adminModel->resolvePendingReportsByPostId($postId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
             $this->logAdminAction($isHidden === 1 ? 'HidePost' : 'ShowPost', 'Post', $postId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bài viết #' . $postId . '.');
@@ -959,6 +987,7 @@ class AdminController {
         }
 
         try {
+            // Lưu lại các report pending trước khi xóa để frontend biết dòng nào cần cập nhật.
             $updatedReports = $this->adminModel->getPendingReportIdsByPostId($postId);
             if (!$this->adminModel->deleteAdminContentPost($postId, $this->currentAdminId())) {
                 $this->jsonResponse(false, 'Bài viết không tồn tại.');
@@ -1037,6 +1066,7 @@ class AdminController {
             }
             $updatedReports = [];
             if ($isHidden === 1) {
+                // Ẩn bình luận cũng tự hoàn tất các report đang chờ của bình luận đó.
                 $updatedReports = $this->adminModel->resolvePendingReportsByCommentId($commentId, 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.');
             }
             $this->logAdminAction($isHidden === 1 ? 'HideComment' : 'ShowComment', 'Comment', $commentId, ($isHidden === 1 ? 'Ẩn' : 'Hiện') . ' bình luận #' . $commentId . '.');
@@ -1066,6 +1096,7 @@ class AdminController {
         }
 
         try {
+            // Comment có thể có nhiều comment con, nên model trả về danh sách ID đã xóa.
             $updatedReports = $this->adminModel->getPendingReportIdsByCommentId($commentId);
             $deletedCommentIds = $this->adminModel->deleteAdminContentComment($commentId, $this->currentAdminId());
             if (!$deletedCommentIds) {
@@ -1153,6 +1184,7 @@ class AdminController {
     }
 }
 
+// Router nhỏ cho các action AJAX của trang admin.
 if (isset($_GET['action'])) {
     $controller = new AdminController();
 

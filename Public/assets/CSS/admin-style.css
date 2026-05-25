@@ -175,6 +175,7 @@
     font-size: 1.5rem; 
 }
 
+/* Khu vực tổng quan và thống kê trong dashboard admin. */
 .overview-header,
 .statistics-section-heading {
     width: min(100%, 1380px);
@@ -582,6 +583,7 @@
     pointer-events: none;
 }
 
+/* Toast và trạng thái loading dùng chung cho các tab admin. */
 .admin-toast {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1038,6 +1040,7 @@
     white-space: nowrap;
 }
 
+/* Bảng report và modal chi tiết report. */
 .admin-note-chip-list {
     display: flex;
     flex-wrap: wrap;
@@ -1609,6 +1612,7 @@
     box-shadow: 0 0 0 0.2rem rgba(217, 140, 163, 0.22);
 }
 
+/* Quản lý thành viên */
 .member-toolbar {
     border-bottom: 1px solid rgba(121, 91, 74, 0.12);
     padding-bottom: 1rem;
@@ -1829,6 +1833,7 @@
     border-radius: 18px;
 }
 
+/* Các bảng quản lý nội dung: bài viết, bình luận, hashtag. */
 .content-admin-tabs {
     gap: 0.45rem;
     border-bottom: 1px solid rgba(121, 91, 74, 0.12);
@@ -2028,6 +2033,7 @@
     min-width: 860px;
 }
 
+/* Quản lý thông báo */
 .notification-admin-container {
     width: min(100%, 1380px);
     margin-left: auto;
@@ -2216,6 +2222,7 @@
     justify-content: center;
 }
 
+/* Admin profile */
 .admin-profile-main {
     min-height: calc(100vh - 86px);
 }
@@ -2398,12 +2405,12 @@
     vertical-align: middle;
 }
 
-#adminPrintArea,
-#membersPrintArea {
+#adminPrintArea {
     display: none;
 }
 
 @media (max-width: 767px) {
+    /* Responsive chính cho dashboard/admin profile trên mobile. */
     body.admin-body {
         overflow-x: hidden;
     }
@@ -2894,19 +2901,17 @@
 }
 
 @media print {
+    /* Khi in báo cáo, chỉ hiện vùng print do JS tạo ra. */
     body * {
         visibility: hidden !important;
     }
 
     #adminPrintArea,
-    #adminPrintArea *,
-    #membersPrintArea,
-    #membersPrintArea * {
+    #adminPrintArea * {
         visibility: visible !important;
     }
 
-    #adminPrintArea,
-    #membersPrintArea {
+    #adminPrintArea {
         display: block !important;
         position: absolute;
         inset: 0;
@@ -2916,8 +2921,7 @@
         font-family: Arial, sans-serif;
     }
 
-    #adminPrintArea h1,
-    #membersPrintArea h1 {
+    #adminPrintArea h1 {
         font-size: 22px;
         margin-bottom: 8px;
     }
@@ -2927,13 +2931,11 @@
         margin: 18px 0 8px;
     }
 
-    #adminPrintArea p,
-    #membersPrintArea p {
+    #adminPrintArea p {
         margin-bottom: 18px;
     }
 
-    #adminPrintArea table,
-    #membersPrintArea table {
+    #adminPrintArea table {
         width: 100%;
         border-collapse: collapse;
         font-size: 11px;
@@ -2941,16 +2943,13 @@
     }
 
     #adminPrintArea th,
-    #adminPrintArea td,
-    #membersPrintArea th,
-    #membersPrintArea td {
+    #adminPrintArea td {
         border: 1px solid #999;
         padding: 6px;
         text-align: left;
     }
 
-    #adminPrintArea th,
-    #membersPrintArea th {
+    #adminPrintArea th {
         background: #f0f0f0;
     }
 }

@@ -58,7 +58,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
         <div class="container-fluid px-4 px-lg-5">
             <div class="row align-items-center py-3">
                 <div class="col-4 d-flex align-items-center">
-                    <div class="brand-logo">ARCHIVE</div>
+                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php#overview" class="brand-logo text-decoration-none admin-dashboard-logo">ARCHIVE</a>
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-stars"></i></div>
@@ -107,8 +107,10 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
         </div>
 
         <div class="tab-content">
+            <?php // --- Tổng quan dashboard --- ?>
             <div class="tab-pane fade show active" id="overview" role="tabpanel">
                 <?php
+                    // Cấu hình card tổng quan để thêm/bớt chỉ cần sửa trong mảng này.
                     $overviewCards = [
                         ['key' => 'totalUsers', 'label' => 'Tổng thành viên', 'icon' => 'bi-people', 'value' => $stats['totalUsers'] ?? 0],
                         ['key' => 'activeUsers', 'label' => 'Tài khoản hoạt động', 'icon' => 'bi-person-check', 'value' => $stats['activeUsers'] ?? 0],
@@ -144,6 +146,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </div>
             </div>
 
+            <?php // --- Thống kê --- ?>
             <div class="tab-pane fade" id="statistics" role="tabpanel">
                 <div class="statistics-shell">
                     <div class="admin-tab-toolbar">
@@ -261,6 +264,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </div>
             </div>
 
+            <?php // --- Kiểm duyệt báo cáo --- ?>
             <div class="tab-pane fade" id="reports" role="tabpanel">
                 <div class="admin-table-container report-table-container">
                     <div class="admin-tab-toolbar mb-3">
@@ -370,6 +374,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </div>
             </div>
 
+            <?php // --- Quản lý nội dung --- ?>
             <div class="tab-pane fade" id="content" role="tabpanel">
                 <div class="admin-table-container content-admin-container">
                     <ul class="nav nav-pills content-admin-tabs mb-3" id="contentAdminTab" role="tablist">
@@ -505,6 +510,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </div>
             </div>
 
+            <?php // --- Quản lý thông báo --- ?>
             <div class="tab-pane fade" id="notifications" role="tabpanel">
                 <div class="admin-table-container notification-admin-container">
                     <div class="admin-tab-toolbar mb-3">
@@ -562,6 +568,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 </div>
             </div>
 
+            <?php // --- Quản lý thành viên --- ?>
             <div class="tab-pane fade" id="members" role="tabpanel">
                 <div class="admin-table-container member-table-container">
                     <div class="member-toolbar d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-lg-center mb-3">
@@ -649,6 +656,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
 
     <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
 
+    <?php // --- Modal dùng chung cho các thao tác admin --- ?>
     <div id="adminModal" class="admin-modal d-none" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="admin-modal-backdrop" data-admin-modal-close></div>
         <div class="admin-modal-container">
@@ -842,6 +850,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
     </div>
 
     <script>
+        // Gom các endpoint admin cho file JS dùng chung.
         window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";
         window.ADMIN_OVERVIEW_STATS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewStats";
         window.ADMIN_OVERVIEW_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewDetail";

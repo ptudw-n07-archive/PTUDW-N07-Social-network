@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
     const appUrl = path => APP_BASE_URL + String(path || '').replace(/^\/+/, '');
+
+    // --- Modal, toast và helper UI dùng chung ---
+
     const adminModal = document.getElementById('adminModal');
     const adminModalTitle = adminModal ? adminModal.querySelector('.admin-modal-title') : null;
     const adminModalMessage = adminModal ? adminModal.querySelector('.admin-modal-message') : null;
@@ -79,23 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
         adminModalConfirm.textContent = confirmText;
         adminModalCancel.textContent = cancelText;
         adminModalCancel.style.display = 'inline-flex';
-        openModal();
-
-        return new Promise(resolve => {
-            modalResolve = resolve;
-        });
-    };
-
-    const showAlertModal = (message, title = 'Thông báo', confirmText = 'Đóng') => {
-        if (!adminModalTitle || !adminModalMessage || !adminModalConfirm || !adminModalCancel) {
-            showToast(message, 'info');
-            return Promise.resolve(true);
-        }
-
-        adminModalTitle.textContent = title;
-        adminModalMessage.textContent = message;
-        adminModalConfirm.textContent = confirmText;
-        adminModalCancel.style.display = 'none';
         openModal();
 
         return new Promise(resolve => {
@@ -274,6 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let notificationReceiverTimer = null;
     let notificationsLoaded = false;
 
+    // Escape dữ liệu trước khi render bằng innerHTML để hạn chế XSS.
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -325,8 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updateRealtimeClock();
     setInterval(updateRealtimeClock, 1000);
 
+    // --- Export CSV và in báo cáo ---
+
     const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const downloadCsv = (filename, headers, rows) => {
+        // Tự tạo file CSV ở trình duyệt để admin xuất báo cáo nhanh, không cần gọi server.
         const csv = [
             headers.join(','),
             ...rows.map(row => headers.map(header => csvCell(row[header])).join(','))
@@ -355,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const printTableReport = (title, headers, rows, introHtml = '') => {
+        // Dồn dữ liệu cần in vào một vùng riêng để CSS print chỉ hiện phần báo cáo.
         const printArea = ensurePrintArea();
         printArea.innerHTML = `
             <h1>${escapeHtml(title)}</h1>
@@ -378,6 +369,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (/^https?:\/\//i.test(path)) return path;
         return `${window.ADMIN_BASE_URL || APP_BASE_URL}${String(path).replace(/^\/+/, '')}`;
     };
+
+    // --- Quản lý thành viên ---
 
     const normalizeMember = member => {
         const isActive = Number(member.IsActive);
@@ -706,6 +699,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (memberRoleFilter) memberRoleFilter.addEventListener('change', fetchMembers);
     if (exportMembersCsvBtn) exportMembersCsvBtn.addEventListener('click', exportMembersCsv);
     if (printMembersBtn) printMembersBtn.addEventListener('click', printMembersReport);
+
+    // --- Quản lý thông báo ---
 
     const notificationPerson = (prefix, item) => {
         const userId = item[`${prefix}UserID`];
@@ -1093,6 +1088,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- Kiểm duyệt báo cáo ---
+
     const detailValue = value => escapeHtml(value || value === 0 ? value : '-');
 
     const detailItem = (label, value) => `
@@ -1126,6 +1123,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const renderReportDetail = detail => {
+        // Modal report gom cả thông tin người báo cáo, đối tượng và nội dung bị report.
         const post = detail.post || null;
         const comment = detail.comment || null;
         const reportedUser = detail.reportedUser || null;
@@ -1265,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     async function handleReportAction(reportId, action) {
+        // Xử lý report theo từng action rồi cập nhật lại dòng report ngay trên UI.
         const titleMap = {
             ignore: 'Bỏ qua báo cáo',
             hide: 'Ẩn nội dung được báo cáo',
@@ -1327,10 +1326,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function showReportDetails(reportId) {
-        openReportDetail(reportId);
-    }
-
     let currentReports = Array.from(document.querySelectorAll('#reports tbody tr[data-report]')).map(row => {
         try {
             return { ...JSON.parse(row.dataset.report || '{}'), row };
@@ -1340,6 +1335,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function markReportsResolved(reportIds) {
+        // Backend có thể trả nhiều ReportID khi auto-resolve, frontend đánh dấu luôn để khỏi reload.
         (reportIds || []).forEach(reportId => {
             const reportElement = document.getElementById(`report-row-${reportId}`);
             if (reportElement) {
@@ -1450,6 +1446,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentContentComments = [];
     let currentContentHashtags = [];
 
+    // --- Quản lý nội dung ---
+
     const contentEmptyRow = colspan => tableEmptyRow(colspan, 'Không tìm thấy dữ liệu phù hợp.', 'bi-folder2-open');
     const compactText = (value, max = 120) => {
         const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -1478,6 +1476,7 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     const fetchJson = async (url, options = {}) => {
+        // Dùng chung cho các request AJAX của trang admin.
         const res = await fetch(url, {
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json', ...(options.headers || {}) },
@@ -1514,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const renderAdminLogs = logs => {
+        // Admin logs hiển thị dạng timeline để xem lại thao tác gần đây.
         if (!adminLogsTableBody) return;
         if (!logs || logs.length === 0) {
             adminLogsTableBody.innerHTML = emptyStateHtml('Chưa có nhật ký hoạt động.', 'bi-clock-history');
@@ -1682,9 +1682,10 @@ document.addEventListener('DOMContentLoaded', function() {
         loadAdminLogs();
     }
 
+    // --- Tổng quan dashboard và thống kê ---
+
     const formatNumber = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
     const rosePalette = ['#d69096', '#795d4a', '#e8b4c3', '#8aa889', '#f0c88a', '#c75d72'];
-    let currentOverviewStats = {};
     let statisticsLoaded = false;
     let currentStatisticsRankings = {
         topPostsByLikes: [],
@@ -1704,7 +1705,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const updateOverviewStats = stats => {
         if (!stats) return;
-        currentOverviewStats = { ...currentOverviewStats, ...stats };
         document.querySelectorAll('[data-overview-stat]').forEach(element => {
             const key = element.dataset.overviewStat;
             if (Object.prototype.hasOwnProperty.call(stats, key)) {
@@ -2031,6 +2031,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const createOrUpdateChart = (canvasId, type, chartData, label) => {
+        // Chart.js được tạo lại khi đổi dữ liệu để tránh chồng nhiều biểu đồ lên cùng canvas.
         const canvas = document.getElementById(canvasId);
         if (!canvas || !window.Chart) return;
 
@@ -2138,6 +2139,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const loadStatistics = async () => {
+        // Chỉ tải thống kê khi mở tab, giúp trang admin nhẹ hơn lúc vào lần đầu.
         if (statisticsLoaded) return;
         statisticsLoaded = true;
         setRankingLoading();
@@ -2297,6 +2299,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // --- Render bảng quản lý nội dung ---
 
     const renderContentPostRow = post => {
         const thumbnail = post.ThumbnailUrl
@@ -2542,6 +2546,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const toggleContentHidden = async button => {
+        // Ẩn/hiện nội dung dùng chung cho post, comment và hashtag.
         const type = button.dataset.contentType;
         const id = Number(button.dataset.id);
         const nextHidden = Number(button.dataset.isHidden) === 1 ? 0 : 1;
@@ -2568,6 +2573,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const deleteContentItem = async button => {
+        // Xóa nội dung xong thì cập nhật lại bảng hiện tại, không reload cả trang.
         const type = button.dataset.contentType;
         const id = Number(button.dataset.id);
         const labelMap = { post: 'bài viết', comment: 'bình luận', hashtag: 'hashtag' };
@@ -2619,6 +2625,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (contentCommentStatusFilter) contentCommentStatusFilter.addEventListener('change', loadContentComments);
     if (contentHashtagStatusFilter) contentHashtagStatusFilter.addEventListener('change', loadContentHashtags);
 
+    // --- Điều hướng tab chính trong dashboard ---
+
     document.addEventListener('click', event => {
         const detailButton = event.target.closest('.btn-content-detail');
         const toggleButton = event.target.closest('.btn-content-toggle');
@@ -2631,7 +2639,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabLinks = document.querySelectorAll('button[data-bs-toggle="tab"]');
     tabLinks.forEach(tab => {
         tab.addEventListener('shown.bs.tab', event => {
-            console.log('Đã chuyển sang phân hệ: ' + event.target.getAttribute('data-bs-target'));
             if (event.target.getAttribute('data-bs-target') === '#content' && !contentLoaded) {
                 loadAllContent();
             }
@@ -2644,6 +2651,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    const dashboardLogo = document.querySelector('.admin-dashboard-logo');
+    if (dashboardLogo) {
+        dashboardLogo.addEventListener('click', event => {
+            const overviewTab = document.querySelector('#adminTab button[data-bs-target="#overview"]');
+            if (!overviewTab || !window.bootstrap) return;
+            event.preventDefault();
+            bootstrap.Tab.getOrCreateInstance(overviewTab).show();
+            if (window.history && window.location.hash !== '#overview') {
+                window.history.replaceState(null, '', '#overview');
+            }
+        });
+    }
 
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -2676,10 +2696,5 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOverviewStats();
     fetchMembers();
 
-    window.showConfirmModal = showConfirmModal;
-    window.showAlertModal = showAlertModal;
-    window.showToast = showToast;
-    window.showAdminNoteModal = showAdminNoteModal;
     window.handleReportAction = handleReportAction;
-    window.showReportDetails = showReportDetails;
 });
