@@ -7,21 +7,52 @@ use Google\Client;
 use Google\Service\Gmail;
 use Google\Service\Gmail\Message;
 
+function env_value(string $key, ?string $default = null): ?string
+{
+    if (function_exists('app_env')) {
+        $value = app_env($key, $default);
+        if ($value !== null && $value !== '') {
+            return $value;
+        }
+    }
+
+    $value = getenv($key);
+    return ($value !== false && $value !== '') ? $value : $default;
+}
+
 $to = 'nguyengiahan2202@gmail.com';
 $otp = (string) random_int(100000, 999999);
 
 try {
+    $clientId = env_value('GOOGLE_CLIENT_ID');
+    $clientSecret = env_value('GOOGLE_CLIENT_SECRET');
+    $refreshToken = env_value('GOOGLE_REFRESH_TOKEN');
+    $fromEmail = env_value('GMAIL_SENDER_EMAIL');
+    $fromName = env_value('GMAIL_SENDER_NAME', 'Archive');
+
+    if (!$clientId || !$clientSecret || !$refreshToken || !$fromEmail) {
+        throw new Exception('Missing env. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, GMAIL_SENDER_EMAIL.');
+    }
+
     $client = new Client();
-    $client->setClientId(app_env('GOOGLE_CLIENT_ID'));
-    $client->setClientSecret(app_env('GOOGLE_CLIENT_SECRET'));
+    $client->setClientId($clientId);
+    $client->setClientSecret($clientSecret);
     $client->setAccessType('offline');
     $client->setScopes(['https://www.googleapis.com/auth/gmail.send']);
-    $client->refreshToken(app_env('GOOGLE_REFRESH_TOKEN'));
+
+    $accessToken = $client->fetchAccessTokenWithRefreshToken($refreshToken);
+
+    if (isset($accessToken['error'])) {
+        throw new Exception('Token error: ' . json_encode($accessToken, JSON_PRETTY_PRINT));
+    }
+
+    $client->setAccessToken($accessToken);
+
+    if ($client->isAccessTokenExpired()) {
+        throw new Exception('Access token expired after refresh.');
+    }
 
     $service = new Gmail($client);
-
-    $fromEmail = app_env('GMAIL_SENDER_EMAIL');
-    $fromName = app_env('GMAIL_SENDER_NAME', 'Archive');
 
     $raw = "From: {$fromName} <{$fromEmail}>\r\n";
     $raw .= "To: {$to}\r\n";
@@ -39,6 +70,6 @@ try {
 } catch (Throwable $e) {
     echo "<pre>";
     echo "Send failed:\n";
-    echo $e->getMessage();
+    echo htmlspecialchars($e->getMessage());
     echo "</pre>";
 }
