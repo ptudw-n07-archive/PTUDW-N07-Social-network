@@ -6,6 +6,11 @@ function appUrl(path = "") {
 
 document.addEventListener("DOMContentLoaded", function () {
     const markAllReadBtn = document.getElementById("markAllReadBtn");
+    const badge = document.querySelector(".notification-badge");
+
+    if (badge) {
+        badge.remove();
+    }
 
     if (markAllReadBtn) {
         markAllReadBtn.addEventListener("click", function () {
@@ -29,13 +34,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     const subtitle = document.querySelector(".activity-subtitle");
                     if (subtitle) {
                         subtitle.innerText = `${data.unreadCount || 0} thông báo chưa đọc`;
-                    }
-
-                    const badge = document.querySelector(".notification-badge");
-                    if (badge && (data.unreadCount || 0) > 0) {
-                        badge.innerText = Math.min(data.unreadCount, 99);
-                    } else if (badge) {
-                        badge.remove();
                     }
 
                     if ((data.unreadCount || 0) === 0) {
@@ -78,14 +76,6 @@ document.addEventListener("DOMContentLoaded", function () {
                         subtitle.innerText = `${data.unreadCount || 0} thông báo chưa đọc`;
                     }
 
-                    const badge = document.querySelector(".notification-badge");
-                    if (badge) {
-                        if ((data.unreadCount || 0) > 0) {
-                            badge.innerText = Math.min(data.unreadCount, 99);
-                        } else {
-                            badge.remove();
-                        }
-                    }
                 });
         });
     });

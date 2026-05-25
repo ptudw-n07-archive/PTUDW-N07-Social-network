@@ -28,17 +28,30 @@ class NotificationController {
             exit();
         }
 
+        $notifications = $this->notificationModel->getNotificationsByUser($userId);
+        $this->acknowledgeBadge($userId, $notifications);
+
         return [
-            "notifications" => $this->notificationModel->getNotificationsByUser($userId),
+            "notifications" => $notifications,
             "unreadCount" => $this->notificationModel->countUnread($userId)
         ];
     }
 
     public function countUnreadForCurrentUser() {
+        return $this->countBadgeForCurrentUser();
+    }
+
+    public function countBadgeForCurrentUser() {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
             return 0;
+        }
+
+        $marker = $_SESSION['notification_badge_marker'][(int) $userId] ?? null;
+
+        if (is_array($marker) && !empty($marker['createdAt'])) {
+            return $this->notificationModel->countAfterMarker($userId, $marker['createdAt'], $marker['notificationId'] ?? 0);
         }
 
         return $this->notificationModel->countUnread($userId);
@@ -111,6 +124,11 @@ class NotificationController {
             exit();
         }
 
+        if ($this->isModerationNotification($notification)) {
+            header('Location: ' . app_url('App/Controllers/NotificationController.php?action=detail&id=' . urlencode((string) $notificationId)));
+            exit();
+        }
+
         $this->notificationModel->markAsRead($notificationId, $userId);
 
         if (!empty($notification['PostID'])) {
@@ -132,6 +150,51 @@ class NotificationController {
         header('Location: ' . app_url('App/Views/notifications/notifications.php'));
         exit();
     }
+
+    public function detail() {
+        $userId = $_SESSION['user_id'] ?? null;
+        $notificationId = $_GET['id'] ?? null;
+
+        if (!$userId) {
+            header('Location: ' . app_url('App/Views/auth/login.php'));
+            exit();
+        }
+
+        if (!$notificationId) {
+            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            exit();
+        }
+
+        $notification = $this->notificationModel->getModerationNotificationDetailByUser($notificationId, $userId);
+
+        if (!$notification) {
+            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            exit();
+        }
+
+        $this->notificationModel->markAsRead($notificationId, $userId);
+        $unreadNotificationCount = $this->countBadgeForCurrentUser();
+
+        require __DIR__ . '/../Views/notifications/detail.php';
+    }
+
+    private function isModerationNotification($notification) {
+        return in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
+            || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
+    }
+
+    private function acknowledgeBadge($userId, $notifications) {
+        if (empty($notifications)) {
+            return;
+        }
+
+        $newest = $notifications[0];
+
+        $_SESSION['notification_badge_marker'][(int) $userId] = [
+            'createdAt' => (string) ($newest['CreatedAt'] ?? ''),
+            'notificationId' => (int) ($newest['NotificationID'] ?? 0)
+        ];
+    }
 }
 
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
@@ -145,6 +208,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
         $controller->unreadCount();
     } elseif ($_GET['action'] === 'open') {
         $controller->open();
+    } elseif ($_GET['action'] === 'detail') {
+        $controller->detail();
     } else {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(["success" => false, "message" => "Action khong hop le."]);

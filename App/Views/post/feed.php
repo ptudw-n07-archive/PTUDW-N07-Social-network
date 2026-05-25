@@ -32,7 +32,7 @@ $followController = new \App\Controllers\FollowController();
 $suggestedUsers = $followController->getSuggestedUsers($currentUserId);
 
 $notificationController = new \App\Controllers\NotificationController();
-$unreadNotificationCount = $notificationController->countUnreadForCurrentUser();
+$unreadNotificationCount = $notificationController->countBadgeForCurrentUser();
 
 function assetPath($path, $default = '') {
     $path = trim((string) $path);

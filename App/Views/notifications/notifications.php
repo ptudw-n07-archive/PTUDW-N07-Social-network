@@ -159,13 +159,18 @@ function notificationMessage($notification) {
                     <?php if (!empty($notifications)): ?>
                         <?php foreach ($notifications as $notification): ?>
                             <?php
-                                $senderName = $notification['SenderName'] ?: ($notification['SenderUsername'] ?: 'Người dùng');
+                                $isModerationNotification = in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
+                                    || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
+                                $senderName = $isModerationNotification
+                                    ? 'Hệ thống'
+                                    : ($notification['SenderName'] ?: ($notification['SenderUsername'] ?: 'Người dùng'));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
                                 $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
+                                $avatarUrl = $isModerationNotification ? $openUrl : $profileUrl;
                             ?>
                             <div class="activity-item <?= $isUnread ? 'unread' : '' ?>" data-notification-id="<?= (int) $notification['NotificationID'] ?>">
-                                <a href="<?= htmlspecialchars($profileUrl, ENT_QUOTES, 'UTF-8') ?>" class="activity-avatar-link">
+                                <a href="<?= htmlspecialchars($avatarUrl, ENT_QUOTES, 'UTF-8') ?>" class="activity-avatar-link">
                                     <img
                                         src="<?= htmlspecialchars(notificationAvatar($notification['SenderAvatar'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                                         class="avatar"
@@ -219,7 +224,7 @@ function notificationMessage($notification) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260522-activity"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260525-badge"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
