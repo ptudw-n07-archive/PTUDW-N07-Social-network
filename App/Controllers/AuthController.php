@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Controllers; 
 
 if (session_status() == PHP_SESSION_NONE) {
@@ -9,7 +10,7 @@ if (session_status() == PHP_SESSION_NONE) {
 // Nhúng file cấu hình và file Model
 require_once __DIR__ . '/../../Config/Database.php'; 
 require_once __DIR__ . '/../Models/UserModel.php';     
-
+require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Models\UserModel;
 use Database;
 use PDOException;
