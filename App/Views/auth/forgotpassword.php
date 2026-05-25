@@ -3,6 +3,9 @@ require_once __DIR__ . '/../../../Config/Database.php';
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
+
+$resetEmail = $_SESSION['password_reset_email'] ?? '';
+$showResetForm = $resetEmail !== '';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -17,7 +20,7 @@ if (session_status() == PHP_SESSION_NONE) {
 
     <div class="login-container">
         <h2>Quên mật khẩu?</h2>
-        <p class="subtitle">Nhập email đăng ký để thiết lập mật khẩu mới</p>
+        <p class="subtitle">Nhập email đăng ký để nhận mã OTP đặt lại mật khẩu</p>
         
         <?php if(isset($_SESSION['error'])): ?>
             <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.1); border-radius: 4px;">
@@ -31,24 +34,53 @@ if (session_status() == PHP_SESSION_NONE) {
             </div>
         <?php endif; ?>
 
-        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=forgot" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=sendResetOtp" method="POST">
             <div class="form-group">
-                <label for="email"><i class=\"fa-regular fa-envelope\"></i> Email đã đăng ký</label>
-                <input type="email" id="email" name="email" placeholder="Nhập địa chỉ email của bạn" required>
+                <label for="email"><i class="fa-regular fa-envelope"></i> Email đã đăng ký</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Nhập địa chỉ email của bạn"
+                    value="<?php echo htmlspecialchars($resetEmail, ENT_QUOTES, 'UTF-8'); ?>"
+                    required
+                >
             </div>
 
-            <div class="form-group">
-                <label for="new_password"><i class=\"fa-solid fa-lock\"></i> Mật khẩu mới</label>
-                <input type="password" id="new_password" name="new_password" placeholder="Nhập mật khẩu mới" required>
-            </div>
-
-            <div class="form-group">
-                <label for="confirm_password"><i class=\"fa-solid fa-shield-halved\"></i> Xác nhận mật khẩu</label>
-                <input type="password" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu mới" required>
-            </div>
-
-            <button type="submit" class="btn-login">XÁC NHẬN ĐỔI MẬT KHẨU</button>
+            <button type="submit" class="btn-login"><?php echo $showResetForm ? 'GỬI LẠI MÃ OTP' : 'GỬI MÃ OTP'; ?></button>
         </form>
+
+        <?php if ($showResetForm): ?>
+            <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=resetWithOtp" method="POST" style="margin-top: 18px;">
+                <input type="hidden" name="email" value="<?php echo htmlspecialchars($resetEmail, ENT_QUOTES, 'UTF-8'); ?>">
+
+                <div class="form-group">
+                    <label for="otp"><i class="fa-solid fa-key"></i> Mã OTP</label>
+                    <input
+                        type="text"
+                        id="otp"
+                        name="otp"
+                        inputmode="numeric"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        placeholder="Nhập mã OTP 6 chữ số"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password"><i class="fa-solid fa-lock"></i> Mật khẩu mới</label>
+                    <input type="password" id="new_password" name="new_password" placeholder="Nhập mật khẩu mới" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password"><i class="fa-solid fa-shield-halved"></i> Xác nhận mật khẩu</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu mới" required>
+                </div>
+
+                <button type="submit" class="btn-login">XÁC NHẬN ĐỔI MẬT KHẨU</button>
+            </form>
+        <?php endif; ?>
 
         <div class="extra-links" style="justify-content: center; gap: 15px;">
             <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php">Quay lại Đăng nhập</a>

@@ -66,6 +66,19 @@ class UserModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    public function findByEmail(string $email) {
+        $query = "SELECT u.*, r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
+                  WHERE u.Email = :email
+                  LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     public function findById($userId) {
         $query = "SELECT u.*, r.RoleName
                   FROM " . $this->table . " u

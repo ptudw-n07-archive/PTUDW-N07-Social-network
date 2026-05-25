@@ -10,19 +10,28 @@ if (session_status() == PHP_SESSION_NONE) {
 // Nhúng file cấu hình và file Model
 require_once __DIR__ . '/../../Config/Database.php'; 
 require_once __DIR__ . '/../Models/UserModel.php';     
+require_once __DIR__ . '/../Models/PasswordResetOtpModel.php';
+require_once __DIR__ . '/../Services/GmailService.php';
 require_once __DIR__ . '/../../vendor/autoload.php';
+use App\Models\PasswordResetOtpModel;
 use App\Models\UserModel;
+use App\Services\GmailService;
 use Database;
 use PDOException;
+use Throwable;
 
 class AuthController {
     private $conn;
     private $userModel;
+    private PasswordResetOtpModel $passwordResetOtpModel;
+    private GmailService $gmailService;
 
     // Hàm khởi tạo nhận kết nối DB truyền vào
     public function __construct($db_connection) {
         $this->conn = $db_connection;
         $this->userModel = new UserModel($db_connection);
+        $this->passwordResetOtpModel = new PasswordResetOtpModel($db_connection);
+        $this->gmailService = new GmailService();
     }
 
     // Xử lý Đăng ký tài khoản
@@ -131,16 +140,73 @@ class AuthController {
         }
     }
 
-    // Xử lý Quên/Đổi mật khẩu (Đã thêm tính năng chặn trùng mật khẩu cũ)
-    // Xử lý Quên/Đổi mật khẩu (Đã tối ưu hóa kiểm tra mật khẩu cũ chuẩn bảo mật)
+    public function sendResetOtpProcess() {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        $email = trim($_POST['email'] ?? '');
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['error'] = "Vui lòng nhập email hợp lệ.";
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        $user = $this->userModel->findByEmail($email);
+        if (!$user) {
+            $_SESSION['error'] = "Không tìm thấy tài khoản nào liên kết với email này.";
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        $otp = (string) random_int(100000, 999999);
+        $otpHash = password_hash($otp, PASSWORD_DEFAULT);
+        $userId = (int) $user['UserID'];
+
+        if (!$this->passwordResetOtpModel->create($userId, $user['Email'], $otpHash)) {
+            $_SESSION['error'] = "Không thể tạo mã OTP lúc này.";
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        try {
+            $this->gmailService->sendOtp($user['Email'], $otp);
+        } catch (Throwable $e) {
+            $this->passwordResetOtpModel->invalidateActiveOtps($userId);
+            $_SESSION['error'] = "Không thể gửi OTP qua Gmail. Vui lòng thử lại.";
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        $_SESSION['password_reset_email'] = $user['Email'];
+        $_SESSION['success'] = "Mã OTP đã được gửi tới email của bạn. Mã có hiệu lực trong 5 phút.";
+        header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+        exit();
+    }
+
     public function forgotPasswordProcess() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = trim($_POST['email'] ?? '');
+            $email = trim($_POST['email'] ?? ($_SESSION['password_reset_email'] ?? ''));
+            $otp = preg_replace('/\D+/', '', $_POST['otp'] ?? '');
             $new_password = $_POST['new_password'] ?? '';
             $confirm_password = $_POST['confirm_password'] ?? '';
 
-            if (empty($email) || empty($new_password)) {
+            if (empty($email) || empty($otp) || empty($new_password)) {
                 $_SESSION['error'] = "Vui lòng nhập đầy đủ thông tin.";
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $_SESSION['error'] = "Email không hợp lệ.";
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            if (!preg_match('/^\d{6}$/', $otp)) {
+                $_SESSION['error'] = "Mã OTP phải gồm 6 chữ số.";
                 header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
@@ -151,9 +217,40 @@ class AuthController {
                 exit();
             }
 
-            $user = $this->userModel->findByCredentials($email);
+            $user = $this->userModel->findByEmail($email);
             if (!$user) {
-                $_SESSION['error'] = "Không tìm thấy tài khoản nào liên kết với Email này.";
+                $_SESSION['error'] = "Không tìm thấy tài khoản nào liên kết với email này.";
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            $otpRecord = $this->passwordResetOtpModel->findLatestActiveByEmail($email);
+            if (!$otpRecord) {
+                $_SESSION['error'] = "Mã OTP không tồn tại hoặc đã được sử dụng.";
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            if ((int) ($otpRecord['Attempts'] ?? 0) >= 5) {
+                $this->passwordResetOtpModel->markUsed((int) $otpRecord['OtpID']);
+                $_SESSION['error'] = "Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng gửi mã mới.";
+                unset($_SESSION['password_reset_email']);
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            if (strtotime($otpRecord['ExpiresAt']) < time()) {
+                $this->passwordResetOtpModel->markUsed((int) $otpRecord['OtpID']);
+                $_SESSION['error'] = "Mã OTP đã hết hạn. Vui lòng gửi mã mới.";
+                unset($_SESSION['password_reset_email']);
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
+
+            if (!password_verify($otp, $otpRecord['OtpHash'])) {
+                $this->passwordResetOtpModel->incrementAttempts((int) $otpRecord['OtpID']);
+                $_SESSION['password_reset_email'] = $email;
+                $_SESSION['error'] = "Mã OTP không chính xác.";
                 header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
                 exit();
             }
@@ -168,6 +265,8 @@ class AuthController {
             }
 
             if ($this->userModel->updatePassword($email, $new_password)) {
+                $this->passwordResetOtpModel->markUsed((int) $otpRecord['OtpID']);
+                unset($_SESSION['password_reset_email']);
                 $_SESSION['success'] = "Đổi mật khẩu thành công! Hãy đăng nhập lại bằng mật khẩu mới.";
                 header('Location: ' . app_url('App/Views/auth/login.php'));
                 exit();
@@ -217,6 +316,10 @@ if (isset($_GET['action'])) {
         $controller->loginProcess();
     } elseif ($_GET['action'] === 'register') {
         $controller->registerProcess();
+    } elseif ($_GET['action'] === 'sendResetOtp') {
+        $controller->sendResetOtpProcess();
+    } elseif ($_GET['action'] === 'resetWithOtp') {
+        $controller->forgotPasswordProcess();
     } elseif ($_GET['action'] === 'forgot') {
         $controller->forgotPasswordProcess();
     } elseif ($_GET['action'] === 'logout') {

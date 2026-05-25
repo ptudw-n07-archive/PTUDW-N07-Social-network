@@ -1,8 +1,11 @@
 <?php
 
+namespace App\Services;
+
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../../Config/Database.php';
 
+use Exception;
 use Google\Client;
 use Google\Service\Gmail;
 use Google\Service\Gmail\Message;
