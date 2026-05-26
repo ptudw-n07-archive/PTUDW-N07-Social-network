@@ -32,23 +32,23 @@ class GmailService
             return $this->writeDebugMail('verification', $to, $username, $verifyLink);
         }
 
-        $subject = 'Kích hoạt tài khoản thành viên của bạn — Archive';
+        $subject = 'Archive chờ bạn xác nhận tài khoản 💗';
         $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
         $safeLink = htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8');
 
-        $html = $this->emailLayout(
-            'Chào mừng bạn đến với Archive',
-            '#12213f',
-            '#f4c430',
-            'KÍCH HOẠT TÀI KHOẢN',
+        $html = $this->buildArchiveEmailLayout(
+            'Chỉ còn một bước nữa thôi!',
+            'Archive đang đợi bạn ghé vào',
+            'Xác nhận tài khoản',
             $safeLink,
+            'Archive — nơi lưu lại những kết nối nhỏ xinh của bạn.',
             '
-                <p>Xin chào <strong>' . $safeUsername . '</strong>,</p>
-                <p>Cảm ơn bạn đã đăng ký tài khoản thành viên tại hệ thống của chúng tôi. Để hoàn tất quy trình và kích hoạt tài khoản, vui lòng nhấn vào nút bên dưới:</p>
+                <p style="margin:0 0 16px;color:#3f1d2e;font-size:18px;line-height:1.65;">Hi <strong style="color:#db2777;">' . $safeUsername . '</strong>,</p>
+                <p style="margin:0;color:#3f1d2e;font-size:17px;line-height:1.7;">Cảm ơn bạn đã tạo tài khoản tại <strong>Archive</strong>. Để bắt đầu lưu giữ khoảnh khắc, kết nối bạn bè và khám phá những bài viết mới, hãy xác nhận email của bạn bằng nút bên dưới.</p>
             ',
             '
-                <p style="margin:0 0 8px;color:#777;font-size:14px;line-height:1.5;">Nếu nút trên không hoạt động, bạn có thể sao chép liên kết này dán vào trình duyệt:</p>
-                <a href="' . $safeLink . '" style="color:#2f6fb7;word-break:break-all;font-size:14px;">' . $safeLink . '</a>
+                <p style="margin:0 0 10px;color:#6b7280;font-size:14px;line-height:1.55;">Nếu nút không hoạt động, bạn có thể sao chép liên kết bên dưới và mở trong trình duyệt.</p>
+                <a href="' . $safeLink . '" style="color:#db2777;word-break:break-all;font-size:14px;text-decoration:underline;">' . $safeLink . '</a>
             '
         );
 
@@ -61,24 +61,24 @@ class GmailService
             return $this->writeDebugMail('password_reset', $to, $username, $resetLink);
         }
 
-        $subject = 'Yêu cầu khôi phục mật khẩu — Archive';
+        $subject = 'Archive gửi bạn liên kết đặt lại mật khẩu 🔐';
         $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
         $safeLink = htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8');
 
-        $html = $this->emailLayout(
-            'Yêu cầu đặt lại mật khẩu',
-            '#c8102e',
-            '#ffffff',
-            'ĐẶT LẠI MẬT KHẨU',
+        $html = $this->buildArchiveEmailLayout(
+            'Mình giúp bạn lấy lại quyền truy cập nhé',
+            'Một chiếc link an toàn từ Archive',
+            'Tạo mật khẩu mới',
             $safeLink,
+            'Archive — giữ tài khoản của bạn an toàn và dễ thương.',
             '
-                <p>Xin chào <strong>' . $safeUsername . '</strong>,</p>
-                <p>Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Liên kết khôi phục này chỉ có hiệu lực sử dụng trong vòng <strong>15 phút</strong>. Nhấn vào nút bên dưới để đổi mật khẩu:</p>
+                <p style="margin:0 0 16px;color:#3f1d2e;font-size:18px;line-height:1.65;">Hi <strong style="color:#db2777;">' . $safeUsername . '</strong>,</p>
+                <p style="margin:0;color:#3f1d2e;font-size:17px;line-height:1.7;"><strong>Archive</strong> vừa nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn vào nút bên dưới để tạo mật khẩu mới. Liên kết này chỉ có hiệu lực trong <strong style="color:#db2777;">15 phút</strong> để bảo vệ tài khoản của bạn.</p>
             ',
             '
-                <p style="margin:0 0 8px;color:#777;font-size:14px;line-height:1.5;">Nếu nút trên không hoạt động, bạn có thể sao chép liên kết này dán vào trình duyệt:</p>
-                <a href="' . $safeLink . '" style="color:#2f6fb7;word-break:break-all;font-size:14px;">' . $safeLink . '</a>
-                <p style="margin:18px 0 0;color:#777;font-size:14px;line-height:1.5;">Nếu bạn không yêu cầu hành động này, vui lòng bỏ qua email bảo mật này một cách an toàn.</p>
+                <p style="margin:0 0 10px;color:#6b7280;font-size:14px;line-height:1.55;">Nếu nút không hoạt động, bạn có thể sao chép liên kết bên dưới và mở trong trình duyệt.</p>
+                <a href="' . $safeLink . '" style="color:#db2777;word-break:break-all;font-size:14px;text-decoration:underline;">' . $safeLink . '</a>
+                <p style="margin:18px 0 0;color:#6b7280;font-size:14px;line-height:1.55;">Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email. Tài khoản của bạn vẫn an toàn.</p>
             '
         );
 
@@ -148,31 +148,46 @@ class GmailService
         return $client;
     }
 
-    private function emailLayout(string $title, string $primaryColor, string $buttonTextColor, string $buttonText, string $buttonUrl, string $contentHtml, string $extraHtml): string
+    private function buildArchiveEmailLayout(string $title, string $badgeText, string $buttonText, string $buttonUrl, string $footerText, string $contentHtml, string $extraHtml): string
     {
+        $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $safeBadge = htmlspecialchars($badgeText, ENT_QUOTES, 'UTF-8');
+        $safeButtonText = htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8');
+        $safeFooterText = htmlspecialchars($footerText, ENT_QUOTES, 'UTF-8');
+
         return '
 <!doctype html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>
+  <title>' . $safeTitle . '</title>
 </head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#111;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f5f5;padding:28px 12px;">
+<body style="margin:0;padding:0;background:#fff1f7;font-family:Arial,Helvetica,sans-serif;color:#3f1d2e;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff1f7;background-image:linear-gradient(135deg,#fff7fb 0%,#ffe4ef 48%,#fff1f7 100%);padding:34px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #dedede;border-radius:12px;overflow:hidden;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #fbcfe8;border-radius:28px;overflow:hidden;box-shadow:0 18px 45px rgba(219,39,119,0.16);">
           <tr>
-            <td style="padding:38px 34px 28px;">
-              <h1 style="margin:0 0 28px;text-align:center;color:' . $primaryColor . ';font-size:30px;line-height:1.2;font-weight:800;">' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</h1>
-              <div style="font-size:19px;line-height:1.55;color:#111;">' . $contentHtml . '</div>
-              <div style="text-align:center;margin:34px 0 32px;">
-                <a href="' . $buttonUrl . '" style="display:inline-block;background:' . $primaryColor . ';color:' . $buttonTextColor . ';text-decoration:none;font-size:18px;font-weight:800;letter-spacing:.4px;border-radius:6px;padding:16px 42px;">' . htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8') . '</a>
+            <td style="background:#fdf2f8;background-image:linear-gradient(135deg,#fdf2f8 0%,#fff7fb 100%);padding:22px 30px 0;text-align:center;">
+              <div style="display:inline-block;background:#ffffff;border:1px solid #fbcfe8;border-radius:999px;padding:8px 16px;color:#db2777;font-size:13px;font-weight:700;letter-spacing:.2px;">' . $safeBadge . '</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 34px 30px;">
+              <h1 style="margin:0 0 18px;text-align:center;color:#db2777;font-size:30px;line-height:1.25;font-weight:800;">' . $safeTitle . '</h1>
+              <div style="width:72px;height:6px;margin:0 auto 28px;background:#f9a8d4;border-radius:999px;line-height:6px;font-size:0;">&nbsp;</div>
+              <div style="background:#fff7fb;border:1px solid #fce7f3;border-radius:22px;padding:24px 24px 22px;">
+                ' . $contentHtml . '
               </div>
-              <div style="font-size:14px;line-height:1.5;color:#777;">' . $extraHtml . '</div>
-              <hr style="border:0;border-top:1px solid #e5e5e5;margin:30px 0 22px;">
-              <p style="margin:0;text-align:center;color:#888;font-size:14px;">&copy; 2026 Archive — Dự án môn Lập trình Web UEH</p>
+              <div style="text-align:center;margin:30px 0 28px;">
+                <a href="' . $buttonUrl . '" style="display:inline-block;background:#ec4899;background-image:linear-gradient(135deg,#f472b6 0%,#db2777 100%);color:#ffffff;text-decoration:none;font-size:17px;font-weight:800;border-radius:999px;padding:15px 34px;box-shadow:0 12px 24px rgba(219,39,119,0.24);">' . $safeButtonText . '</a>
+              </div>
+              <div style="background:#ffffff;border:1px dashed #f9a8d4;border-radius:18px;padding:18px 20px;font-size:14px;line-height:1.55;color:#6b7280;">' . $extraHtml . '</div>
+              <div style="height:1px;background:#fbcfe8;margin:28px 0 18px;line-height:1px;font-size:0;">&nbsp;</div>
+              <p style="margin:0 0 6px;text-align:center;color:#db2777;font-size:15px;font-weight:700;">Archive</p>
+              <p style="margin:0;text-align:center;color:#6b7280;font-size:13px;line-height:1.5;">' . $safeFooterText . '</p>
+              <p style="margin:10px 0 0;text-align:center;color:#9ca3af;font-size:12px;">&copy; 2026 Archive — PTUDW-N07</p>
             </td>
           </tr>
         </table>

@@ -50,8 +50,13 @@ class UserModel {
         return (bool) $stmt->fetchColumn();
     }
 
-<<<<<<< Updated upstream
     public function register($name, $username, $email, $password, ?string $verificationTokenHash = null, ?string $verificationExpiresAt = null) {
+        $username = self::normalizeUsername((string) $username);
+
+        if (!self::isValidUsername($username)) {
+            return false;
+        }
+
         $isVerified = $verificationTokenHash === null ? 1 : 0;
         $emailVerifiedAt = $verificationTokenHash === null ? date('Y-m-d H:i:s') : null;
 
@@ -59,16 +64,6 @@ class UserModel {
                     (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt, is_verified, email_verified_at, verification_token, verification_expires_at)
                   VALUES
                     (:name, :username, :email, :password, 2, 1, NOW(), :isVerified, :emailVerifiedAt, :verificationToken, :verificationExpiresAt)";
-=======
-    public function register($name, $username, $email, $password): bool {
-        $username = self::normalizeUsername((string) $username);
-        if (!self::isValidUsername($username)) {
-            return false;
-        }
-
-        $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt)
-                  VALUES (:name, :username, :email, :password, 2, 1, NOW())";
->>>>>>> Stashed changes
         $stmt = $this->conn->prepare($query);
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
