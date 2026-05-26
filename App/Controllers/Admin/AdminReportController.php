@@ -54,6 +54,11 @@ class AdminReportController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $reportId = isset($_POST['reportId']) ? (int)$_POST['reportId'] : null;
         $action = $_POST['action'] ?? null;
         $adminNote = trim((string)($_POST['adminNote'] ?? ''));

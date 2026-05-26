@@ -81,6 +81,11 @@ class AdminMemberController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $userId = isset($payload['UserID']) ? (int)$payload['UserID'] : (isset($_POST['userId']) ? (int)$_POST['userId'] : null);
         $roleId = isset($payload['RoleID']) ? (int)$payload['RoleID'] : (isset($_POST['roleId']) ? (int)$_POST['roleId'] : null);
@@ -136,6 +141,11 @@ class AdminMemberController {
     public function toggleUserActive(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 

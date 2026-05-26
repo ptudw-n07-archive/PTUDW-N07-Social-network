@@ -89,6 +89,11 @@ class AdminContentController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $postId = $this->intPayloadParam($payload, 'PostID');
         $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
@@ -124,6 +129,11 @@ class AdminContentController {
     public function deleteContentPost(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 
@@ -198,6 +208,11 @@ class AdminContentController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $commentId = $this->intPayloadParam($payload, 'CommentID');
         $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
@@ -233,6 +248,11 @@ class AdminContentController {
     public function deleteContentComment(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 
@@ -285,6 +305,11 @@ class AdminContentController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $hashtagId = $this->intPayloadParam($payload, 'HashtagID');
         $isHidden = isset($payload['IsHidden']) ? (int)$payload['IsHidden'] : null;
@@ -309,6 +334,11 @@ class AdminContentController {
     public function deleteContentHashtag(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 

@@ -63,6 +63,11 @@ class AdminProfileController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $fullName = trim((string)($payload['FullName'] ?? ''));
         if ($fullName === '' || mb_strlen($fullName) > 100) {
@@ -89,6 +94,11 @@ class AdminProfileController {
     public function updateAdminBio(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 
@@ -119,6 +129,11 @@ class AdminProfileController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $adminUserId = $this->currentAdminId();
         try {
             $avatarPath = $this->saveAdminAvatar($adminUserId);
@@ -140,6 +155,11 @@ class AdminProfileController {
     public function changeAdminPassword(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 

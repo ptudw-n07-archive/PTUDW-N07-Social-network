@@ -90,6 +90,11 @@ class AdminNotificationController {
             return;
         }
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
+            return;
+        }
+
         $payload = $this->jsonPayload();
         $notificationId = $this->intPayloadParam($payload, 'NotificationID');
         if (!$notificationId) {
@@ -132,6 +137,11 @@ class AdminNotificationController {
     public function sendSystemNotification(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
+            return;
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->jsonResponse(false, 'Yêu cầu không hợp lệ.');
             return;
         }
 
