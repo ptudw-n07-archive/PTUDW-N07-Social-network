@@ -226,5 +226,6 @@ function notificationMessage($notification) {
 
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260525-badge"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>

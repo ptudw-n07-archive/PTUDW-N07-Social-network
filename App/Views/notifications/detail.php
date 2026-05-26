@@ -197,8 +197,9 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                     </div>
                 </article>
             </div>
-        </div>
+                </div>
     </div>
 </section>
+<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>

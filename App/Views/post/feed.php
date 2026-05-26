@@ -521,5 +521,6 @@ function renderPostContentWithHashtags($content) {
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260524-post-click-comment"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
 </html>
