@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUsername = $_SESSION['username'] ?? '';
-$currentFullName = $_SESSION['user_name'] ?? $currentUsername;
+$currentFullName = !empty($_SESSION['user_name']) ? $_SESSION['user_name'] : '@' . $currentUsername;
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 
 function imagePath($path) {

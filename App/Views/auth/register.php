@@ -57,7 +57,7 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
 
                 <div class="form-group">
                     <label for="username">Tài khoản</label>
-                    <input type="text" id="username" name="username" placeholder="user123" required>
+                    <input type="text" id="username" name="username" placeholder="mai.tran07" minlength="3" maxlength="50" autocapitalize="none" required>
                 </div>
 
                 <div class="form-group">
@@ -87,7 +87,7 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
             <p>Đã có tài khoản? <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
         </div>
 
-        <a href="<?php echo BASE_URL; ?>" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
+        <a href="<?php echo BASE_URL; ?>Public/index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
     </div>
 </body>
 </html>

@@ -15,6 +15,7 @@ use App\Models\PostModel;
 use App\Models\UserModel;
 use Database;
 use Exception;
+use PDOException;
 
 class ProfileController {
     private UserModel $userModel;
@@ -84,7 +85,7 @@ class ProfileController {
             $userId = $this->requireLoginJson();
 
             $fullName = trim($_POST['fullname'] ?? '');
-            $username = trim($_POST['username'] ?? '');
+            $username = UserModel::normalizeUsername($_POST['username'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $bio = trim($_POST['bio'] ?? '');
 
@@ -93,8 +94,8 @@ class ProfileController {
                 return;
             }
 
-            if (!preg_match('/^[A-Za-z0-9_\\.]{3,50}$/', $username)) {
-                $this->json(false, "Username phải có 3-50 ký tự, chỉ gồm chữ, số, dấu gạch dưới hoặc dấu chấm.");
+            if (!UserModel::isValidUsername($username)) {
+                $this->json(false, "Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm. Không dùng dấu, khoảng trắng hoặc chữ hoa.");
                 return;
             }
 
@@ -109,7 +110,7 @@ class ProfileController {
             }
 
             if ($this->userModel->isUsernameTaken($username, $userId)) {
-                $this->json(false, "Username này đã được sử dụng.");
+                $this->json(false, "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.");
                 return;
             }
 
@@ -142,6 +143,23 @@ class ProfileController {
                     'CreatedAt' => $profile['CreatedAt']
                 ]
             ]);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                if (isset($username, $userId) && $this->userModel->isUsernameTaken($username, $userId)) {
+                    $this->json(false, "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.");
+                    return;
+                }
+
+                if (isset($email, $userId) && $this->userModel->isEmailTaken($email, $userId)) {
+                    $this->json(false, "Email này đã được sử dụng.");
+                    return;
+                }
+
+                $this->json(false, "Tên đăng nhập hoặc email đã được sử dụng. Vui lòng chọn thông tin khác.");
+                return;
+            }
+
+            $this->json(false, "Không thể cập nhật hồ sơ lúc này. Vui lòng thử lại.");
         } catch (Exception $e) {
             $this->json(false, $e->getMessage());
         }

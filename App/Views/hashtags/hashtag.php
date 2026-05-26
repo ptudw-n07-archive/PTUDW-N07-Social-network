@@ -227,7 +227,7 @@ function renderHashtagPostContent($content) {
                                         <div class="post-card-header">
                                         <div class="fw-semibold">
                                             <a href="<?= hashtagProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
-                                                <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                             </a>
                                             • <?= hashtagTimeAgo($post['CreatedAt']) ?>
                                         </div>

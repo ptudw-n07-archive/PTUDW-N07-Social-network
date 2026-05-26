@@ -302,7 +302,7 @@ function renderPostContentWithHashtags($content) {
                                             <div class="post-card-header">
                                                 <div class="post-meta-line">
                                                     <a href="<?= profileUrl($post['UserID']) ?>" class="post-author-link text-decoration-none">
-                                                        <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
+                                                        <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username']) ?>
                                                     </a>
                                                     <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
                                                 </div>
@@ -411,7 +411,7 @@ function renderPostContentWithHashtags($content) {
                 <div class="comment-bubble">
                     <div class="comment-meta">
                         <strong class="comment-author">
-                            <?= htmlspecialchars($comment['FullName'] ?: $comment['Username']) ?>
+                            <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username']) ?>
                         </strong>
                         <span class="comment-time">• <?= timeAgo($comment['CreatedAt'] ?? '') ?></span>
                     </div>
@@ -451,7 +451,7 @@ function renderPostContentWithHashtags($content) {
                                         <a
                                             href="<?= htmlspecialchars(profileUrl($user['UserID']), ENT_QUOTES, 'UTF-8') ?>"
                                             class="suggested-user-avatar-link"
-                                            title="Xem hồ sơ <?= htmlspecialchars($user['FullName'] ?: $user['Username'], ENT_QUOTES, 'UTF-8') ?>"
+                                            title="Xem hồ sơ <?= htmlspecialchars($user['FullName'] ?: '@' . $user['Username'], ENT_QUOTES, 'UTF-8') ?>"
                                         >
                                             <img
                                                 src="<?= htmlspecialchars(imagePath($user['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
@@ -463,7 +463,7 @@ function renderPostContentWithHashtags($content) {
 
                                         <div>
                                             <div class="fw-semibold">
-                                                <?= htmlspecialchars($user['FullName'] ?: $user['Username']) ?>
+                                                <?= htmlspecialchars($user['FullName'] ?: '@' . $user['Username']) ?>
                                             </div>
 
                                             <small class="text-muted">

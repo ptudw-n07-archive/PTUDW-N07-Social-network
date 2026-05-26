@@ -189,7 +189,7 @@ function addPostToUI(post) {
     });
 
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
-    const fullName = post.FullName || post.Username || "Bạn";
+    const fullName = post.FullName || (post.Username ? `@${post.Username}` : "Bạn");
     const profileHref = appUrl(`App/Views/profile/profile.php?id=${encodeURIComponent(post.UserID || "")}`);
     const postDetailHref = appUrl(`App/Views/post/post-detail.php?id=${encodeURIComponent(post.PostID || "")}`);
     const imagesJson = JSON.stringify(images);

@@ -254,7 +254,9 @@ class PostController {
             "comment" => [
                 "commentId" => $commentId,
                 "content" => $content,
-                "fullName" => $_SESSION['user_name'] ?? $_SESSION['username'] ?? 'Bạn'
+                "fullName" => !empty($_SESSION['user_name'])
+                    ? $_SESSION['user_name']
+                    : (!empty($_SESSION['username']) ? '@' . $_SESSION['username'] : 'Bạn')
             ]
         ]);
     }

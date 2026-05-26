@@ -59,7 +59,7 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
             </div>
 
             <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
-                <a href="<?php echo BASE_URL; ?>" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+                <a href="<?php echo BASE_URL; ?>Public/index.php" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
                     <i class="fa-solid fa-house"></i>
                 </a>
             </div>

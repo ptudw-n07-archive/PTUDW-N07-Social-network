@@ -167,7 +167,7 @@ function renderProfilePostContentWithHashtags($content) {
     return $html;
 }
 
-$profileName = $profile ? ($profile['FullName'] ?: $profile['Username']) : '';
+$profileName = $profile ? ($profile['FullName'] ?: '@' . $profile['Username']) : '';
 $profileUsername = $profile['Username'] ?? '';
 $profileBio = !empty($profile['Bio']) ? $profile['Bio'] : 'Người dùng chưa cập nhật bio.';
 $profileAvatar = $profile['ProfilePictureUrl'] ?? '';
@@ -412,7 +412,7 @@ foreach ($posts as $post) {
                                         <div class="post-card-header profile-post-header mb-2">
                                             <div class="profile-post-meta">
                                                 <span class="profile-post-author">
-                                                    <?php echo htmlspecialchars($post['FullName'] ?: $post['Username']); ?>
+                                                    <?php echo htmlspecialchars($post['FullName'] ?: '@' . $post['Username']); ?>
                                                 </span>
                                                 <span class="profile-post-username">@<?php echo htmlspecialchars($post['Username']); ?></span>
                                                 <span class="profile-post-time">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
@@ -546,7 +546,7 @@ foreach ($posts as $post) {
                     <div class="follow-user-list">
                         <?php foreach ($followingUsers as $user): ?>
                             <?php
-                                $followUserName = $user['FullName'] ?: $user['Username'];
+                                $followUserName = $user['FullName'] ?: '@' . $user['Username'];
                                 $followUserSecondary = !empty($user['Username']) ? '@' . $user['Username'] : ($user['Email'] ?? '');
                             ?>
                             <div class="follow-user-item">
@@ -594,7 +594,7 @@ foreach ($posts as $post) {
                     <div class="follow-user-list">
                         <?php foreach ($followerUsers as $user): ?>
                             <?php
-                                $followUserName = $user['FullName'] ?: $user['Username'];
+                                $followUserName = $user['FullName'] ?: '@' . $user['Username'];
                                 $followUserSecondary = !empty($user['Username']) ? '@' . $user['Username'] : ($user['Email'] ?? '');
                             ?>
                             <div class="follow-user-item">
@@ -682,7 +682,9 @@ foreach ($posts as $post) {
                             class="form-control"
                             id="username"
                             name="username"
+                            minlength="3"
                             maxlength="50"
+                            autocapitalize="none"
                             value="<?php echo htmlspecialchars($profileUsername); ?>"
                             required
                         >

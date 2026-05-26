@@ -234,7 +234,7 @@ function renderDetailPostContent($content) {
                                     <div class="post-card-header">
                                     <div class="fw-semibold">
                                         <a href="<?= detailProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
-                                            <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                         </a>
                                         <span class="text-muted">• <?= htmlspecialchars(detailTimeAgo($post['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
                                     </div>
@@ -326,7 +326,7 @@ function renderDetailPostContent($content) {
                                                         >
                                                         <div>
                                                             <div class="fw-semibold">
-                                                                <?= htmlspecialchars($comment['FullName'] ?: $comment['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                                                <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username'], ENT_QUOTES, 'UTF-8') ?>
                                                                 <span class="text-muted fw-normal">• <?= htmlspecialchars(detailTimeAgo($comment['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
                                                             </div>
                                                             <div><?= htmlspecialchars($comment['Content'], ENT_QUOTES, 'UTF-8') ?></div>
