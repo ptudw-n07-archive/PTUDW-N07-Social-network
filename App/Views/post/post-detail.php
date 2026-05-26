@@ -156,85 +156,6 @@ function renderDetailPostContent($content) {
 
     return $html;
 }
-
-function renderDetailCommentItem(array $comment, int $currentUserId, int $postOwnerId, bool $isReply = false, array $replies = []): void {
-    global $highlightCommentId;
-    $commentId = (int) ($comment['CommentID'] ?? 0);
-    $commentOwnerId = (int) ($comment['UserID'] ?? 0);
-    $parentCommentId = (int) ($comment['ParentCommentID'] ?? 0);
-    $isOwnComment = $commentOwnerId === $currentUserId;
-    $canDelete = $isOwnComment || $postOwnerId === $currentUserId;
-    $canReport = !$isOwnComment;
-    ?>
-    <div
-        class="comment-item post-detail-comment <?= $isReply ? 'comment-reply' : '' ?> <?= $commentId === (int) $highlightCommentId ? 'highlight' : '' ?>"
-        id="comment-<?= $commentId ?>"
-        data-comment-id="<?= $commentId ?>"
-        data-comment-owner-id="<?= $commentOwnerId ?>"
-        data-parent-comment-id="<?= $parentCommentId ?: '' ?>"
-    >
-        <img
-            src="<?= htmlspecialchars(detailImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-            class="comment-avatar avatar"
-            alt="avatar"
-            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
-        >
-        <div class="comment-body">
-            <div class="comment-bubble">
-                <div class="comment-meta">
-                    <strong class="comment-author">
-                        <?= htmlspecialchars($comment['FullName'] ?: $comment['Username'], ENT_QUOTES, 'UTF-8') ?>
-                    </strong>
-                    <span class="comment-time">• <?= htmlspecialchars(detailTimeAgo($comment['CreatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
-                </div>
-                <div class="comment-content"><?= nl2br(htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8')) ?></div>
-            </div>
-            <div class="comment-actions">
-                <?php if (!$isReply): ?>
-                    <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
-                <?php endif; ?>
-                <?php if ($isOwnComment): ?>
-                    <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
-                <?php endif; ?>
-                <?php if ($canDelete): ?>
-                    <button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>
-                <?php endif; ?>
-                <?php if ($canReport): ?>
-                    <button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>
-                <?php endif; ?>
-            </div>
-            <?php if (!$isReply): ?>
-                <div class="comment-children">
-                    <?php foreach ($replies as $reply): ?>
-                        <?php renderDetailCommentItem($reply, $currentUserId, $postOwnerId, true); ?>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php
-}
-
-function renderDetailComments(array $comments, int $currentUserId, int $postOwnerId): void {
-    $roots = [];
-    $repliesByParent = [];
-
-    foreach ($comments as $comment) {
-        $parentId = (int) ($comment['ParentCommentID'] ?? 0);
-
-        if ($parentId > 0) {
-            $repliesByParent[$parentId][] = $comment;
-            continue;
-        }
-
-        $roots[] = $comment;
-    }
-
-    foreach ($roots as $comment) {
-        $commentId = (int) ($comment['CommentID'] ?? 0);
-        renderDetailCommentItem($comment, $currentUserId, $postOwnerId, false, $repliesByParent[$commentId] ?? []);
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -313,10 +234,9 @@ function renderDetailComments(array $comments, int $currentUserId, int $postOwne
                                     <div class="post-card-header">
                                     <div class="fw-semibold">
                                         <a href="<?= detailProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
-                                            <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                            <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                         </a>
                                         <span class="text-muted">• <?= htmlspecialchars(detailTimeAgo($post['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
-                                        <?php archiveRenderPrivacyBadge($post['Privacy'] ?? 'public'); ?>
                                     </div>
 
                                     <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
@@ -365,20 +285,14 @@ function renderDetailComments(array $comments, int $currentUserId, int $postOwne
                                             <span class="comment-count"><?= (int) ($post['CommentCount'] ?? 0) ?></span>
                                         </button>
 
-                                        <button
-                                            type="button"
-                                            class="repost-btn"
-                                            onclick="repostPost(this)"
-                                            data-post-id="<?= (int) $post['PostID'] ?>"
-                                        >
+                                        <button type="button">
                                             <i class="bi bi-arrow-repeat"></i>
-                                            <span class="visually-hidden">Đăng lại</span>
                                         </button>
 
                                     </div>
 
                                     <div class="comment-box mt-3">
-                                        <div class="comment-form d-flex gap-2">
+                                        <div class="d-flex gap-2">
                                             <label for="detailCommentInput" class="visually-hidden">Viết bình luận</label>
                                             <input
                                                 type="text"
@@ -399,7 +313,26 @@ function renderDetailComments(array $comments, int $currentUserId, int $postOwne
 
                                         <div class="comment-list mt-3">
                                             <?php if (!empty($comments)): ?>
-                                                <?php renderDetailComments($comments, (int) $currentUserId, (int) $post['UserID']); ?>
+                                                <?php foreach ($comments as $comment): ?>
+                                                    <div
+                                                        class="post-detail-comment <?= (int) $comment['CommentID'] === $highlightCommentId ? 'highlight' : '' ?>"
+                                                        id="comment-<?= (int) $comment['CommentID'] ?>"
+                                                    >
+                                                        <img
+                                                            src="<?= htmlspecialchars(detailImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                                            class="avatar"
+                                                            alt="avatar"
+                                                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                                                        >
+                                                        <div>
+                                                            <div class="fw-semibold">
+                                                                <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                                                <span class="text-muted fw-normal">• <?= htmlspecialchars(detailTimeAgo($comment['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
+                                                            </div>
+                                                            <div><?= htmlspecialchars($comment['Content'], ENT_QUOTES, 'UTF-8') ?></div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
                                             <?php else: ?>
                                                 <div class="post-detail-empty-comments">Chưa có bình luận nào.</div>
                                             <?php endif; ?>
@@ -415,12 +348,8 @@ function renderDetailComments(array $comments, int $currentUserId, int $postOwne
     </div>
 </section>
 
-<?php require_once __DIR__ . '/../partials/footer.php'; ?>
-
-<script>
-    window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
-</script>
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260526-comments-mvc"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-post-detail"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
 </html>

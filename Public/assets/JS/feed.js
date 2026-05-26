@@ -213,10 +213,9 @@ function addPostToUI(post) {
 
                 <div class="flex-grow-1">
                     <div class="post-card-header">
-                        <div class="post-meta-line">
-                        <a href="${profileHref}" class="post-author-link text-decoration-none">${escapeHTML(fullName)}</a>
-                        <span class="post-time">• vừa xong</span>
-                        ${renderPrivacyBadgeHTML(privacy)}
+                        <div class="fw-semibold">
+                        <a href="${profileHref}" class="text-decoration-none text-dark">${escapeHTML(fullName)}</a>
+                        • vừa xong
                         </div>
                         ${renderPostMenu(post.PostID, post.UserID, true)}
                     </div>
@@ -244,9 +243,8 @@ function addPostToUI(post) {
                             <span class="comment-count">0</span>
                         </button>
 
-                        <button type="button" class="no-post-nav repost-btn" onclick="repostPost(this)" data-post-id="${post.PostID}">
+                        <button type="button" class="no-post-nav">
                             <i class="bi bi-arrow-repeat"></i>
-                            <span class="visually-hidden">Đăng lại</span>
                         </button>
                     </div>
 
@@ -298,7 +296,7 @@ function refreshTrendingHashtags() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error("Không thể tải chủ đề nổi bật.");
+            throw new Error("Khong the tai chu de noi bat.");
         }
 
         return response.json();
@@ -364,50 +362,16 @@ function toggleCommentBox(btn) {
     }
 }
 
-function repostPost(btn) {
-    const postId = btn.dataset.postId;
-
-    if (!postId) {
-        showPostToast("Không tìm thấy bài viết để đăng lại.");
-        return;
-    }
-
-    btn.disabled = true;
-
-    postForm(appUrl("App/Controllers/PostController.php?action=repost"), { postId: postId })
-        .then(function (data) {
-            if (!data.success) throw new Error(data.message || "Không thể đăng lại bài viết.");
-
-            const post = data.post || (data.data && data.data.post ? data.data.post : null);
-            if (post) {
-                addPostToUI(post);
-            }
-
-            showPostToast("Đã đăng lại bài viết.");
-        })
-        .catch(showPostError)
-        .finally(function () {
-            btn.disabled = false;
-        });
-}
-
 
 // =======================
 // GỬI COMMENT AJAX
 // =======================
 function sendComment(btn) {
     const postId = btn.dataset.postId;
-    const parentCommentId = btn.dataset.parentCommentId || "";
     const postCard = btn.closest(".post-card");
-    const form = btn.closest(".comment-reply-form, .comment-form");
-    const input = form ? form.querySelector(".comment-input") : null;
-    const commentList = postCard ? postCard.querySelector(".comment-list") : null;
-    const commentCount = postCard ? postCard.querySelector(".comment-count") : null;
-
-    if (!postId || !input || !commentList) {
-        showPostToast("Không tìm thấy thông tin bình luận.");
-        return;
-    }
+    const input = postCard.querySelector(".comment-input");
+    const commentList = postCard.querySelector(".comment-list");
+    const commentCount = postCard.querySelector(".comment-count");
 
     const content = input.value.trim();
 
@@ -419,9 +383,6 @@ function sendComment(btn) {
     const formData = new FormData();
     formData.append("postId", postId);
     formData.append("content", content);
-    if (parentCommentId) {
-        formData.append("parentCommentId", parentCommentId);
-    }
 
     fetch(appUrl("App/Controllers/PostController.php?action=comment"), {
         method: "POST",
@@ -430,7 +391,7 @@ function sendComment(btn) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            showPostToast(data.message || "Không thể bình luận.");
+            showPostToast("Không thể bình luận.");
             return;
         }
 
@@ -439,27 +400,38 @@ function sendComment(btn) {
             emptyState.remove();
         }
 
-        const commentData = data.comment || (data.data && data.data.comment) || {};
-        const commentElement = renderComment(commentData);
+        const comment = document.createElement("div");
+        const isPostDetail = Boolean(postCard.querySelector(".post-detail-text"));
 
-        if (parentCommentId) {
-            const parent = document.getElementById(`comment-${parentCommentId}`);
-            const children = parent ? parent.querySelector(".comment-children") : null;
-            if (children) {
-                children.appendChild(commentElement);
-            } else {
-                commentList.appendChild(commentElement);
-            }
-            if (form && form.classList.contains("comment-reply-form")) {
-                form.remove();
-            }
+        if (isPostDetail) {
+            comment.className = "post-detail-comment";
+            comment.id = data.comment.commentId ? `comment-${data.comment.commentId}` : "";
+            comment.innerHTML = `
+                <img src="${appUrl("Public/assets/img/default-avatar.jpg")}" class="avatar" alt="avatar">
+                <div>
+                    <div class="fw-semibold">${escapeHTML(data.comment.fullName)}</div>
+                    <div>${escapeHTML(data.comment.content)}</div>
+                </div>
+            `;
         } else {
-            commentList.appendChild(commentElement);
-            input.value = "";
+            comment.className = "comment-item";
+            comment.innerHTML = `
+                <img src="/Public/assets/img/default-avatar.jpg" class="comment-avatar" alt="avatar">
+                <div class="comment-bubble">
+                    <div class="comment-meta">
+                        <strong class="comment-author">${escapeHTML(data.comment.fullName)}</strong>
+                        <span class="comment-time">• vừa xong</span>
+                    </div>
+                    <div class="comment-content">${escapeHTML(data.comment.content)}</div>
+                </div>
+            `;
         }
 
+        commentList.appendChild(comment);
+        input.value = "";
+
         if (commentCount) {
-            commentCount.innerText = String((parseInt(commentCount.innerText, 10) || 0) + 1);
+            commentCount.innerText = parseInt(commentCount.innerText) + 1;
         }
     })
     .catch(error => {
@@ -467,211 +439,8 @@ function sendComment(btn) {
         showPostToast("Có lỗi khi gửi bình luận.");
     });
 }
-function showReplyForm(btn) {
-    const comment = btn.closest(".comment-item");
-    const postCard = btn.closest(".post-card");
-    const children = comment ? comment.querySelector(".comment-children") : null;
 
-    if (!comment || !postCard || !children) {
-        return;
-    }
 
-    const existing = children.querySelector(".comment-reply-form");
-    if (existing) {
-        existing.querySelector(".comment-input").focus();
-        return;
-    }
-
-    const form = document.createElement("div");
-    form.className = "comment-reply-form";
-    form.innerHTML = `
-        <input type="text" class="form-control comment-input" placeholder="Viết câu trả lời...">
-        <button type="button" class="btn btn-pink comment-submit" onclick="sendComment(this)" data-post-id="${escapeHTML(postCard.dataset.postId || "")}" data-parent-comment-id="${escapeHTML(comment.dataset.commentId || "")}">Gửi</button>
-    `;
-    children.prepend(form);
-    form.querySelector(".comment-input").focus();
-}
-
-function showEditCommentForm(btn) {
-    const comment = btn.closest(".comment-item");
-    const bubble = comment ? comment.querySelector(".comment-bubble") : null;
-    const content = comment ? comment.querySelector(".comment-content") : null;
-
-    if (!comment || !bubble || !content || comment.querySelector(".comment-edit-form")) {
-        return;
-    }
-
-    const currentText = content.innerText.trim();
-    const form = document.createElement("div");
-    form.className = "comment-edit-form";
-    form.innerHTML = `
-        <textarea class="form-control comment-edit-input" rows="2">${escapeHTML(currentText)}</textarea>
-        <div class="comment-form-actions">
-            <button type="button" class="btn btn-sm post-action-secondary" onclick="this.closest('.comment-edit-form').remove()">Hủy</button>
-            <button type="button" class="btn btn-sm btn-pink" onclick="submitEditComment(this)">Lưu</button>
-        </div>
-    `;
-    bubble.after(form);
-    form.querySelector(".comment-edit-input").focus();
-}
-
-function submitEditComment(btn) {
-    const form = btn.closest(".comment-edit-form");
-    const comment = btn.closest(".comment-item");
-    const input = form ? form.querySelector(".comment-edit-input") : null;
-    const content = input ? input.value.trim() : "";
-
-    if (!comment || !input || content === "") {
-        showPostToast("Nội dung bình luận không được để trống.");
-        return;
-    }
-
-    postForm(appUrl("App/Controllers/PostController.php?action=updateComment"), {
-        commentId: comment.dataset.commentId,
-        content: content
-    })
-    .then(function (data) {
-        if (!data.success) throw new Error(data.message || "Không thể cập nhật bình luận.");
-        comment.querySelector(".comment-content").innerText = content;
-        form.remove();
-        showPostToast("Đã cập nhật bình luận.");
-    })
-    .catch(showPostError);
-}
-
-function deleteComment(btn) {
-    const comment = btn.closest(".comment-item");
-    const postCard = btn.closest(".post-card");
-
-    if (!comment || !postCard) {
-        return;
-    }
-
-    openConfirmModal("Bạn có chắc muốn xóa bình luận này?", function () {
-        postForm(appUrl("App/Controllers/PostController.php?action=deleteComment"), {
-            commentId: comment.dataset.commentId
-        })
-        .then(function (data) {
-            if (!data.success) throw new Error(data.message || "Không thể xóa bình luận.");
-            const ids = data.hiddenCommentIds || (data.data && data.data.hiddenCommentIds) || [comment.dataset.commentId];
-            const items = ids.map(function (id) {
-                return document.getElementById(`comment-${id}`);
-            }).filter(Boolean);
-            items.forEach(function (item) {
-                item.remove();
-            });
-            updateCommentCount(postCard, -items.length);
-            showPostToast("Bình luận đã bị xóa.");
-        })
-        .catch(showPostError);
-    });
-}
-
-function showReportCommentForm(btn) {
-    const comment = btn.closest(".comment-item");
-    if (!comment) {
-        return;
-    }
-
-    const existing = comment.querySelector(".comment-report-form");
-    if (existing) {
-        existing.remove();
-        return;
-    }
-
-    const form = document.createElement("div");
-    form.className = "comment-report-form";
-    form.innerHTML = `
-        <select class="form-select form-select-sm comment-report-reason">
-            <option value="Spam">Spam</option>
-            <option value="Bắt nạt hoặc quấy rối">Bắt nạt hoặc quấy rối</option>
-            <option value="Nội dung không phù hợp">Nội dung không phù hợp</option>
-            <option value="Thông tin sai lệch">Thông tin sai lệch</option>
-            <option value="Vấn đề khác">Vấn đề khác</option>
-        </select>
-        <textarea class="form-control comment-report-details" rows="2" placeholder="Chi tiết thêm nếu cần"></textarea>
-        <div class="comment-form-actions">
-            <button type="button" class="btn btn-sm post-action-secondary" onclick="this.closest('.comment-report-form').remove()">Hủy</button>
-            <button type="button" class="btn btn-sm btn-pink" onclick="reportComment(this)">Gửi báo cáo</button>
-        </div>
-    `;
-    comment.querySelector(".comment-body").appendChild(form);
-}
-
-function reportComment(btn) {
-    const form = btn.closest(".comment-report-form");
-    const comment = btn.closest(".comment-item");
-    const reason = form ? form.querySelector(".comment-report-reason").value : "";
-    const details = form ? form.querySelector(".comment-report-details").value.trim() : "";
-
-    if (!comment || !reason) {
-        showPostToast("Thiếu thông tin báo cáo.");
-        return;
-    }
-
-    postForm(appUrl("App/Controllers/PostController.php?action=reportComment"), {
-        commentId: comment.dataset.commentId,
-        reason: reason,
-        details: details
-    })
-    .then(function (data) {
-        if (!data.success) throw new Error(data.message || "Không thể báo cáo bình luận.");
-        form.remove();
-        showPostToast("Đã gửi báo cáo.");
-    })
-    .catch(showPostError);
-}
-
-function renderComment(comment) {
-    const id = comment.CommentID || comment.commentId || "";
-    const parentId = comment.ParentCommentID || comment.parentCommentId || "";
-    const userId = comment.UserID || "";
-    const fullName = comment.FullName || comment.fullName || comment.Username || "Bạn";
-    const content = comment.Content || comment.content || "";
-    const avatar = normalizeImagePath(comment.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
-    const canEdit = Boolean(comment.canEdit);
-    const canDelete = Boolean(comment.canDelete);
-    const canReport = Boolean(comment.canReport);
-    const item = document.createElement("div");
-    item.className = `comment-item${parentId ? " comment-reply" : ""}`;
-    if (document.querySelector(".post-detail-card")) {
-        item.classList.add("post-detail-comment");
-    }
-    item.id = id ? `comment-${id}` : "";
-    item.dataset.commentId = id;
-    item.dataset.commentOwnerId = userId;
-    item.dataset.parentCommentId = parentId || "";
-    item.innerHTML = `
-        <img src="${escapeHTML(avatar)}" class="comment-avatar" alt="avatar" onerror="this.src='${appUrl("Public/assets/img/default-avatar.jpg")}';">
-        <div class="comment-body">
-            <div class="comment-bubble">
-                <div class="comment-meta">
-                    <strong class="comment-author">${escapeHTML(fullName)}</strong>
-                    <span class="comment-time">• vừa xong</span>
-                </div>
-                <div class="comment-content">${escapeHTML(content)}</div>
-            </div>
-            <div class="comment-actions">
-                ${parentId ? "" : '<button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>'}
-                ${canEdit ? '<button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>' : ""}
-                ${canDelete ? '<button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>' : ""}
-                ${canReport ? '<button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>' : ""}
-            </div>
-            ${parentId ? "" : '<div class="comment-children"></div>'}
-        </div>
-    `;
-    return item;
-}
-
-function updateCommentCount(postCard, delta) {
-    const commentCount = postCard.querySelector(".comment-count");
-    if (!commentCount) {
-        return;
-    }
-
-    const current = parseInt(commentCount.innerText, 10) || 0;
-    commentCount.innerText = String(Math.max(0, current + delta));
-}
 // =======================
 // ESCAPE HTML
 // =======================
@@ -685,72 +454,6 @@ function renderContentWithHashtags(text) {
     return escapeHTML(text).replace(/#([\p{L}\p{N}_]+)/gu, function (match, tag) {
         return `<a class="hashtag-link" href="${appUrl(`App/Views/hashtags/hashtag.php?tag=${encodeURIComponent(tag)}`)}">#${tag}</a>`;
     }).replace(/\n/g, "<br>");
-}
-
-function normalizePrivacy(privacy) {
-    return ["public", "followers", "private"].includes(privacy) ? privacy : "public";
-}
-
-function getPrivacyLabel(privacy) {
-    const labels = {
-        public: "Công khai",
-        followers: "Người theo dõi",
-        private: "Riêng tư"
-    };
-
-    return labels[normalizePrivacy(privacy)];
-}
-
-function getPrivacyIconClass(privacy) {
-    const icons = {
-        public: "bi-globe2",
-        followers: "bi-people",
-        private: "bi-lock"
-    };
-
-    return icons[normalizePrivacy(privacy)];
-}
-
-function renderPrivacyBadgeHTML(privacy) {
-    const normalized = normalizePrivacy(privacy);
-
-    return `
-        <span class="post-privacy-badge post-privacy-${normalized}" data-privacy-badge>
-            <i class="bi ${getPrivacyIconClass(normalized)}"></i>
-            <span>${getPrivacyLabel(normalized)}</span>
-        </span>
-    `;
-}
-
-function updatePrivacyBadge(postCard, privacy) {
-    const normalized = normalizePrivacy(privacy);
-    const badge = postCard ? postCard.querySelector("[data-privacy-badge]") : null;
-
-    if (!postCard) {
-        return;
-    }
-
-    postCard.dataset.postPrivacy = normalized;
-
-    if (!badge) {
-        const metaLine = postCard.querySelector(".post-meta-line");
-        if (metaLine) {
-            metaLine.insertAdjacentHTML("beforeend", renderPrivacyBadgeHTML(normalized));
-        }
-        return;
-    }
-
-    badge.className = `post-privacy-badge post-privacy-${normalized}`;
-    const icon = badge.querySelector("i");
-    const label = badge.querySelector("span");
-
-    if (icon) {
-        icon.className = `bi ${getPrivacyIconClass(normalized)}`;
-    }
-
-    if (label) {
-        label.innerText = getPrivacyLabel(normalized);
-    }
 }
 
 function renderPostMenu(postId, ownerId, isOwner) {
@@ -1270,7 +973,7 @@ function openPrivacyModal(card) {
             })
             .then(function (data) {
                 if (!data.success) throw new Error(data.message || "Không thể cập nhật quyền riêng tư.");
-                updatePrivacyBadge(card, privacy);
+                card.dataset.postPrivacy = privacy;
                 closePostActionModal();
                 showPostToast("Đã cập nhật quyền riêng tư.");
             })

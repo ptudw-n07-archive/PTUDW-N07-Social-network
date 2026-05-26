@@ -163,7 +163,7 @@ function notificationMessage($notification) {
                                     || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
                                 $senderName = $isModerationNotification
                                     ? 'Hệ thống'
-                                    : ($notification['SenderName'] ?: ($notification['SenderUsername'] ?: 'Người dùng'));
+                                    : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng'));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
                                 $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
@@ -224,9 +224,8 @@ function notificationMessage($notification) {
     </div>
 </section>
 
-<?php require_once __DIR__ . '/../partials/footer.php'; ?>
-
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260525-badge"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>

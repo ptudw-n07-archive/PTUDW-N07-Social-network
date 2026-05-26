@@ -1,30 +1,16 @@
 <?php
 
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 if (PHP_SAPI === 'cli-server') {
     $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-    $extension = strtolower(pathinfo($requestPath ?? '', PATHINFO_EXTENSION));
 
-    $staticExtensions = [
-        'css', 'js', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg',
-        'ico', 'woff', 'woff2', 'ttf', 'map'
-    ];
-
-    if (
-        is_string($requestPath)
-        && $requestPath !== '/'
-        && in_array($extension, $staticExtensions, true)
-    ) {
+    if (is_string($requestPath) && $requestPath !== '/') {
         $projectRoot = realpath(__DIR__ . '/..');
         $requestedFile = realpath(($projectRoot ?: (__DIR__ . '/..')) . $requestPath);
 
         if (
             $projectRoot !== false
             && $requestedFile !== false
-            && strpos($requestPath, '..') === false
+            && !str_contains($requestPath, '..')
             && is_file($requestedFile)
         ) {
             return false;
@@ -39,64 +25,28 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/../Config/Database.php';
 
-if (!function_exists('app_url')) {
-    function app_url($path = '') {
-        $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
-        $base = $base === '/Public' ? dirname($base) : $base;
-        $base = $base === '/' || $base === '\\' ? '' : $base;
-        return $base . '/' . ltrim((string) $path, '/');
-    }
-}
-
-if (!defined('BASE_URL')) {
-    define('BASE_URL', app_url('Public/index.php'));
-}
-
-function homepageUrl($path = '') {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost:3000';
-    return $scheme . '://' . $host . '/' . ltrim((string) $path, '/');
-}
-
 // 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
-try {
-    require_once __DIR__ . '/../App/Controllers/PostController.php';
-} catch (Throwable $e) {
-    error_log('Public index require PostController error: ' . $e->getMessage());
-}
+require_once __DIR__ . '/../App/Controllers/PostController.php';
 
 // ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
 use App\Controllers\PostController;
 
 // Chỉnh lại link dẫn vào Views vì nó đã chui vào trong App/Views/
-$loginUrl    = homepageUrl('App/Views/auth/login.php');
-$registerUrl = homepageUrl('App/Views/auth/register.php');
-$homeUrl     = homepageUrl('Public/index.php');
+$loginUrl    = app_url('App/Views/auth/login.php');
+$registerUrl = app_url('App/Views/auth/register.php');
+$homeUrl     = BASE_URL;
 
 // 4. Khởi tạo đối tượng Controller
-$result = [];
+$postController = new PostController();
 
-if (class_exists(PostController::class) && homepageCanConnectDatabase()) {
-    try {
-        $postController = new PostController();
-
-        // 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
-        $result = $postController->index();
-    } catch (Throwable $e) {
-        $result = [];
-        error_log('Public index error: ' . $e->getMessage());
-    }
-}
-
-if (!is_array($result)) {
-    $result = [];
-}
+// 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
+$result = $postController->index();
 
 if (isset($result['posts'])) {
-    $posts         = is_array($result['posts']) ? $result['posts'] : [];
-    $totalPosts    = $result['totalPosts'] ?? count($posts);
-    $totalUsers    = $result['totalUsers'] ?? count(array_unique(array_column($posts, 'UserID')));
-    $totalComments = $result['totalComments'] ?? array_sum(array_column($posts, 'CommentCount'));
+    $posts         = $result['posts'];
+    $totalPosts    = $result['totalPosts'];
+    $totalUsers    = $result['totalUsers'];
+    $totalComments = $result['totalComments'];
 } else {
     $posts         = $result;
     $totalPosts    = count($posts);
@@ -105,76 +55,14 @@ if (isset($result['posts'])) {
 }
 
 // 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
-function homepageStartsWith($haystack, $needle) {
-    return $needle === '' || strpos((string) $haystack, (string) $needle) === 0;
-}
-
-function homepageCanConnectDatabase() {
-    if (!class_exists('PDO') || !function_exists('app_env')) {
-        return true;
-    }
-
-    if (!function_exists('str_starts_with')) {
-        error_log('Public index database preflight skipped: PHP str_starts_with is unavailable.');
-        return false;
-    }
-
-    $host = app_env('DB_HOST', '100.76.147.122') ?? '100.76.147.122';
-    $dbName = app_env('DB_NAME', 'db_archive') ?? 'db_archive';
-    $username = app_env('DB_USER', 'root') ?? 'root';
-    $password = app_env('DB_PASSWORD', '') ?? '';
-    $port = app_env('DB_PORT');
-
-    $dsn = 'mysql:host=' . $host . ';dbname=' . $dbName . ';charset=utf8mb4';
-    if ($port !== null && $port !== '') {
-        $dsn .= ';port=' . $port;
-    }
-
-    try {
-        new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
-    } catch (Throwable $e) {
-        error_log('Public index database preflight error: ' . $e->getMessage());
-        return false;
-    }
-
-    return true;
-}
-
 function homepageImagePath($path) {
-    $default = app_url('Public/assets/img/default-avatar.jpg');
-
     if (empty($path)) {
-        return $default;
+        return "assets/img/default-avatar.jpg";
     }
-
-    $path = trim((string) $path);
-
-    if ($path === '') {
-        return $default;
-    }
-
-    if (homepageStartsWith($path, "http://") || homepageStartsWith($path, "https://")) {
+    if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
         return $path;
     }
-
-    $path = str_replace('\\', '/', $path);
-    $path = ltrim($path, '/');
-
-    if (homepageStartsWith($path, 'Public/')) {
-        return app_url($path);
-    }
-
-    if (homepageStartsWith($path, 'assets/')) {
-        return app_url('Public/' . $path);
-    }
-
-    if (homepageStartsWith($path, 'uploads/')) {
-        return app_url('Public/' . $path);
-    }
-
-    return app_url('Public/assets/img/posts/' . basename($path));
+    return str_replace("Public/", "", $path);
 }
 
 function homepageTimeAgo($datetime) {
@@ -223,7 +111,7 @@ function homepageFormatNumber($number) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?= app_url('Public/assets/CSS/style.css') ?>">
+    <link rel="stylesheet" href="/Public/assets/CSS/style.css">
 </head>
 
 <body>
@@ -370,7 +258,7 @@ function homepageFormatNumber($number) {
 
                 <form action="<?= $loginUrl ?>" method="GET" class="bg-white p-3 p-md-4 mb-4 post-composer">
                     <div class="d-flex gap-3 align-items-start">
-                        <img src="<?= app_url('Public/assets/img/default-avatar.jpg') ?>" class="avatar" alt="avatar">
+                        <img src="assets/img/default-avatar.jpg" class="avatar" alt="avatar">
 
                         <div class="flex-grow-1">
                             <h6 class="mb-2 fw-semibold">Bạn đang nghĩ gì?</h6>
@@ -492,6 +380,14 @@ function homepageFormatNumber($number) {
                     </a>
                 </div>
 
+                <div class="feed-footer text-center mt-4">
+                    <small>
+                        © 2026 Archive · 
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Điều khoản</a> · 
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách riêng tư</a> · 
+                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách cookie</a>
+                    </small>
+                </div>
             </div>
 
         </div>
