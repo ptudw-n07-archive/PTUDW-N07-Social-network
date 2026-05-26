@@ -33,24 +33,19 @@ class GmailService
         }
 
         $subject = 'Archive chờ bạn xác nhận tài khoản 💗';
-        $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
         $safeLink = htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8');
 
         $html = $this->buildMinimalEmailLayout(
             'Chỉ còn một bước nhỏ nữa thôi',
             'Archive · Một nơi để nói khẽ',
             '
-                <p style="margin:0 0 14px;color:#3f1d2e;font-size:17px;line-height:1.65;">Chào Archiver,</p>
-                <p style="margin:0 0 14px;color:#3f1d2e;font-size:16px;line-height:1.7;">Cảm ơn bạn đã đăng ký tài khoản tại <strong>Archive</strong> — một nơi để nói khẽ. Đây là website thuộc dự án môn học UEH: <strong>Phát triển ứng dụng Web</strong>, được thực hiện bởi <strong>Nhóm 7 — Better Together</strong>.</p>
-                <p style="margin:0;color:#3f1d2e;font-size:16px;line-height:1.7;">Để bắt đầu lưu giữ khoảnh khắc, kết nối bạn bè và khám phá những câu chuyện mới, hãy xác nhận email của bạn bằng nút bên dưới.</p>
-                <p style="margin:18px 0 0;color:#6b7280;font-size:13px;line-height:1.5;">Tài khoản: <strong style="color:#db2777;">' . $safeUsername . '</strong></p>
+                <p style="margin:0 0 14px;color:#46332c;font-size:16px;line-height:1.7;">Chào Archiver,</p>
+                <p style="margin:0 0 14px;color:#46332c;font-size:16px;line-height:1.7;">Cảm ơn bạn đã ghé <strong>Archive</strong> — Một nơi để nói khẽ.</p>
+                <p style="margin:0 0 14px;color:#46332c;font-size:16px;line-height:1.7;">Archive là website thuộc dự án môn học UEH: <strong>Phát triển ứng dụng Web</strong>, được thực hiện bởi <strong>Nhóm 7 — Better Together</strong>.</p>
+                <p style="margin:0;color:#46332c;font-size:16px;line-height:1.7;">Hãy xác nhận tài khoản để bắt đầu lưu lại những khoảnh khắc, kết nối với bạn bè và chia sẻ câu chuyện của riêng bạn.</p>
             ',
             'Kích hoạt tài khoản',
             $safeLink,
-            '
-                <p style="margin:0 0 9px;color:#6b7280;font-size:13px;line-height:1.55;">Nếu nút không hoạt động, bạn có thể sao chép liên kết này và mở trong trình duyệt:</p>
-                <a href="' . $safeLink . '" style="color:#db2777;word-break:break-all;font-size:13px;line-height:1.55;text-decoration:underline;">' . $safeLink . '</a>
-            ',
             'Archive — Một nơi để nói khẽ'
         );
 
@@ -64,25 +59,18 @@ class GmailService
         }
 
         $subject = 'Archive gửi bạn liên kết đặt lại mật khẩu 🔐';
-        $safeUsername = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
         $safeLink = htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8');
 
         $html = $this->buildMinimalEmailLayout(
-            'Mình giúp bạn lấy lại quyền truy cập nhé',
-            'Archive · Bảo mật nhẹ nhàng',
+            'Tạo lại mật khẩu mới',
+            'Archive · Khôi phục tài khoản',
             '
-                <p style="margin:0 0 14px;color:#3f1d2e;font-size:17px;line-height:1.65;">Chào Archiver,</p>
-                <p style="margin:0 0 14px;color:#3f1d2e;font-size:16px;line-height:1.7;"><strong>Archive</strong> vừa nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p>
-                <p style="margin:0;color:#3f1d2e;font-size:16px;line-height:1.7;">Nhấn vào nút bên dưới để tạo mật khẩu mới. Liên kết này chỉ có hiệu lực trong <strong style="color:#db2777;">15 phút</strong> để giữ tài khoản của bạn an toàn.</p>
-                <p style="margin:18px 0 0;color:#6b7280;font-size:13px;line-height:1.5;">Tài khoản: <strong style="color:#db2777;">' . $safeUsername . '</strong></p>
+                <p style="margin:0 0 14px;color:#46332c;font-size:16px;line-height:1.7;">Chào Archiver,</p>
+                <p style="margin:0 0 14px;color:#46332c;font-size:16px;line-height:1.7;"><strong>Archive</strong> vừa nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn.</p>
+                <p style="margin:0;color:#46332c;font-size:16px;line-height:1.7;">Liên kết này chỉ có hiệu lực trong <strong style="color:#d69096;">15 phút</strong>, nên hãy hoàn tất sớm để tiếp tục quay lại Archive nhé.</p>
             ',
-            'Tạo mật khẩu mới',
+            'Đặt lại mật khẩu',
             $safeLink,
-            '
-                <p style="margin:0 0 9px;color:#6b7280;font-size:13px;line-height:1.55;">Nếu nút không hoạt động, bạn có thể sao chép liên kết này và mở trong trình duyệt:</p>
-                <a href="' . $safeLink . '" style="color:#db2777;word-break:break-all;font-size:13px;line-height:1.55;text-decoration:underline;">' . $safeLink . '</a>
-                <p style="margin:16px 0 0;color:#6b7280;font-size:13px;line-height:1.55;">Nếu bạn không thực hiện yêu cầu này, bạn có thể bỏ qua email. Tài khoản của bạn vẫn được giữ an toàn.</p>
-            ',
             'Archive — Một nơi để nói khẽ'
         );
 
@@ -152,7 +140,7 @@ class GmailService
         return $client;
     }
 
-    private function buildMinimalEmailLayout(string $title, string $eyebrow, string $bodyHtml, string $buttonText, string $buttonUrl, string $noteHtml, string $footerTitle): string
+    private function buildMinimalEmailLayout(string $title, string $eyebrow, string $bodyHtml, string $buttonText, string $buttonUrl, string $footerTitle): string
     {
         $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
         $safeEyebrow = htmlspecialchars($eyebrow, ENT_QUOTES, 'UTF-8');
@@ -167,28 +155,27 @@ class GmailService
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>' . $safeTitle . '</title>
 </head>
-<body style="margin:0;padding:0;background:#fff1f7;font-family:Arial,Helvetica,sans-serif;color:#3f1d2e;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff1f7;padding:32px 12px;">
+<body style="margin:0;padding:0;background:#f5eee9;font-family:Inter,Arial,sans-serif;color:#46332c;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5eee9;background-image:linear-gradient(135deg,#f5eee9 0%,#e8dfd8 100%);padding:36px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #fce7f3;border-radius:30px;overflow:hidden;box-shadow:0 16px 38px rgba(219,39,119,0.12);">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fffaf7;border:1px solid rgba(121,91,74,0.15);border-radius:30px;overflow:hidden;box-shadow:0 20px 60px rgba(70,51,44,0.10);">
           <tr>
-            <td style="padding:34px 32px 30px;">
+            <td style="padding:38px 34px 32px;">
               <div style="text-align:center;margin:0 0 22px;">
-                <span style="display:inline-block;background:#fff7fb;border:1px solid #fbcfe8;border-radius:999px;padding:7px 14px;color:#db2777;font-size:12px;font-weight:700;letter-spacing:.2px;">' . $safeEyebrow . '</span>
+                <span style="display:inline-block;background:#fffdfa;border:1px solid rgba(121,91,74,0.15);border-radius:999px;padding:7px 15px;color:#8c7b75;font-size:12px;font-weight:700;letter-spacing:.4px;">' . $safeEyebrow . '</span>
               </div>
-              <h1 style="margin:0 0 20px;text-align:center;color:#3f1d2e;font-size:28px;line-height:1.25;font-weight:800;">' . $safeTitle . '</h1>
-              <div style="width:58px;height:4px;margin:0 auto 28px;background:#ec4899;border-radius:999px;line-height:4px;font-size:0;">&nbsp;</div>
-              <div style="background:#fff7fb;border:1px solid #fce7f3;border-radius:24px;padding:24px;">
+              <h1 style="margin:0 0 20px;text-align:center;color:#46332c;font-family:\'Playfair Display\',Georgia,serif;font-size:32px;line-height:1.18;font-weight:700;">' . $safeTitle . '</h1>
+              <div style="width:54px;height:3px;margin:0 auto 28px;background:#d69096;border-radius:999px;line-height:3px;font-size:0;">&nbsp;</div>
+              <div style="background:#fffdfa;border:1px solid rgba(121,91,74,0.12);border-radius:24px;padding:25px 26px;">
                 ' . $bodyHtml . '
               </div>
               <div style="text-align:center;margin:28px 0 26px;">
-                <a href="' . $buttonUrl . '" style="display:inline-block;background:#ec4899;background-image:linear-gradient(135deg,#f472b6 0%,#db2777 100%);color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;border-radius:999px;padding:14px 28px;box-shadow:0 10px 20px rgba(219,39,119,0.20);">' . $safeButtonText . '</a>
+                <a href="' . $buttonUrl . '" style="display:inline-block;background:#d69096;color:#ffffff;text-decoration:none;font-size:15px;font-weight:800;border-radius:15px;padding:15px 30px;box-shadow:0 8px 20px rgba(214,144,150,0.30);">' . $safeButtonText . '</a>
               </div>
-              <div style="border-top:1px solid #fce7f3;border-bottom:1px solid #fce7f3;padding:16px 0;font-size:13px;line-height:1.55;color:#6b7280;">' . $noteHtml . '</div>
-              <p style="margin:26px 0 4px;text-align:center;color:#db2777;font-size:14px;font-weight:800;">' . $safeFooterTitle . '</p>
-              <p style="margin:0;text-align:center;color:#6b7280;font-size:12px;line-height:1.6;">Dự án môn học UEH: Phát triển ứng dụng Web</p>
-              <p style="margin:0;text-align:center;color:#6b7280;font-size:12px;line-height:1.6;">Nhóm 7 — Better Together | UEH</p>
+              <div style="height:1px;background:rgba(121,91,74,0.12);margin:28px 0 18px;line-height:1px;font-size:0;">&nbsp;</div>
+              <p style="margin:0 0 4px;text-align:center;color:#46332c;font-size:13px;font-weight:800;">' . $safeFooterTitle . '</p>
+              <p style="margin:0;text-align:center;color:#8c7b75;font-size:12px;line-height:1.6;">Nhóm 7 — Better Together | UEH</p>
             </td>
           </tr>
         </table>
