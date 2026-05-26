@@ -1,6 +1,18 @@
 /* Import Font từ Google */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap');
 
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 :root {
     --primary-color: #d69096; /* Hồng của nhóm */
     --bg-color: #f5eee9;      /* Kem vintage */
@@ -30,11 +42,6 @@ body {
     max-width: 420px;
     text-align: center;
     border: 1px solid rgba(121, 91, 74, 0.15); /* Chỉnh lại viền cho hợp màu cà phê */
-    transition: transform 0.3s ease;
-}
-
-.login-container:hover {
-    transform: translateY(-5px);
 }
 
 .login-container h2 {
@@ -101,7 +108,7 @@ body {
 .btn-login:hover {
     background-color: #c57d84;
     box-shadow: 0 10px 25px rgba(214, 144, 150, 0.4);
-    transform: scale(1.02);
+    transform: translateY(-2px) scale(1.02);
 }
 
 .extra-links {
