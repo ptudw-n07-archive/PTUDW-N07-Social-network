@@ -13,6 +13,8 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng ký thành viên | Social Network</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
     <style>
         .login-container {
@@ -30,7 +32,11 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
         }
     </style>
 </head>
+<<<<<<< HEAD:App/Views/auth/register.php
 <body>
+=======
+<body class="auth-with-footer">
+>>>>>>> 31a4974 (Update feed features and UI):Views/auth/register.php
 <div class="login-container">
         <h2>Tham gia cùng chúng mình!</h2>
         <p class="subtitle">Tạo tài khoản để kết nối và chia sẻ ngay</p>
@@ -89,5 +95,11 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
 
         <a href="<?php echo BASE_URL; ?>Public/index.php" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>
     </div>
+<<<<<<< HEAD:App/Views/auth/register.php
+=======
+
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
+>>>>>>> 31a4974 (Update feed features and UI):Views/auth/register.php
 </body>
 </html>

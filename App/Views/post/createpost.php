@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUsername = $_SESSION['username'] ?? '';
-$currentFullName = !empty($_SESSION['user_name']) ? $_SESSION['user_name'] : '@' . $currentUsername;
+$currentFullName = $_SESSION['user_name'] ?? $currentUsername;
 $currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
 
 function imagePath($path) {
@@ -118,7 +118,6 @@ function imagePath($path) {
                     </div>
 
                     <form id="postForm" method="POST" enctype="multipart/form-data">
-                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <label for="composerTextarea" class="visually-hidden">Nội dung bài viết</label>
                         <textarea 
                             name="content"
@@ -129,8 +128,8 @@ function imagePath($path) {
                         ></textarea>
 
                         <label for="postImages" class="custom-upload-btn mb-3">
-                            <i class="bi bi-plus-square"></i>
-                            <span>+ Thêm ảnh/video</span>
+                            <i class="bi bi-image"></i>
+                            <span>Thêm ảnh</span>
                         </label>
 
                         <input 
@@ -178,9 +177,10 @@ function imagePath($path) {
     </div>
 </section>
 
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
 </html>

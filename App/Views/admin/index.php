@@ -118,6 +118,8 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
 
     <?php require __DIR__ . '/partials/shared-modals.php'; ?>
 
+    <?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
     <script>
         // Gom các endpoint admin cho file JS dùng chung.
         window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";

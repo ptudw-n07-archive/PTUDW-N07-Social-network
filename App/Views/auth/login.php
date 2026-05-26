@@ -13,9 +13,11 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập | Social Network</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
 </head>
-<body>
+<body class="auth-with-footer">
 
     <div class="login-container">
         <h2>Xin chào!</h2>
@@ -74,5 +76,14 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
                 <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
             </div>
 
+<<<<<<< HEAD:App/Views/auth/login.php
         </div> </div> </body>
+=======
+        </div>
+    </div>
+
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
+</body>
+>>>>>>> 31a4974 (Update feed features and UI):Views/auth/login.php
 </html>

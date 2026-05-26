@@ -230,7 +230,6 @@ function renderPostContentWithHashtags($content) {
                 <div class="feed-title text-center mb-4">Bảng tin</div>
 
                 <form id="postForm" class="bg-white p-3 p-md-4 mb-4 post-composer" method="POST" enctype="multipart/form-data">
-                    <?= \App\Services\CsrfService::hiddenField() ?>
                     <div class="d-flex gap-3 composer-layout">
                        <img
                             src="<?= htmlspecialchars(imagePath($currentAvatar), ENT_QUOTES, 'UTF-8') ?>"
@@ -302,7 +301,7 @@ function renderPostContentWithHashtags($content) {
                                             <div class="post-card-header">
                                                 <div class="post-meta-line">
                                                     <a href="<?= profileUrl($post['UserID']) ?>" class="post-author-link text-decoration-none">
-                                                        <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username']) ?>
+                                                        <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
                                                     </a>
                                                     <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
                                                 </div>
@@ -399,28 +398,28 @@ function renderPostContentWithHashtags($content) {
                                             </div>
 
                                                 <div class="comment-list">
-    <?php if (!empty($comments)): ?>
-        <?php foreach ($comments as $comment): ?>
-            <div class="comment-item">
-                <img
-                    src="<?= htmlspecialchars(imagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-                    class="comment-avatar"
-                    alt="avatar"
-                    onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
-                >
-                <div class="comment-bubble">
-                    <div class="comment-meta">
-                        <strong class="comment-author">
-                            <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username']) ?>
-                        </strong>
-                        <span class="comment-time">• <?= timeAgo($comment['CreatedAt'] ?? '') ?></span>
-                    </div>
-                    <div class="comment-content"><?= htmlspecialchars($comment['Content']) ?></div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-</div>
+                                            <?php if (!empty($comments)): ?>
+                                                <?php foreach ($comments as $comment): ?>
+                                                    <div class="comment-item">
+                                                        <img
+                                                            src="<?= htmlspecialchars(imagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                                            class="comment-avatar"
+                                                            alt="avatar"
+                                                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+                                                        >
+                                                        <div class="comment-bubble">
+                                                            <div class="comment-meta">
+                                                                <strong class="comment-author">
+                                                                    <?= htmlspecialchars($comment['FullName'] ?: $comment['Username']) ?>
+                                                                </strong>
+                                                                <span class="comment-time">• <?= timeAgo($comment['CreatedAt'] ?? '') ?></span>
+                                                            </div>
+                                                            <div class="comment-content"><?= htmlspecialchars($comment['Content']) ?></div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </div>
                                                 </div>
                                         </div>
                                     </div>
@@ -451,7 +450,7 @@ function renderPostContentWithHashtags($content) {
                                         <a
                                             href="<?= htmlspecialchars(profileUrl($user['UserID']), ENT_QUOTES, 'UTF-8') ?>"
                                             class="suggested-user-avatar-link"
-                                            title="Xem hồ sơ <?= htmlspecialchars($user['FullName'] ?: '@' . $user['Username'], ENT_QUOTES, 'UTF-8') ?>"
+                                            title="Xem hồ sơ <?= htmlspecialchars($user['FullName'] ?: $user['Username'], ENT_QUOTES, 'UTF-8') ?>"
                                         >
                                             <img
                                                 src="<?= htmlspecialchars(imagePath($user['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
@@ -463,7 +462,7 @@ function renderPostContentWithHashtags($content) {
 
                                         <div>
                                             <div class="fw-semibold">
-                                                <?= htmlspecialchars($user['FullName'] ?: '@' . $user['Username']) ?>
+                                                <?= htmlspecialchars($user['FullName'] ?: $user['Username']) ?>
                                             </div>
 
                                             <small class="text-muted">
@@ -521,6 +520,5 @@ function renderPostContentWithHashtags($content) {
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260524-post-click-comment"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
 </html>

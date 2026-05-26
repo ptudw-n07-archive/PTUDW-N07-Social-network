@@ -25,6 +25,41 @@ if (!function_exists('archivePostCardAttributes')) {
     }
 }
 
+if (!function_exists('archivePostPrivacyMeta')) {
+    function archivePostPrivacyMeta($privacy): array {
+        $privacy = in_array($privacy, ['public', 'followers', 'private'], true) ? $privacy : 'public';
+
+        $labels = [
+            'public' => 'Công khai',
+            'followers' => 'Người theo dõi',
+            'private' => 'Riêng tư'
+        ];
+        $icons = [
+            'public' => 'bi-globe2',
+            'followers' => 'bi-people',
+            'private' => 'bi-lock'
+        ];
+
+        return [
+            'value' => $privacy,
+            'label' => $labels[$privacy],
+            'icon' => $icons[$privacy]
+        ];
+    }
+}
+
+if (!function_exists('archiveRenderPrivacyBadge')) {
+    function archiveRenderPrivacyBadge($privacy): void {
+        $meta = archivePostPrivacyMeta((string) $privacy);
+        ?>
+        <span class="post-privacy-badge post-privacy-<?= htmlspecialchars($meta['value'], ENT_QUOTES, 'UTF-8') ?>" data-privacy-badge>
+            <i class="bi <?= htmlspecialchars($meta['icon'], ENT_QUOTES, 'UTF-8') ?>"></i>
+            <span><?= htmlspecialchars($meta['label'], ENT_QUOTES, 'UTF-8') ?></span>
+        </span>
+        <?php
+    }
+}
+
 if (!function_exists('archiveRenderPostMenu')) {
     function archiveRenderPostMenu(array $post, int $currentUserId): void {
         $postId = (int) ($post['PostID'] ?? 0);

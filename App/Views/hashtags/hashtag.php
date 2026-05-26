@@ -227,7 +227,7 @@ function renderHashtagPostContent($content) {
                                         <div class="post-card-header">
                                         <div class="fw-semibold">
                                             <a href="<?= hashtagProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
-                                                <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                             </a>
                                             • <?= hashtagTimeAgo($post['CreatedAt']) ?>
                                         </div>
@@ -285,6 +285,8 @@ function renderHashtagPostContent($content) {
     </div>
 </section>
 
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-post-menu"></script>
 <script>
 document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
@@ -311,6 +313,5 @@ document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>
