@@ -32,7 +32,8 @@ require_once __DIR__ . '/../../../Config/Database.php';
             </div>
         <?php endif; ?>
 
-       <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=login" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=login" method="POST">
+            <?= \App\Services\CsrfService::hiddenField() ?>
             <div class="form-group">
                 <label for="username"><i class="fa-regular fa-user"></i> Tài khoản</label>
                 <input type="text" id="username" name="username" placeholder="Tên đăng nhập hoặc Email" required>

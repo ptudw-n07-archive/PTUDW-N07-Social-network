@@ -47,6 +47,7 @@ require_once __DIR__ . '/../../../Config/Database.php';
         <?php endif; ?>
         
         <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=register" method="POST">
+            <?= \App\Services\CsrfService::hiddenField() ?>
             <div class="register-grid">
                 <div class="form-group full-width">
                     <label for="fullname">Họ và Tên</label>

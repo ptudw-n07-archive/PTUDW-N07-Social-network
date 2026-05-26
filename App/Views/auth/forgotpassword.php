@@ -35,6 +35,7 @@ $showResetForm = $resetEmail !== '';
         <?php endif; ?>
 
         <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=sendResetOtp" method="POST">
+            <?= \App\Services\CsrfService::hiddenField() ?>
             <div class="form-group">
                 <label for="email"><i class="fa-regular fa-envelope"></i> Email đã đăng ký</label>
                 <input
@@ -52,6 +53,7 @@ $showResetForm = $resetEmail !== '';
 
         <?php if ($showResetForm): ?>
             <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=resetWithOtp" method="POST" style="margin-top: 18px;">
+                <?= \App\Services\CsrfService::hiddenField() ?>
                 <input type="hidden" name="email" value="<?php echo htmlspecialchars($resetEmail, ENT_QUOTES, 'UTF-8'); ?>">
 
                 <div class="form-group">
