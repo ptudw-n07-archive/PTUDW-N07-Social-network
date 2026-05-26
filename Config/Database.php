@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../App/Services/CsrfService.php';
+
 if (!function_exists('app_load_env')) {
     function app_load_env(): array {
         static $env = null;
