@@ -129,6 +129,65 @@
         "'": '&#039;'
     }[char]));
 
+    const ADMIN_DEFAULT_AVATAR = 'Public/assets/img/default-avatar.jpg';
+
+    const adminBaseUrl = () => String(window.ADMIN_BASE_URL || window.APP_BASE_URL || `${window.location.origin}/`).replace(/\/+$/, '/');
+
+    const adminUrl = path => {
+        const value = String(path || '').replace(/^\/+/, '');
+        return `${adminBaseUrl()}${value}`;
+    };
+
+    const normalizeAdminImagePath = (path, fallback = ADMIN_DEFAULT_AVATAR) => {
+        let value = String(path ?? '').trim().replace(/\\/g, '/');
+
+        if (value === '') return fallback === '' ? '' : adminUrl(fallback);
+        if (/^\/\//.test(value)) return `${window.location.protocol}${value}`;
+        if (/^https?:\/\//i.test(value)) return value;
+
+        value = value.replace(/^\/+/, '');
+        const withoutPublic = value.replace(/^(?:Public\/)+/i, '');
+
+        if (/^https?:\/\//i.test(withoutPublic)) return withoutPublic;
+        if (/^(assets|uploads)\//i.test(withoutPublic)) return adminUrl(`Public/${withoutPublic}`);
+        return adminUrl(value);
+    };
+
+    const adminAvatarSrc = path => normalizeAdminImagePath(path, ADMIN_DEFAULT_AVATAR);
+
+    const isAvatarImage = img => {
+        const imageType = (img.dataset.adminImage || '').toLowerCase();
+        const alt = (img.getAttribute('alt') || '').toLowerCase();
+        return imageType === 'avatar'
+            || alt.includes('avatar')
+            || img.classList.contains('rank-avatar')
+            || img.classList.contains('admin-profile-avatar')
+            || img.classList.contains('admin-profile-avatar-large');
+    };
+
+    const handleImageError = img => {
+        if (!img || img.tagName !== 'IMG') return;
+
+        if (isAvatarImage(img)) {
+            if (img.dataset.adminFallbackApplied !== '1') {
+                img.dataset.adminFallbackApplied = '1';
+                img.src = adminAvatarSrc('');
+                return;
+            }
+            img.style.visibility = 'hidden';
+            return;
+        }
+
+        img.dataset.adminImageFailed = '1';
+        img.style.display = 'none';
+    };
+
+    document.addEventListener('error', event => {
+        if (event.target && event.target.tagName === 'IMG') {
+            handleImageError(event.target);
+        }
+    }, true);
+
     const emptyStateHtml = (message = 'Không có dữ liệu phù hợp.', icon = 'bi-inbox') => `
         <div class="admin-empty-state">
             <i class="bi ${icon}"></i>
@@ -213,6 +272,10 @@
         showToast,
         showConfirmModal,
         escapeHtml,
+        normalizeAdminImagePath,
+        adminAvatarSrc,
+        handleImageError,
+        ADMIN_DEFAULT_AVATAR,
         emptyStateHtml,
         tableEmptyRow,
         loadingStateHtml,

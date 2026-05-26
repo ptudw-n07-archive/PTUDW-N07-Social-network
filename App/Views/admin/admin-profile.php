@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/partials/image-helper.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -15,26 +16,7 @@ if (!isset($admin) || !is_array($admin)) {
     exit();
 }
 
-// Chuẩn hóa đường dẫn avatar để view luôn có ảnh hợp lệ để hiển thị.
-function adminProfileAssetPath($path) {
-    $path = trim((string)$path);
-    if ($path === '') {
-        return BASE_URL . 'Public/assets/img/default-avatar.jpg';
-    }
-
-    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-        return $path;
-    }
-
-    $path = ltrim($path, '/');
-    if (str_starts_with($path, 'Public/')) {
-        return BASE_URL . $path;
-    }
-
-    return BASE_URL . 'Public/' . $path;
-}
-
-$adminAvatar = adminProfileAssetPath($admin['ProfilePictureUrl'] ?? '');
+$adminAvatar = admin_image_url($admin['ProfilePictureUrl'] ?? '');
 $adminName = $admin['FullName'] ?: ($admin['Username'] ?? 'Quản trị viên');
 $adminBio = trim((string)($admin['Bio'] ?? ''));
 $adminCreatedAt = !empty($admin['CreatedAt']) ? date('d/m/Y H:i', strtotime($admin['CreatedAt'])) : 'Chưa rõ';
@@ -78,7 +60,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
         <div class="admin-profile-layout">
             <section class="admin-profile-card">
                 <div class="admin-profile-identity">
-                    <img id="adminProfileAvatarLarge" class="admin-profile-avatar-large" src="<?php echo htmlspecialchars($adminAvatar, ENT_QUOTES); ?>" alt="Admin avatar">
+                    <img id="adminProfileAvatarLarge" class="admin-profile-avatar-large" src="<?php echo htmlspecialchars($adminAvatar, ENT_QUOTES); ?>" alt="Admin avatar" <?php echo admin_avatar_error_attr(); ?>>
                     <div>
                         <span class="admin-profile-kicker">Admin Profile</span>
                         <h1 id="adminProfileNameText"><?php echo htmlspecialchars($adminName); ?></h1>
