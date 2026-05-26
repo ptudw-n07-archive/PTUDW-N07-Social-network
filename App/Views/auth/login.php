@@ -4,6 +4,7 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../Services/CsrfService.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -54,7 +55,7 @@ require_once __DIR__ . '/../../../Config/Database.php';
         <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
             
             <div style="text-align: left; flex: 1;">
-                <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
+                <a href="<?php echo BASE_URL; ?>App/Views/auth/forgot-password.php" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
             </div>
 
             <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">

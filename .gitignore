@@ -5,3 +5,4 @@
 Public/uploads
 .opencode/
 vendor/
+storage/logs/*.log

@@ -4,6 +4,7 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../Services/CsrfService.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">

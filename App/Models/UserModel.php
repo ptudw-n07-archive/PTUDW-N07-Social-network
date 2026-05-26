@@ -9,6 +9,7 @@ class UserModel {
 
     public function __construct($db_connection) {
         $this->conn = $db_connection;
+        $this->ensureEmailVerificationSchema();
     }
 
     public function exists($username, $email): bool {
@@ -39,9 +40,14 @@ class UserModel {
         return (bool) $stmt->fetchColumn();
     }
 
-    public function register($name, $username, $email, $password): bool {
-        $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt)
-                  VALUES (:name, :username, :email, :password, 2, 1, NOW())";
+    public function register($name, $username, $email, $password, ?string $verificationTokenHash = null, ?string $verificationExpiresAt = null) {
+        $isVerified = $verificationTokenHash === null ? 1 : 0;
+        $emailVerifiedAt = $verificationTokenHash === null ? date('Y-m-d H:i:s') : null;
+
+        $query = "INSERT INTO " . $this->table . "
+                    (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt, is_verified, email_verified_at, verification_token, verification_expires_at)
+                  VALUES
+                    (:name, :username, :email, :password, 2, 1, NOW(), :isVerified, :emailVerifiedAt, :verificationToken, :verificationExpiresAt)";
         $stmt = $this->conn->prepare($query);
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
@@ -49,8 +55,16 @@ class UserModel {
         $stmt->bindParam(':username', $username);
         $stmt->bindParam(':email', $email);
         $stmt->bindParam(':password', $hashedPassword);
+        $stmt->bindValue(':isVerified', $isVerified, PDO::PARAM_INT);
+        $stmt->bindValue(':emailVerifiedAt', $emailVerifiedAt, $emailVerifiedAt === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':verificationToken', $verificationTokenHash, $verificationTokenHash === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':verificationExpiresAt', $verificationExpiresAt, $verificationExpiresAt === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
 
-        return $stmt->execute();
+        if (!$stmt->execute()) {
+            return false;
+        }
+
+        return (int) $this->conn->lastInsertId();
     }
 
     public function findByCredentials($loginInput) {
@@ -74,6 +88,19 @@ class UserModel {
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function findByVerificationTokenHash(string $tokenHash) {
+        $query = "SELECT u.*, r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
+                  WHERE u.verification_token = :tokenHash
+                  LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':tokenHash', $tokenHash);
         $stmt->execute();
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -197,6 +224,41 @@ class UserModel {
         return $stmt->execute();
     }
 
+    public function updatePasswordById(int $userId, string $newPassword): bool {
+        $query = "UPDATE " . $this->table . " SET PasswordHash = :password WHERE UserID = :userId";
+        $stmt = $this->conn->prepare($query);
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+        $stmt->bindParam(':password', $hashedPassword);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+
+        return $stmt->execute();
+    }
+
+    public function markEmailVerified(int $userId): bool {
+        $query = "UPDATE " . $this->table . "
+                  SET is_verified = 1,
+                      email_verified_at = NOW(),
+                      verification_token = NULL,
+                      verification_expires_at = NULL
+                  WHERE UserID = :userId";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+
+        return $stmt->execute();
+    }
+
+    public function clearVerificationToken(int $userId): bool {
+        $query = "UPDATE " . $this->table . "
+                  SET verification_token = NULL,
+                      verification_expires_at = NULL
+                  WHERE UserID = :userId";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+
+        return $stmt->execute();
+    }
+
     public function login($username, $password) {
         $user = $this->findByCredentials($username);
 
@@ -215,6 +277,51 @@ class UserModel {
         }
 
         return false;
+    }
+
+    private function ensureEmailVerificationSchema(): void {
+        $addedVerificationFlag = false;
+
+        if (!$this->columnExists('is_verified')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN is_verified TINYINT(1) NOT NULL DEFAULT 0");
+            $addedVerificationFlag = true;
+        }
+
+        if (!$this->columnExists('email_verified_at')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN email_verified_at DATETIME NULL");
+        }
+
+        if (!$this->columnExists('verification_token')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN verification_token VARCHAR(255) NULL");
+        }
+
+        if (!$this->columnExists('verification_expires_at')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN verification_expires_at DATETIME NULL");
+        }
+
+        if ($addedVerificationFlag) {
+            $this->conn->exec("
+                UPDATE " . $this->table . "
+                SET is_verified = 1,
+                    email_verified_at = COALESCE(email_verified_at, CreatedAt, NOW())
+                WHERE verification_token IS NULL
+            ");
+        }
+    }
+
+    private function columnExists(string $column): bool {
+        $stmt = $this->conn->prepare("
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = :table
+            AND COLUMN_NAME = :column
+        ");
+        $stmt->bindValue(':table', $this->table);
+        $stmt->bindValue(':column', $column);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn() > 0;
     }
 }
 ?>
