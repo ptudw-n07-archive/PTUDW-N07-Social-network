@@ -12,6 +12,14 @@ class UserModel {
         $this->ensureEmailVerificationSchema();
     }
 
+    public static function normalizeUsername(string $username): string {
+        return strtolower(trim($username));
+    }
+
+    public static function isValidUsername(string $username): bool {
+        return preg_match('/^[a-z0-9_.]{3,50}$/', $username) === 1;
+    }
+
     public function exists($username, $email): bool {
         $query = "SELECT UserID FROM " . $this->table . " WHERE Username = :username OR Email = :email LIMIT 1";
         $stmt = $this->conn->prepare($query);
@@ -23,6 +31,8 @@ class UserModel {
     }
 
     public function usernameExists(string $username): bool {
+        $username = self::normalizeUsername($username);
+
         $query = "SELECT 1 FROM " . $this->table . " WHERE Username = :username LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindValue(':username', $username);
@@ -40,6 +50,7 @@ class UserModel {
         return (bool) $stmt->fetchColumn();
     }
 
+<<<<<<< Updated upstream
     public function register($name, $username, $email, $password, ?string $verificationTokenHash = null, ?string $verificationExpiresAt = null) {
         $isVerified = $verificationTokenHash === null ? 1 : 0;
         $emailVerifiedAt = $verificationTokenHash === null ? date('Y-m-d H:i:s') : null;
@@ -48,6 +59,16 @@ class UserModel {
                     (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt, is_verified, email_verified_at, verification_token, verification_expires_at)
                   VALUES
                     (:name, :username, :email, :password, 2, 1, NOW(), :isVerified, :emailVerifiedAt, :verificationToken, :verificationExpiresAt)";
+=======
+    public function register($name, $username, $email, $password): bool {
+        $username = self::normalizeUsername((string) $username);
+        if (!self::isValidUsername($username)) {
+            return false;
+        }
+
+        $query = "INSERT INTO " . $this->table . " (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt)
+                  VALUES (:name, :username, :email, :password, 2, 1, NOW())";
+>>>>>>> Stashed changes
         $stmt = $this->conn->prepare($query);
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
@@ -68,13 +89,16 @@ class UserModel {
     }
 
     public function findByCredentials($loginInput) {
+        $emailInput = trim((string) $loginInput);
+        $usernameInput = self::normalizeUsername((string) $loginInput);
         $query = "SELECT u.*, r.RoleName
                   FROM " . $this->table . " u
                   LEFT JOIN roles r ON u.RoleID = r.RoleID
-                  WHERE u.Username = :input OR u.Email = :input
+                  WHERE u.Username = :username OR u.Email = :email
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':input', $loginInput);
+        $stmt->bindValue(':username', $usernameInput);
+        $stmt->bindValue(':email', $emailInput);
         $stmt->execute();
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -142,6 +166,8 @@ class UserModel {
     }
 
     public function isUsernameTaken($username, $excludeUserId): bool {
+        $username = self::normalizeUsername($username);
+
         $query = "SELECT UserID
                   FROM " . $this->table . "
                   WHERE Username = :username AND UserID != :userId
@@ -168,6 +194,11 @@ class UserModel {
     }
 
     public function updateProfile($userId, $fullName, $username, $email, $bio, $avatarPath = null): bool {
+        $username = self::normalizeUsername((string) $username);
+        if (!self::isValidUsername($username)) {
+            return false;
+        }
+
         $fields = [
             "FullName = :fullName",
             "Username = :username",

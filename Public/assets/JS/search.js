@@ -186,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         users.forEach(user => {
             const profileHref = baseUrl + "App/Views/profile/profile.php?id=" + encodeURIComponent(user.UserID);
-            const fullName = user.FullName || user.Username || "Người dùng";
+            const fullName = user.FullName || (user.Username ? `@${user.Username}` : "Người dùng");
             const username = user.Username || "";
             const bio = user.Bio || "Chưa cập nhật bio.";
             const avatar = normalizeImagePath(user.ProfilePictureUrl);
@@ -255,7 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
         posts.forEach(post => {
             const profileHref = baseUrl + "App/Views/profile/profile.php?id=" + encodeURIComponent(post.UserID);
             const avatar = normalizeImagePath(post.ProfilePictureUrl);
-            const fullName = post.FullName || post.Username || "Người dùng";
+            const fullName = post.FullName || (post.Username ? `@${post.Username}` : "Người dùng");
 
             const row = document.createElement("a");
             row.href = profileHref;

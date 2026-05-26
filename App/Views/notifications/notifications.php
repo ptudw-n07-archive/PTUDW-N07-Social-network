@@ -163,7 +163,7 @@ function notificationMessage($notification) {
                                     || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
                                 $senderName = $isModerationNotification
                                     ? 'Hệ thống'
-                                    : ($notification['SenderName'] ?: ($notification['SenderUsername'] ?: 'Người dùng'));
+                                    : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng'));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
                                 $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
