@@ -52,6 +52,11 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
             <span>HOẶC</span>
         </div>
 
+        <a class="google-login-btn" href="<?php echo app_url('App/Controllers/GoogleLoginController.php'); ?>">
+            <span class="google-login-icon">G</span>
+            <span>Đăng nhập bằng Google</span>
+        </a>
+
         <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
             
             <div style="text-align: left; flex: 1;">

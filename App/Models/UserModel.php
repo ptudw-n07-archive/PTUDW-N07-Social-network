@@ -10,6 +10,7 @@ class UserModel {
     public function __construct($db_connection) {
         $this->conn = $db_connection;
         $this->ensureEmailVerificationSchema();
+        $this->ensureGoogleLoginSchema();
     }
 
     public static function normalizeUsername(string $username): string {
@@ -106,6 +107,19 @@ class UserModel {
                   LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':email', $email);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function findByGoogleId(string $googleId) {
+        $query = "SELECT u.*, r.RoleName
+                  FROM " . $this->table . " u
+                  LEFT JOIN roles r ON u.RoleID = r.RoleID
+                  WHERE u.google_id = :googleId
+                  LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':googleId', $googleId);
         $stmt->execute();
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -260,6 +274,88 @@ class UserModel {
         return $stmt->execute();
     }
 
+    public function linkGoogleAccount(int $userId, string $googleId, ?string $avatarUrl = null): bool {
+        $query = "UPDATE " . $this->table . "
+                  SET google_id = :googleId,
+                      avatar_url = :avatarUrl,
+                      ProfilePictureUrl = COALESCE(:profilePictureUrl, ProfilePictureUrl),
+                      auth_provider = 'google',
+                      is_verified = 1,
+                      email_verified_at = COALESCE(email_verified_at, NOW()),
+                      verification_token = NULL,
+                      verification_expires_at = NULL
+                  WHERE UserID = :userId";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindValue(':googleId', $googleId);
+        $stmt->bindValue(':avatarUrl', $avatarUrl, $avatarUrl === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':profilePictureUrl', $avatarUrl, $avatarUrl === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+
+        return $stmt->execute();
+    }
+
+    public function createGoogleUser(string $fullName, string $username, string $email, string $googleId, ?string $avatarUrl = null) {
+        $username = self::normalizeUsername($username);
+        if (!self::isValidUsername($username)) {
+            return false;
+        }
+
+        $query = "INSERT INTO " . $this->table . "
+                    (FullName, Username, Email, PasswordHash, RoleID, IsActive, CreatedAt, is_verified, email_verified_at, verification_token, verification_expires_at, google_id, avatar_url, ProfilePictureUrl, auth_provider)
+                  VALUES
+                    (:fullName, :username, :email, :passwordHash, 2, 1, NOW(), 1, NOW(), NULL, NULL, :googleId, :avatarUrl, :profilePictureUrl, 'google')";
+        $stmt = $this->conn->prepare($query);
+        $passwordHash = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+
+        $stmt->bindValue(':fullName', $fullName);
+        $stmt->bindValue(':username', $username);
+        $stmt->bindValue(':email', $email);
+        $stmt->bindValue(':passwordHash', $passwordHash);
+        $stmt->bindValue(':googleId', $googleId);
+        $stmt->bindValue(':avatarUrl', $avatarUrl, $avatarUrl === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':profilePictureUrl', $avatarUrl, $avatarUrl === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+
+        if (!$stmt->execute()) {
+            return false;
+        }
+
+        return (int) $this->conn->lastInsertId();
+    }
+
+    public function generateUniqueUsernameFromGoogle(string $emailOrName): string {
+        $source = trim($emailOrName);
+
+        if (filter_var($source, FILTER_VALIDATE_EMAIL)) {
+            $source = strstr($source, '@', true) ?: $source;
+        }
+
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $source);
+        $base = strtolower($ascii === false ? $source : $ascii);
+        $base = preg_replace('/[^a-z0-9_.]+/', '.', $base) ?? '';
+        $base = trim($base, '._');
+        $base = preg_replace('/[._]{2,}/', '.', $base) ?? '';
+
+        if (strlen($base) < 3) {
+            $base = 'user' . $base;
+        }
+
+        $base = substr($base, 0, 42);
+        if (self::isValidUsername($base) && !$this->usernameExists($base)) {
+            return $base;
+        }
+
+        for ($i = 0; $i < 20; $i++) {
+            $suffix = substr(bin2hex(random_bytes(3)), 0, 6);
+            $candidate = substr($base, 0, 43) . '.' . $suffix;
+
+            if (self::isValidUsername($candidate) && !$this->usernameExists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return 'user.' . time() . random_int(100, 999);
+    }
+
     public function markEmailVerified(int $userId): bool {
         $query = "UPDATE " . $this->table . "
                   SET is_verified = 1,
@@ -334,6 +430,24 @@ class UserModel {
         }
     }
 
+    private function ensureGoogleLoginSchema(): void {
+        if (!$this->columnExists('google_id')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN google_id VARCHAR(255) NULL");
+        }
+
+        if (!$this->columnExists('avatar_url')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN avatar_url TEXT NULL");
+        }
+
+        if (!$this->columnExists('auth_provider')) {
+            $this->conn->exec("ALTER TABLE " . $this->table . " ADD COLUMN auth_provider VARCHAR(50) NOT NULL DEFAULT 'local'");
+        }
+
+        if (!$this->indexExists('idx_users_google_id')) {
+            $this->conn->exec("CREATE INDEX idx_users_google_id ON " . $this->table . " (google_id)");
+        }
+    }
+
     private function columnExists(string $column): bool {
         $stmt = $this->conn->prepare("
             SELECT COUNT(*)
@@ -344,6 +458,21 @@ class UserModel {
         ");
         $stmt->bindValue(':table', $this->table);
         $stmt->bindValue(':column', $column);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private function indexExists(string $index): bool {
+        $stmt = $this->conn->prepare("
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = :table
+            AND INDEX_NAME = :indexName
+        ");
+        $stmt->bindValue(':table', $this->table);
+        $stmt->bindValue(':indexName', $index);
         $stmt->execute();
 
         return (int) $stmt->fetchColumn() > 0;

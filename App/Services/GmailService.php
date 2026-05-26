@@ -18,10 +18,10 @@ class GmailService
             return $this->writeDebugMail('otp', $to, '-', 'OTP=' . $otp);
         }
 
-        $subject = 'Ma OTP xac nhan Archive';
-        $body = "Ma OTP cua ban la: {$otp}\n";
-        $body .= "Ma co hieu luc trong 5 phut.\n";
-        $body .= "Neu ban khong yeu cau, vui long bo qua email nay.";
+        $subject = 'Chào bạn, Archive gửi bạn mã OTP để xác nhận';
+        $body = "Mã OTP của bạn là: {$otp}\n";
+        $body .= "Mã có hiệu lực trong 5 phút.\n";
+        $body .= "Nếu bạn không yêu cầu, vui lòng bỏ qua email này.";
 
         return $this->sendEmail($to, $subject, $body, 'text/plain');
     }
@@ -32,7 +32,7 @@ class GmailService
             return $this->writeDebugMail('verification', $to, $username, $verifyLink);
         }
 
-        $subject = 'Archive chờ bạn xác nhận tài khoản 💗';
+        $subject = 'Chào bạn, Archive chờ bạn xác nhận tài khoản 💗';
         $safeLink = htmlspecialchars($verifyLink, ENT_QUOTES, 'UTF-8');
 
         $html = $this->buildMinimalEmailLayout(
@@ -58,7 +58,7 @@ class GmailService
             return $this->writeDebugMail('password_reset', $to, $username, $resetLink);
         }
 
-        $subject = 'Archive gửi bạn liên kết đặt lại mật khẩu 🔐';
+        $subject = 'Archive gửi bạn liên kết đặt lại mật khẩu nha 🔐';
         $safeLink = htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8');
 
         $html = $this->buildMinimalEmailLayout(
