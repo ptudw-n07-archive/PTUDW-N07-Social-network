@@ -4,6 +4,25 @@ function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
 }
 
+<<<<<<< HEAD
+=======
+function showToast(message) {
+    let toast = document.getElementById("pageToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "pageToast";
+        toast.className = "page-toast";
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    window.clearTimeout(toast._timer);
+    toast._timer = window.setTimeout(function () {
+        toast.classList.remove("show");
+    }, 2600);
+}
+
+>>>>>>> 31a4974 (Update feed features and UI)
 function createPost() {
     const form = document.getElementById("postForm");
 
@@ -18,7 +37,11 @@ function createPost() {
     const images = imageInput ? imageInput.files : [];
 
     if (content === "" && images.length === 0) {
+<<<<<<< HEAD
         alert("Bạn hãy nhập nội dung hoặc chọn ảnh.");
+=======
+        showToast("Bạn hãy nhập nội dung hoặc chọn ảnh.");
+>>>>>>> 31a4974 (Update feed features and UI)
         return;
     }
 
@@ -35,11 +58,16 @@ function createPost() {
     })
     .then(data => {
         if (!data.success) {
+<<<<<<< HEAD
             alert(data.message || "Không thể đăng bài.");
+=======
+            showToast(data.message || "Không thể đăng bài.");
+>>>>>>> 31a4974 (Update feed features and UI)
             return;
         }
 
         if (Array.isArray(data.uploadErrors) && data.uploadErrors.length > 0) {
+<<<<<<< HEAD
             alert(data.uploadErrors[0]);
         }
 
@@ -49,10 +77,22 @@ function createPost() {
     .catch(error => {
         console.error(error);
         alert("Có lỗi xảy ra trong quá trình đăng bài.");
+=======
+            showToast(data.uploadErrors[0]);
+        }
+
+        sessionStorage.setItem("post_success", "Đăng bài thành công!");
+        window.location.href = appUrl("App/Views/post/feed.php");
+    })
+    .catch(error => {
+        console.error(error);
+        showToast("Có lỗi xảy ra trong quá trình đăng bài.");
+>>>>>>> 31a4974 (Update feed features and UI)
     });
 }
 
 const postImagesInput = document.getElementById("postImages");
+<<<<<<< HEAD
 
 if (postImagesInput) {
     postImagesInput.addEventListener("change", function () {
@@ -105,6 +145,98 @@ if (postImagesInput) {
     });
 }
 
+=======
+let selectedPostFiles = [];
+
+if (postImagesInput) {
+    postImagesInput.addEventListener("change", function () {
+        selectedPostFiles = Array.from(this.files || []);
+        renderSelectedPostPreviews();
+    });
+}
+
+function renderSelectedPostPreviews() {
+    const previewContainer = document.getElementById("preview-container");
+
+    if (!previewContainer) {
+        return;
+    }
+
+    previewContainer.innerHTML = "";
+
+    selectedPostFiles.forEach(function (file, index) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "preview-item";
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "preview-remove-btn";
+        removeButton.dataset.index = String(index);
+        removeButton.setAttribute("aria-label", "Xóa ảnh khỏi bài viết");
+        removeButton.innerHTML = '<i class="bi bi-x"></i>';
+        removeButton.addEventListener("click", function () {
+            removeSelectedPostFile(Number(this.dataset.index));
+        });
+
+        wrapper.appendChild(createPreviewMedia(file));
+        wrapper.appendChild(removeButton);
+        previewContainer.appendChild(wrapper);
+    });
+}
+
+function createPreviewMedia(file) {
+    const extension = getMediaExtension(file.name);
+
+    if (["heic", "heif"].includes(extension)) {
+        const item = document.createElement("div");
+        item.className = "preview-file";
+        item.innerText = `${file.name}\nHEIC/HEIF sẽ được chuyển đổi sau khi đăng nếu server hỗ trợ.`;
+        return item;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    if (file.type.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.src = objectUrl;
+        video.className = "preview-video";
+        video.controls = true;
+        return video;
+    }
+
+    const img = document.createElement("img");
+    img.src = objectUrl;
+    img.className = "preview-image";
+    img.alt = file.name || "Ảnh xem trước";
+    img.addEventListener("load", function () {
+        URL.revokeObjectURL(objectUrl);
+    }, { once: true });
+    return img;
+}
+
+function removeSelectedPostFile(index) {
+    if (index < 0 || index >= selectedPostFiles.length) {
+        return;
+    }
+
+    selectedPostFiles.splice(index, 1);
+    syncSelectedFilesToInput();
+    renderSelectedPostPreviews();
+}
+
+function syncSelectedFilesToInput() {
+    if (!postImagesInput || typeof DataTransfer === "undefined") {
+        return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    selectedPostFiles.forEach(function (file) {
+        dataTransfer.items.add(file);
+    });
+    postImagesInput.files = dataTransfer.files;
+}
+
+>>>>>>> 31a4974 (Update feed features and UI)
 function getMediaExtension(path) {
     const cleanPath = String(path || "").split("?")[0].split("#")[0];
     const parts = cleanPath.split(".");

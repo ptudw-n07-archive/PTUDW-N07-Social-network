@@ -12,6 +12,8 @@ require_once __DIR__ . '/../../../Config/Database.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tài khoản bị khóa | Archive</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
     <style>
         .locked-actions {
@@ -44,7 +46,7 @@ require_once __DIR__ . '/../../../Config/Database.php';
         }
     </style>
 </head>
-<body>
+<body class="auth-with-footer">
     <div class="login-container">
         <h2>Tài khoản của bạn đã bị khóa</h2>
         <p class="subtitle">Bạn vẫn đăng nhập thành công, nhưng tài khoản hiện không thể tiếp tục sử dụng Archive.</p>
@@ -58,6 +60,8 @@ require_once __DIR__ . '/../../../Config/Database.php';
             Vui lòng gửi email hỗ trợ tới hotro@archive.vn
         </div>
     </div>
+
+    <?php require_once __DIR__ . '/../partials/footer.php'; ?>
 
     <script>
         document.getElementById('supportBtn').addEventListener('click', function() {
