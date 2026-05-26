@@ -36,7 +36,7 @@ function toggleLike(btn) {
     const postId = btn.dataset.postId;
 
     if (!postId) {
-        alert("Không tìm thấy PostID.");
+        showPostToast("Không tìm thấy PostID.");
         return;
     }
 
@@ -50,7 +50,7 @@ function toggleLike(btn) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            alert(data.message || "Like thất bại.");
+            showPostToast(data.message || "Like thất bại.");
             return;
         }
 
@@ -75,7 +75,7 @@ function toggleLike(btn) {
     })
     .catch(error => {
         console.error(error);
-        alert("Có lỗi khi like bài viết.");
+        showPostToast("Có lỗi khi like bài viết.");
     });
 }
 
@@ -87,7 +87,7 @@ function createPost() {
     const form = document.getElementById("postForm");
 
     if (!form) {
-        alert("Không tìm thấy form đăng bài.");
+        showPostToast("Không tìm thấy form đăng bài.");
         return;
     }
 
@@ -97,7 +97,7 @@ function createPost() {
     const images = imageInput ? imageInput.files : [];
 
     if (content === "" && images.length === 0) {
-        alert("Bạn hãy nhập nội dung hoặc chọn ảnh.");
+        showPostToast("Bạn hãy nhập nội dung hoặc chọn ảnh.");
         return;
     }
 
@@ -114,7 +114,7 @@ function createPost() {
     })
     .then(data => {
         if (!data.success) {
-            alert(data.message || "Không thể đăng bài.");
+            showPostToast(data.message || "Không thể đăng bài.");
             return;
         }
 
@@ -122,7 +122,7 @@ function createPost() {
         refreshTrendingHashtags();
 
         if (Array.isArray(data.uploadErrors) && data.uploadErrors.length > 0) {
-            alert(data.uploadErrors[0]);
+            showPostToast(data.uploadErrors[0]);
         }
 
         form.reset();
@@ -134,7 +134,7 @@ function createPost() {
     })
     .catch(error => {
         console.error(error);
-        alert("Có lỗi xảy ra trong quá trình đăng bài.");
+        showPostToast("Có lỗi xảy ra trong quá trình đăng bài.");
     });
 }
 
@@ -376,7 +376,7 @@ function sendComment(btn) {
     const content = input.value.trim();
 
     if (content === "") {
-        alert("Bạn chưa nhập bình luận.");
+        showPostToast("Bạn chưa nhập bình luận.");
         return;
     }
 
@@ -391,7 +391,7 @@ function sendComment(btn) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            alert("Không thể bình luận.");
+            showPostToast("Không thể bình luận.");
             return;
         }
 
@@ -436,7 +436,7 @@ function sendComment(btn) {
     })
     .catch(error => {
         console.error(error);
-        alert("Có lỗi khi gửi bình luận.");
+        showPostToast("Có lỗi khi gửi bình luận.");
     });
 }
 
@@ -549,7 +549,7 @@ function toggleFollow(btn) {
     const userId = btn.dataset.userId;
 
     if (!userId) {
-        alert("Không tìm thấy UserID.");
+        showPostToast("Không tìm thấy UserID.");
         return;
     }
 
@@ -563,7 +563,7 @@ function toggleFollow(btn) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
-            alert(data.message || "Không thể xử lý theo dõi.");
+            showPostToast(data.message || "Không thể xử lý theo dõi.");
             return;
         }
 
@@ -579,7 +579,7 @@ function toggleFollow(btn) {
     })
     .catch(error => {
         console.error(error);
-        alert("Có lỗi khi theo dõi.");
+        showPostToast("Có lỗi khi theo dõi.");
     });
 }
 

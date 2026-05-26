@@ -1422,6 +1422,27 @@ html {
     transform: translate(-50%, 0);
 }
 
+.page-toast {
+    background-color: #2f2420;
+    border-radius: 999px;
+    bottom: 24px;
+    box-shadow: 0 12px 36px rgba(47, 36, 32, 0.22);
+    color: #fffaf7;
+    left: 50%;
+    opacity: 0;
+    padding: 10px 18px;
+    pointer-events: none;
+    position: fixed;
+    transform: translate(-50%, 12px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 2100;
+}
+
+.page-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
 .activity-header {
     display: flex;
     align-items: center;

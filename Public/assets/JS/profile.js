@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function showProfileAlert(message, type) {
         if (!alertBox) {
-            alert(message);
+            showPostToast(message);
             return;
         }
 

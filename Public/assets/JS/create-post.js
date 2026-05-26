@@ -4,6 +4,22 @@ function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
 }
 
+function showToast(message) {
+    let toast = document.getElementById("pageToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "pageToast";
+        toast.className = "page-toast";
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    window.clearTimeout(toast._timer);
+    toast._timer = window.setTimeout(function () {
+        toast.classList.remove("show");
+    }, 2600);
+}
+
 function createPost() {
     const form = document.getElementById("postForm");
 
@@ -18,7 +34,7 @@ function createPost() {
     const images = imageInput ? imageInput.files : [];
 
     if (content === "" && images.length === 0) {
-        alert("Bạn hãy nhập nội dung hoặc chọn ảnh.");
+        showToast("Bạn hãy nhập nội dung hoặc chọn ảnh.");
         return;
     }
 
@@ -35,12 +51,12 @@ function createPost() {
     })
     .then(data => {
         if (!data.success) {
-            alert(data.message || "Không thể đăng bài.");
+            showToast(data.message || "Không thể đăng bài.");
             return;
         }
 
         if (Array.isArray(data.uploadErrors) && data.uploadErrors.length > 0) {
-            alert(data.uploadErrors[0]);
+            showToast(data.uploadErrors[0]);
         }
 
         sessionStorage.setItem("post_success", "Đăng bài thành công!");
@@ -48,7 +64,7 @@ function createPost() {
     })
     .catch(error => {
         console.error(error);
-        alert("Có lỗi xảy ra trong quá trình đăng bài.");
+        showToast("Có lỗi xảy ra trong quá trình đăng bài.");
     });
 }
 
