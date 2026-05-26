@@ -5,12 +5,15 @@ if (PHP_SAPI === 'cli-server') {
 
     if (is_string($requestPath) && $requestPath !== '/') {
         $projectRoot = realpath(__DIR__ . '/..');
+        $currentFile = realpath(__FILE__);
         $requestedFile = realpath(($projectRoot ?: (__DIR__ . '/..')) . $requestPath);
 
         if (
             $projectRoot !== false
+            && $currentFile !== false
             && $requestedFile !== false
             && strpos($requestPath, '..') === false
+            && $requestedFile !== $currentFile
             && is_file($requestedFile)
         ) {
             return false;
