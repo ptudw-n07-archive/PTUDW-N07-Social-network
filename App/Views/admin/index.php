@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/partials/image-helper.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -10,24 +11,6 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
     exit();
 }
 
-function adminAssetPath($path) {
-    $path = trim((string)$path);
-    if ($path === '') {
-        return BASE_URL . 'Public/assets/img/default-avatar.jpg';
-    }
-
-    if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-        return $path;
-    }
-
-    $path = ltrim($path, '/');
-    if (str_starts_with($path, 'Public/')) {
-        return BASE_URL . $path;
-    }
-
-    return BASE_URL . 'Public/' . $path;
-}
-
 /** @var array $stats */
 /** @var array $reports */
 /** @var array $members */
@@ -35,7 +18,7 @@ function adminAssetPath($path) {
 /** @var int|null $currentAdminId */
 /** @var array|null $currentAdmin */
 $adminProfileUrl = BASE_URL . 'App/Views/admin/profile.php';
-$adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
+$adminAvatarUrl = admin_image_url($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
 ?>
 
 <!DOCTYPE html>
@@ -64,7 +47,7 @@ $adminAvatarUrl = adminAssetPath($currentAdmin['ProfilePictureUrl'] ?? ($_SESSIO
                 <div class="col-4 d-flex justify-content-end align-items-center gap-3">
                     <a href="<?php echo htmlspecialchars($adminProfileUrl, ENT_QUOTES); ?>" class="admin-profile-link d-flex align-items-center gap-2 me-2" title="Admin Profile">
                         <span class="text-muted small fw-bold d-none d-md-inline" id="adminHeaderName">Quản trị viên</span>
-                        <img id="adminHeaderAvatar" class="admin-profile-avatar" src="<?php echo htmlspecialchars($adminAvatarUrl, ENT_QUOTES); ?>" alt="Admin avatar">
+                        <img id="adminHeaderAvatar" class="admin-profile-avatar" src="<?php echo htmlspecialchars($adminAvatarUrl, ENT_QUOTES); ?>" alt="Admin avatar" <?php echo admin_avatar_error_attr(); ?>>
                     </a>
                     <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>

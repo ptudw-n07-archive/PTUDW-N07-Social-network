@@ -1,7 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
-    const appUrl = path => APP_BASE_URL + String(path || '').replace(/^\/+/, '');
-
     // Helper chung đã được tách sang admin-core.js để file chính chỉ giữ flow từng module.
     const {
         showToast,
@@ -14,7 +11,9 @@ document.addEventListener('DOMContentLoaded', function() {
         formatClientTime,
         downloadCsv,
         reportDateSlug,
-        printTableReport
+        printTableReport,
+        normalizeAdminImagePath,
+        adminAvatarSrc
     } = window.AdminCore || {};
 
     if (!window.AdminCore) {
@@ -198,11 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateRealtimeClock();
     setInterval(updateRealtimeClock, 1000);
 
-    const normalizeAssetPath = path => {
-        if (!path) return '';
-        if (/^https?:\/\//i.test(path)) return path;
-        return `${window.ADMIN_BASE_URL || APP_BASE_URL}${String(path).replace(/^\/+/, '')}`;
-    };
+    const normalizeAssetPath = path => normalizeAdminImagePath(path, '');
 
     // --- Quản lý thành viên ---
 
@@ -223,12 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const memberById = userId => currentMembers.find(member => Number(member.UserID) === Number(userId));
     const isSelf = userId => Number(userId) === Number(window.ADMIN_CURRENT_USER_ID || 0);
 
-    const avatarSrc = member => {
-        const avatar = member.avatar || member.ProfilePictureUrl || '';
-        if (!avatar) return appUrl('Public/assets/img/default-avatar.jpg');
-        if (/^https?:\/\//i.test(avatar)) return avatar;
-        return `${window.ADMIN_BASE_URL || APP_BASE_URL}${String(avatar).replace(/^\/+/, '')}`;
-    };
+    const avatarSrc = member => adminAvatarSrc(member.avatar || member.ProfilePictureUrl || '');
 
     const statusBadgeHtml = isActive => Number(isActive) === 1
         ? '<span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Hoạt động</span>'
@@ -250,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>
                     <div class="d-flex align-items-center">
                         <div class="me-3">
-                            <img src="${escapeHtml(avatarSrc(member))}" alt="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;">
+                            <img src="${escapeHtml(avatarSrc(member))}" alt="avatar" data-admin-image="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;">
                         </div>
                         <div>
                             <div class="fw-bold">${escapeHtml(member.name)}</div>
@@ -717,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    const receiverAvatarSrc = user => adminProfileImageSrc(user.ProfilePictureUrl || 'Public/assets/img/default-avatar.jpg');
+    const receiverAvatarSrc = user => adminProfileImageSrc(user.ProfilePictureUrl);
 
     const clearSelectedReceiver = () => {
         if (notificationReceiverId) notificationReceiverId.value = '';
@@ -741,7 +731,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (notificationReceiverSelected) {
             notificationReceiverSelected.innerHTML = `
                 <div class="notification-receiver-chip">
-                    <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar">
+                    <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                     <div>
                         <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
                         <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</span>
@@ -766,7 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         notificationReceiverResults.innerHTML = safeUsers.map(user => `
             <button type="button" class="notification-receiver-option" data-user='${escapeHtml(JSON.stringify(user))}'>
-                <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar">
+                <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                 <span>
                     <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
                     <small>#${escapeHtml(user.UserID)} · @${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</small>
@@ -975,7 +965,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${detailItem('CreatedAt', post.CreatedAt)}
                     </div>
                     <div class="report-content-box">${detailValue(post.Content)}</div>
-                    ${images.length ? `<div class="report-image-list">${images.map(image => `<img src="${escapeHtml(normalizeAssetPath(image))}" alt="post image">`).join('')}</div>` : ''}
+                    ${images.length ? `<div class="report-image-list">${images.map(image => `<img src="${escapeHtml(normalizeAssetPath(image))}" alt="post image" data-admin-image="post">`).join('')}</div>` : ''}
                 </div>
             `);
         }
@@ -1290,9 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentPersonName = item => item.FullName || item.Username || 'Người dùng';
     const contentAvatarSrc = item => {
         const avatar = item.ProfilePictureUrl || item.avatar || '';
-        if (!avatar) return `${window.ADMIN_BASE_URL || ''}Public/assets/img/default-avatar.jpg`;
-        if (/^https?:\/\//i.test(avatar)) return avatar;
-        return `${window.ADMIN_BASE_URL || ''}${avatar}`;
+        return adminAvatarSrc(avatar);
     };
     const contentHiddenBadgeHtml = isHidden => Number(isHidden) === 1
         ? '<span class="badge rounded-pill content-status-badge is-hidden">Đã ẩn</span>'
@@ -1330,7 +1318,7 @@ document.addEventListener('DOMContentLoaded', function() {
         adminProfileAlert.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-4`;
     };
 
-    const adminProfileImageSrc = path => normalizeAssetPath(path || 'Public/assets/img/default-avatar.jpg');
+    const adminProfileImageSrc = path => adminAvatarSrc(path);
     const applyAdminProfile = profile => {
         if (!profile) return;
         const displayName = profile.FullName || profile.Username || 'Quản trị viên';
@@ -1691,7 +1679,7 @@ document.addEventListener('DOMContentLoaded', function() {
         target.innerHTML = posts.map((post, index) => `
             <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
-                ${post.ThumbnailUrl ? `<img class="rank-thumb" src="${escapeHtml(normalizeAssetPath(post.ThumbnailUrl))}" alt="thumbnail">` : '<div class="rank-thumb rank-thumb-empty"><i class="bi bi-image"></i></div>'}
+                ${post.ThumbnailUrl ? `<img class="rank-thumb" src="${escapeHtml(normalizeAssetPath(post.ThumbnailUrl))}" alt="thumbnail" data-admin-image="post">` : '<div class="rank-thumb rank-thumb-empty"><i class="bi bi-image"></i></div>'}
                 <div class="rank-main">
                     <strong>#${escapeHtml(post.PostID)} ${escapeHtml(compactText(post.Content, 80) || 'Bài viết không có nội dung')}</strong>
                     <span>${escapeHtml(personDisplayName(post))} · ${escapeHtml(post.CreatedAt || '')}</span>
@@ -1716,7 +1704,7 @@ document.addEventListener('DOMContentLoaded', function() {
         target.innerHTML = users.map((user, index) => `
             <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
-                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar">
+                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                 <div class="rank-main">
                     <strong>${escapeHtml(personDisplayName(user))}</strong>
                     <span>@${escapeHtml(user.Username || '')} · ${formatNumber(user.PostCount)} bài viết</span>
@@ -1765,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', function() {
         target.innerHTML = users.map((user, index) => `
             <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
-                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar">
+                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                 <div class="rank-main">
                     <strong>${escapeHtml(personDisplayName(user))}</strong>
                     <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.RoleName || '-')}</span>
@@ -1790,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', function() {
         target.innerHTML = users.map((user, index) => `
             <div class="statistics-rank-item">
                 <span class="rank-number">${index + 1}</span>
-                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar">
+                <img class="rank-avatar" src="${escapeHtml(contentAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                 <div class="rank-main">
                     <strong>${escapeHtml(personDisplayName(user))}</strong>
                     <span>${formatNumber(user.PostCount)} bài · ${formatNumber(user.CommentCount)} bình luận · ${formatNumber(user.LikeCount)} like</span>
@@ -2138,12 +2126,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const renderContentPostRow = post => {
         const thumbnail = post.ThumbnailUrl
-            ? `<img class="content-thumbnail" src="${escapeHtml(normalizeAssetPath(post.ThumbnailUrl))}" alt="thumbnail">`
+            ? `<img class="content-thumbnail" src="${escapeHtml(normalizeAssetPath(post.ThumbnailUrl))}" alt="thumbnail" data-admin-image="post">`
             : '<span class="text-muted small">Không có</span>';
         return `
             <tr id="content-post-row-${post.PostID}" data-id="${post.PostID}">
                 <td class="fw-bold">#${escapeHtml(post.PostID)}</td>
-                <td><div class="content-user-cell"><img src="${escapeHtml(contentAvatarSrc(post))}" alt="avatar"><div><strong>${escapeHtml(contentPersonName(post))}</strong><span>@${escapeHtml(post.Username || '')}</span></div></div></td>
+                <td><div class="content-user-cell"><img src="${escapeHtml(contentAvatarSrc(post))}" alt="avatar" data-admin-image="avatar"><div><strong>${escapeHtml(contentPersonName(post))}</strong><span>@${escapeHtml(post.Username || '')}</span></div></div></td>
                 <td><span class="content-clamp" title="${escapeHtml(post.Content || '')}">${escapeHtml(compactText(post.Content, 130))}</span></td>
                 <td>${thumbnail}</td>
                 <td class="small text-muted">${escapeHtml(post.CreatedAt || '')}</td>
@@ -2158,7 +2146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const renderContentCommentRow = comment => `
         <tr id="content-comment-row-${comment.CommentID}" data-id="${comment.CommentID}">
             <td class="fw-bold">#${escapeHtml(comment.CommentID)}</td>
-            <td><div class="content-user-cell"><img src="${escapeHtml(contentAvatarSrc(comment))}" alt="avatar"><div><strong>${escapeHtml(contentPersonName(comment))}</strong><span>@${escapeHtml(comment.Username || '')}</span></div></div></td>
+            <td><div class="content-user-cell"><img src="${escapeHtml(contentAvatarSrc(comment))}" alt="avatar" data-admin-image="avatar"><div><strong>${escapeHtml(contentPersonName(comment))}</strong><span>@${escapeHtml(comment.Username || '')}</span></div></div></td>
             <td><span class="content-clamp" title="${escapeHtml(comment.Content || '')}">${escapeHtml(compactText(comment.Content, 110))}</span></td>
             <td><span class="content-clamp" title="${escapeHtml(comment.PostContent || '')}">${escapeHtml(compactText(comment.PostContent, 95))}</span></td>
             <td class="small">${escapeHtml(comment.PostAuthorFullName || comment.PostAuthorUsername || '-')}</td>
@@ -2323,7 +2311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${detailGridItem('Số like', Number(post.LikeCount || 0))}${detailGridItem('Số comment', Number(post.CommentCount || 0))}
             </div></div>
             ${contentBox('Nội dung đầy đủ', post.Content)}
-            <div class="report-detail-panel"><h6>Ảnh bài viết</h6>${images.length ? `<div class="report-image-list">${images.map(image => `<img src="${escapeHtml(normalizeAssetPath(image))}" alt="post image">`).join('')}</div>` : '<p class="text-muted mb-0">Không có ảnh.</p>'}</div>
+            <div class="report-detail-panel"><h6>Ảnh bài viết</h6>${images.length ? `<div class="report-image-list">${images.map(image => `<img src="${escapeHtml(normalizeAssetPath(image))}" alt="post image" data-admin-image="post">`).join('')}</div>` : '<p class="text-muted mb-0">Không có ảnh.</p>'}</div>
         `;
     };
     const renderCommentDetail = comment => `

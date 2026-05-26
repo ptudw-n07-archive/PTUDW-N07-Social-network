@@ -57,7 +57,7 @@
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
-                                                <img src="<?php echo BASE_URL . $r['avatar']; ?>" alt="avatar" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                                <img src="<?php echo htmlspecialchars(admin_image_url($r['avatar'] ?? ''), ENT_QUOTES); ?>" alt="avatar" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;" <?php echo admin_avatar_error_attr(); ?>>
                                             </div>
                                             <div>
                                                 <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($r['user']); ?></h6>

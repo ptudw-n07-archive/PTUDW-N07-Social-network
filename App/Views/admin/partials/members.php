@@ -40,7 +40,7 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="me-3">
-                                                    <img src="<?php echo BASE_URL . $m['avatar']; ?>" alt="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;">
+                                                    <img src="<?php echo htmlspecialchars(admin_image_url($m['avatar'] ?? ''), ENT_QUOTES); ?>" alt="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;" <?php echo admin_avatar_error_attr(); ?>>
                                                 </div>
                                                 <div>
                                                     <div class="fw-bold"><?php echo htmlspecialchars($m['name']); ?></div>

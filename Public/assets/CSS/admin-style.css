@@ -473,6 +473,12 @@
 
 .rank-main {
     min-width: 0;
+    align-self: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.12rem;
+    padding-block: 1px;
 }
 
 .rank-main strong,
@@ -493,11 +499,14 @@
 .rank-main strong {
     color: #46332c;
     font-size: 0.88rem;
+    line-height: 1.38;
+    padding-top: 1px;
 }
 
 .rank-main span {
     color: #8a736c;
     font-size: 0.78rem;
+    line-height: 1.32;
 }
 
 .rank-metrics {
@@ -2909,6 +2918,471 @@
 
     .hashtag-admin-table {
         min-width: 620px;
+    }
+}
+
+/* Responsive refinement: keep admin dense and readable without changing JS hooks. */
+.admin-table-container,
+.statistics-panel,
+.admin-bootstrap-modal,
+.admin-modal-card {
+    border-radius: 18px;
+}
+
+.admin-table-container {
+    padding: clamp(0.9rem, 1.4vw, 1.25rem);
+}
+
+.custom-admin-tabs .nav-link {
+    padding: 0.58rem clamp(0.9rem, 1.35vw, 1.25rem) !important;
+    font-size: 0.88rem;
+}
+
+.admin-report-actions .btn,
+.member-toolbar .btn,
+.content-toolbar .btn {
+    min-height: 34px;
+    padding: 0.42rem 0.78rem;
+    line-height: 1.1;
+}
+
+.content-toolbar,
+.member-toolbar,
+.admin-tab-toolbar {
+    row-gap: 0.65rem;
+}
+
+.content-filter,
+.member-role-filter {
+    flex: 0 1 210px;
+}
+
+.report-table-responsive {
+    overflow-x: auto;
+}
+
+.report-table {
+    min-width: 1040px;
+}
+
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+#reportDetailModal .modal-dialog.modal-xl,
+#contentDetailModal .modal-dialog.modal-xl,
+#overviewDetailModal .modal-dialog.modal-xl {
+    width: auto;
+    max-width: min(960px, calc(100vw - 4rem));
+}
+
+#memberDetailModal .modal-dialog.modal-lg,
+#notificationDetailModal .modal-dialog.modal-lg {
+    width: auto;
+    max-width: min(680px, calc(100vw - 4rem));
+}
+
+.admin-bootstrap-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 4rem);
+    max-height: calc(100dvh - 4rem);
+    overflow: hidden;
+}
+
+.admin-bootstrap-modal .modal-header,
+.admin-bootstrap-modal .modal-footer {
+    flex: 0 0 auto;
+    padding: 0.85rem 1rem;
+}
+
+.admin-bootstrap-modal .modal-title {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.admin-bootstrap-modal .modal-body {
+    flex: 1 1 auto;
+    max-height: min(68vh, 620px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1rem;
+}
+
+#reportDetailModal .modal-body,
+#contentDetailModal .modal-body,
+#overviewDetailModal .modal-body {
+    max-height: min(66vh, 600px);
+}
+
+.report-detail-content,
+.content-detail-body {
+    gap: 0.75rem;
+}
+
+.report-detail-section,
+.report-detail-panel,
+.member-detail-item,
+.notification-detail-item {
+    border-radius: 10px;
+    padding: 0.85rem;
+}
+
+.report-detail-grid,
+.report-people-grid,
+.member-detail-grid,
+.notification-detail-grid {
+    gap: 0.6rem;
+}
+
+.report-content-box {
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.report-image-list {
+    max-height: 260px;
+    overflow-y: auto;
+    align-items: flex-start;
+}
+
+.report-image-list img {
+    width: clamp(88px, 12vw, 128px);
+    height: clamp(88px, 12vw, 128px);
+    max-width: 100%;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 1536px) {
+    .admin-main {
+        max-width: 1440px;
+    }
+
+    .management-title {
+        font-size: clamp(2.25rem, 4vw, 3.35rem);
+    }
+
+    .admin-main {
+        padding-top: 2rem !important;
+    }
+
+    .admin-main > .text-center {
+        margin-bottom: 2rem !important;
+    }
+
+    .overview-stat-card {
+        padding: 1rem 0.85rem;
+    }
+
+    .statistics-panel {
+        min-height: 200px;
+        padding: 0.9rem;
+    }
+
+    .chart-panel {
+        height: 320px;
+        min-height: 320px;
+    }
+
+    .chart-panel canvas {
+        height: 252px !important;
+        max-height: 252px;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+    .custom-admin-tabs {
+        max-width: 920px;
+        border-radius: 18px;
+    }
+
+    .custom-admin-tabs .nav-link {
+        padding: 0.5rem 0.85rem !important;
+        font-size: 0.82rem;
+    }
+
+    .report-table-responsive {
+        overflow-x: auto;
+    }
+
+    .report-table {
+        min-width: 980px;
+    }
+
+    #reportDetailModal .modal-dialog.modal-xl,
+    #contentDetailModal .modal-dialog.modal-xl,
+    #overviewDetailModal .modal-dialog.modal-xl {
+        max-width: min(88vw, 920px);
+    }
+
+    #memberDetailModal .modal-dialog.modal-lg,
+    #notificationDetailModal .modal-dialog.modal-lg {
+        max-width: min(82vw, 660px);
+    }
+
+    .admin-bootstrap-modal {
+        max-height: calc(100vh - 3rem);
+        max-height: calc(100dvh - 3rem);
+    }
+
+    .admin-bootstrap-modal .modal-body,
+    #reportDetailModal .modal-body,
+    #contentDetailModal .modal-body,
+    #overviewDetailModal .modal-body {
+        max-height: calc(100vh - 9rem);
+        max-height: calc(100dvh - 9rem);
+    }
+
+    .content-filter,
+    .member-role-filter {
+        flex: 1 1 180px;
+        max-width: 240px;
+    }
+}
+
+@media (max-width: 767px) {
+    .report-table {
+        min-width: 0;
+    }
+
+    #reportDetailModal .modal-dialog.modal-xl,
+    #contentDetailModal .modal-dialog.modal-xl,
+    #overviewDetailModal .modal-dialog.modal-xl,
+    #memberDetailModal .modal-dialog.modal-lg,
+    #notificationDetailModal .modal-dialog.modal-lg {
+        max-width: calc(100% - 1rem);
+    }
+
+    .admin-bootstrap-modal {
+        max-height: calc(100vh - 1rem);
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .admin-bootstrap-modal .modal-body,
+    #reportDetailModal .modal-body,
+    #contentDetailModal .modal-body,
+    #overviewDetailModal .modal-body {
+        max-height: calc(100vh - 8rem);
+        max-height: calc(100dvh - 8rem);
+    }
+
+    .report-content-box {
+        max-height: 180px;
+    }
+
+    .report-image-list {
+        max-height: 210px;
+    }
+
+    .report-image-list img {
+        width: 82px;
+        height: 82px;
+    }
+}
+
+/* Compact admin toolbars: keep search/filter/action groups tidy on laptop widths. */
+.admin-tab-toolbar,
+.content-toolbar,
+.member-toolbar {
+    column-gap: 0.6rem;
+}
+
+.admin-tab-toolbar {
+    align-items: center;
+}
+
+.admin-tab-toolbar > .content-toolbar {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.content-toolbar {
+    gap: 0.55rem;
+}
+
+.content-search-wrap {
+    flex: 0 1 420px;
+    width: min(100%, 420px);
+    max-width: 420px;
+}
+
+.content-search-wrap .form-control,
+.member-search-input,
+.content-filter,
+.member-role-filter {
+    min-height: 34px;
+    font-size: 0.84rem;
+}
+
+.content-filter {
+    flex: 0 0 190px;
+    width: 190px;
+    max-width: 190px;
+}
+
+.member-toolbar > .d-flex:first-child {
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.member-search-wrap {
+    flex: 0 1 360px;
+    width: min(100%, 360px);
+    max-width: 360px;
+}
+
+.member-role-filter {
+    flex: 0 0 180px;
+    width: 180px;
+    max-width: 180px;
+}
+
+.admin-report-actions {
+    margin-left: auto;
+    gap: 0.4rem;
+}
+
+.admin-report-actions .btn,
+.member-toolbar .btn,
+.content-toolbar .btn {
+    padding: 0.38rem 0.68rem;
+    font-size: 0.8rem;
+}
+
+.notification-admin-container .admin-tab-toolbar {
+    gap: 0.5rem 0.65rem;
+}
+
+.notification-admin-container .content-toolbar {
+    flex: 1 1 690px;
+    gap: 0.5rem;
+}
+
+.notification-admin-container .content-search-wrap {
+    flex-basis: 360px;
+    width: 360px;
+    max-width: 360px;
+}
+
+#notificationTypeFilter {
+    flex-basis: 165px;
+    width: 165px;
+    max-width: 165px;
+}
+
+#notificationReadFilter {
+    flex-basis: 180px;
+    width: 180px;
+    max-width: 180px;
+}
+
+.notification-admin-container .admin-report-actions {
+    flex: 0 1 auto;
+    white-space: nowrap;
+}
+
+.notification-admin-container .admin-last-updated {
+    flex: 0 0 auto;
+    font-size: 0.76rem;
+    padding: 0.36rem 0.58rem;
+}
+
+@media (max-width: 1536px) and (min-width: 1200px) {
+    .content-search-wrap {
+        flex-basis: 380px;
+        width: 380px;
+        max-width: 380px;
+    }
+
+    .content-filter {
+        flex-basis: 180px;
+        width: 180px;
+        max-width: 180px;
+    }
+
+    .admin-report-actions .btn,
+    .member-toolbar .btn,
+    .content-toolbar .btn {
+        padding-left: 0.58rem;
+        padding-right: 0.58rem;
+    }
+
+    .notification-admin-container .content-toolbar {
+        flex-basis: 665px;
+    }
+
+    .notification-admin-container .content-search-wrap {
+        flex-basis: 330px;
+        width: 330px;
+        max-width: 330px;
+    }
+
+    #notificationTypeFilter {
+        flex-basis: 160px;
+        width: 160px;
+        max-width: 160px;
+    }
+
+    #notificationReadFilter {
+        flex-basis: 170px;
+        width: 170px;
+        max-width: 170px;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+    .content-search-wrap,
+    .member-search-wrap,
+    .notification-admin-container .content-search-wrap {
+        flex: 1 1 320px;
+        width: auto;
+        max-width: 100%;
+    }
+
+    .content-filter,
+    .member-role-filter,
+    #notificationTypeFilter,
+    #notificationReadFilter {
+        flex: 0 1 180px;
+        width: auto;
+        max-width: 220px;
+    }
+
+    .notification-admin-container .content-toolbar {
+        flex-basis: 100%;
+    }
+
+    .notification-admin-container .admin-report-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .content-search-wrap,
+    .member-search-wrap,
+    .notification-admin-container .content-search-wrap {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .content-filter,
+    .member-role-filter,
+    #notificationTypeFilter,
+    #notificationReadFilter {
+        flex: 1 1 calc(50% - 0.35rem);
+        width: auto;
+        max-width: none;
+    }
+
+    .admin-report-actions,
+    .notification-admin-container .admin-report-actions {
+        width: 100%;
+        justify-content: flex-start;
+        margin-left: 0;
     }
 }
 
