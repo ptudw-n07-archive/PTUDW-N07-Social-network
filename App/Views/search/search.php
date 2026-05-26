@@ -68,12 +68,12 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="bg-white search-panel">
                     <form id="searchForm" class="search-form" autocomplete="off">
                         <i class="bi bi-search search-input-icon"></i>
+                        <label for="searchInput" class="visually-hidden">Tìm kiếm</label>
                         <input
                             type="search"
                             id="searchInput"
                             class="search-input"
                             placeholder="Tìm username, họ tên, bài viết hoặc hashtag"
-                            aria-label="Tìm kiếm"
                         >
                         <button type="submit" class="search-submit-btn" aria-label="Tìm kiếm">
                             <i class="bi bi-arrow-right"></i>

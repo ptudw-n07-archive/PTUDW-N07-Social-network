@@ -24,13 +24,13 @@ $showResetForm = $resetEmail !== '';
         
         <?php if(isset($_SESSION['error'])): ?>
             <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.1); border-radius: 4px;">
-                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+                <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
         <?php if(isset($_SESSION['success'])): ?>
             <div style="color: #198754; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(25, 135, 84, 0.1); border-radius: 4px;">
-                <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+                <?php echo htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
 

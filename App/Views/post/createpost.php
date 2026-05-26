@@ -118,8 +118,10 @@ function imagePath($path) {
                     </div>
 
                     <form id="postForm" method="POST" enctype="multipart/form-data">
+                        <label for="composerTextarea" class="visually-hidden">Nội dung bài viết</label>
                         <textarea 
                             name="content"
+                            id="composerTextarea"
                             class="form-control composer-input mb-3" 
                             rows="7"
                             placeholder="Viết vài dòng cho hôm nay..."

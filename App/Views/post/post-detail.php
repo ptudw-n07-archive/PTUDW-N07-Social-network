@@ -293,8 +293,10 @@ function renderDetailPostContent($content) {
 
                                     <div class="comment-box mt-3">
                                         <div class="d-flex gap-2">
+                                            <label for="detailCommentInput" class="visually-hidden">Viết bình luận</label>
                                             <input
                                                 type="text"
+                                                id="detailCommentInput"
                                                 class="form-control comment-input"
                                                 placeholder="Viết bình luận..."
                                             >

@@ -238,8 +238,10 @@ function renderPostContentWithHashtags($content) {
                             onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
                         >
                         <div class="flex-grow-1">
+                            <label for="feedComposerTextarea" class="visually-hidden">Bạn đang nghĩ gì?</label>
                             <textarea 
                                 name="content"
+                                id="feedComposerTextarea"
                                 class="form-control composer-input" 
                                 rows="3"
                                 placeholder="Bạn đang nghĩ gì?"
@@ -377,8 +379,10 @@ function renderPostContentWithHashtags($content) {
                                             </div>
                                             <div class="comment-box mt-3 d-none no-post-nav">
                                             <div class="comment-form d-flex gap-2">
+                                                <label for="feedCommentInput" class="visually-hidden">Viết bình luận</label>
                                                 <input 
                                                     type="text" 
+                                                    id="feedCommentInput"
                                                     class="form-control comment-input" 
                                                     placeholder="Viết bình luận..."
                                                 >
