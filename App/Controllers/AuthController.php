@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Controllers;
 
 use App\Models\PasswordResetTokenModel;
@@ -14,13 +15,14 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 require_once __DIR__ . '/../Models/PasswordResetTokenModel.php';
 require_once __DIR__ . '/../Services/CsrfService.php';
 require_once __DIR__ . '/../Services/GmailService.php';
-require_once __DIR__ . '/../../vendor/autoload.php';
 
-class AuthController {
+class AuthController
+{
     private const VERIFY_TOKEN_TTL_HOURS = 24;
     private const RESET_TOKEN_TTL_MINUTES = 15;
 
@@ -29,7 +31,8 @@ class AuthController {
     private PasswordResetTokenModel $passwordResetTokenModel;
     private GmailService $gmailService;
 
-    public function __construct($db_connection) {
+    public function __construct($db_connection)
+    {
         $this->conn = $db_connection;
         $this->userModel = new UserModel($db_connection);
         $this->passwordResetTokenModel = new PasswordResetTokenModel($db_connection);
@@ -61,6 +64,11 @@ class AuthController {
             $this->redirect('App/Views/auth/register.php');
         }
 
+        if (!UserModel::isValidUsername($username)) {
+            $_SESSION['error'] = 'Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm. Không dùng dấu, khoảng trắng hoặc chữ hoa.';
+            $this->redirect('App/Views/auth/register.php');
+        }
+
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Email không hợp lệ.';
             $this->redirect('App/Views/auth/register.php');
@@ -88,18 +96,27 @@ class AuthController {
 
         $verificationToken = $this->createSecureToken();
         $verificationTokenHash = $this->hashToken($verificationToken);
-        $verificationExpiresAt = date('Y-m-d H:i:s', time() + (self::VERIFY_TOKEN_TTL_HOURS * 3600));
+        $verificationExpiresAt = date('Y-m-d H:i:s', time() + self::VERIFY_TOKEN_TTL_HOURS * 3600);
         $verifyLink = app_url('App/Controllers/AuthController.php?action=verify_email&token=' . urlencode($verificationToken));
 
         try {
             $this->conn->beginTransaction();
-            $userId = $this->userModel->register($name, $username, $email, $password, $verificationTokenHash, $verificationExpiresAt);
+
+            $userId = $this->userModel->register(
+                $name,
+                $username,
+                $email,
+                $password,
+                $verificationTokenHash,
+                $verificationExpiresAt
+            );
 
             if (!$userId) {
                 throw new \RuntimeException('Could not create pending user.');
             }
 
             $this->gmailService->sendVerificationEmail($email, $username, $verifyLink);
+
             $this->conn->commit();
 
             $_SESSION['success'] = 'Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.';
@@ -115,7 +132,8 @@ class AuthController {
         }
     }
 
-    public function verifyEmail(): void {
+    public function verifyEmail(): void
+    {
         $token = trim((string) ($_GET['token'] ?? ''));
 
         if ($token === '') {
@@ -147,7 +165,8 @@ class AuthController {
         $this->redirect('App/Views/auth/login.php');
     }
 
-    public function loginProcess(): void {
+    public function loginProcess(): void
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('App/Views/auth/login.php');
         }
@@ -157,15 +176,19 @@ class AuthController {
             $this->redirect('App/Views/auth/login.php');
         }
 
-        $username = trim($_POST['username'] ?? '');
+        $rawLoginInput = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if ($username === '' || $password === '') {
+        if ($rawLoginInput === '' || $password === '') {
             $_SESSION['error'] = 'Vui lòng điền đầy đủ tài khoản và mật khẩu.';
             $this->redirect('App/Views/auth/login.php');
         }
 
-        $user = $this->userModel->login($username, $password);
+        $loginInput = filter_var($rawLoginInput, FILTER_VALIDATE_EMAIL)
+            ? $rawLoginInput
+            : UserModel::normalizeUsername($rawLoginInput);
+
+        $user = $this->userModel->login($loginInput, $password);
 
         if (!$user) {
             $_SESSION['error'] = 'Tài khoản hoặc mật khẩu không chính xác.';
@@ -182,6 +205,7 @@ class AuthController {
         }
 
         CsrfService::regenerate();
+
         $_SESSION['user_id'] = $user['UserID'];
         $_SESSION['username'] = $user['Username'];
         $_SESSION['user_name'] = $user['FullName'];
@@ -195,7 +219,18 @@ class AuthController {
         $this->redirect('App/Views/post/feed.php');
     }
 
-    public function forgotPassword(): void {
+    public function sendResetOtpProcess(): void
+    {
+        $this->forgotPassword();
+    }
+
+    public function forgotPasswordProcess(): void
+    {
+        $this->forgotPassword();
+    }
+
+    public function forgotPassword(): void
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('App/Views/auth/forgot-password.php');
         }
@@ -237,7 +272,8 @@ class AuthController {
         $this->redirect('App/Views/auth/forgot-password.php');
     }
 
-    public function showResetPasswordForm(): void {
+    public function showResetPasswordForm(): void
+    {
         $token = trim((string) ($_GET['token'] ?? ''));
         $record = $this->getValidResetRecord($token);
 
@@ -251,9 +287,11 @@ class AuthController {
         exit();
     }
 
-    public function resetPassword(): void {
+    public function resetPassword(): void
+    {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->showResetPasswordForm();
+            return;
         }
 
         $token = trim((string) ($_POST['token'] ?? $_GET['token'] ?? ''));
@@ -291,6 +329,7 @@ class AuthController {
         }
 
         $currentHash = $user['PasswordHash'] ?? $user['Password'] ?? '';
+
         if ($currentHash !== '' && (password_verify($newPassword, $currentHash) || hash_equals($currentHash, $newPassword))) {
             $_SESSION['error'] = 'Mật khẩu mới không được trùng với mật khẩu cũ.';
             $this->redirectToResetForm($token);
@@ -306,7 +345,8 @@ class AuthController {
         $this->redirect('App/Views/auth/login.php');
     }
 
-    public function logout(): void {
+    public function logout(): void
+    {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
@@ -316,6 +356,7 @@ class AuthController {
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
+
             setcookie(
                 session_name(),
                 '',
@@ -331,7 +372,8 @@ class AuthController {
         $this->redirect('App/Views/auth/login.php');
     }
 
-    private function getValidResetRecord(string $token): ?array {
+    private function getValidResetRecord(string $token): ?array
+    {
         if ($token === '') {
             return null;
         }
@@ -350,20 +392,24 @@ class AuthController {
         return $record;
     }
 
-    private function createSecureToken(): string {
+    private function createSecureToken(): string
+    {
         return bin2hex(random_bytes(32));
     }
 
-    private function hashToken(string $token): string {
+    private function hashToken(string $token): string
+    {
         return hash('sha256', $token);
     }
 
-    private function redirect(string $path): void {
+    private function redirect(string $path): void
+    {
         header('Location: ' . app_url($path));
         exit();
     }
 
-    private function redirectToResetForm(string $token): void {
+    private function redirectToResetForm(string $token): void
+    {
         if ($token === '') {
             $this->redirect('App/Views/auth/forgot-password.php');
         }
@@ -371,13 +417,15 @@ class AuthController {
         $this->redirect('App/Controllers/AuthController.php?action=reset_password&token=' . urlencode($token));
     }
 
-    private function rollBackIfNeeded(): void {
-        if ($this->conn->inTransaction()) {
+    private function rollBackIfNeeded(): void
+    {
+        if ($this->conn && $this->conn->inTransaction()) {
             $this->conn->rollBack();
         }
     }
 
-    private function handleRegisterDatabaseError(PDOException $e, string $username, string $email): void {
+    private function handleRegisterDatabaseError(PDOException $e, string $username, string $email): void
+    {
         if ($e->getCode() !== '23000') {
             error_log('[AuthRegister] Database error: ' . $e->getMessage());
             $_SESSION['error'] = 'Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.';
@@ -408,17 +456,9 @@ if (isset($_GET['action'])) {
         $controller->register();
     } elseif ($action === 'verify_email') {
         $controller->verifyEmail();
-    } elseif ($action === 'forgot_password' || $action === 'sendResetOtp') {
+    } elseif ($action === 'forgot_password' || $action === 'sendResetOtp' || $action === 'forgot') {
         $controller->forgotPassword();
-    } elseif ($action === 'reset_password') {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $controller->resetPassword();
-        }
-
-        $controller->showResetPasswordForm();
-    } elseif ($action === 'forgot') {
-        $controller->forgotPassword();
-    } elseif ($action === 'resetWithOtp') {
+    } elseif ($action === 'reset_password' || $action === 'resetWithOtp') {
         $controller->resetPassword();
     } elseif ($action === 'logout') {
         $controller->logout();
