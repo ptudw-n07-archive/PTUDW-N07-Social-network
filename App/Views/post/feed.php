@@ -183,7 +183,7 @@ function renderPostContentWithHashtags($content) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
 
@@ -423,9 +423,11 @@ function renderPostContentWithHashtags($content) {
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="bg-white post-card mb-3">
-                            <div class="p-3 text-center text-muted">
-                                Hiện chưa có bài viết nào trong database.
+                        <div class="bg-white post-card mb-3 text-center py-5" role="status">
+                            <div class="py-4">
+                                <i class="bi bi-file-text" style="font-size: 3rem; color: #d69096; opacity: 0.5;"></i>
+                                <h5 class="mt-3 text-muted">Chưa có bài viết nào</h5>
+                                <p class="text-muted mb-0">Hãy là người đầu tiên đăng bài! Bắt đầu bằng cách nhấn vào ô "Bạn đang nghĩ gì?" ở trên.</p>
                             </div>
                         </div>
                     <?php endif; ?>

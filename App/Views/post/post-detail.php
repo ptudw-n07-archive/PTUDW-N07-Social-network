@@ -167,7 +167,7 @@ function renderDetailPostContent($content) {
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
 
