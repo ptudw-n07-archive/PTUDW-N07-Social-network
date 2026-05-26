@@ -48,6 +48,46 @@ try {
     error_log('Public index require PostController error: ' . $e->getMessage());
 }
 
+if (!function_exists('homepageEnv')) {
+    function homepageEnv(string $key, ?string $default = null): ?string {
+        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+
+        if ($value !== false && $value !== null && $value !== '') {
+            return is_string($value) ? $value : (string) $value;
+        }
+
+        static $env = null;
+
+        if ($env === null) {
+            $env = [];
+            $envPath = dirname(__DIR__) . '/.env';
+
+            if (is_file($envPath)) {
+                $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+
+                foreach ($lines as $line) {
+                    $line = trim($line);
+
+                    if ($line === '' || strpos($line, '#') === 0 || strpos($line, '=') === false) {
+                        continue;
+                    }
+
+                    [$envKey, $envValue] = explode('=', $line, 2);
+                    $envKey = trim($envKey);
+
+                    if ($envKey !== '') {
+                        $env[$envKey] = trim(trim($envValue), "\"'");
+                    }
+                }
+            }
+        }
+
+        $value = $env[$key] ?? $default;
+
+        return $value === null ? null : (string) $value;
+    }
+}
+
 if (!function_exists('homepageCanConnectDatabase')) {
     function homepageCanConnectDatabase(): bool {
         if (!class_exists('PDO')) {
@@ -55,11 +95,11 @@ if (!function_exists('homepageCanConnectDatabase')) {
             return false;
         }
 
-        $host = function_exists('app_env') ? (app_env('DB_HOST', '100.76.147.122') ?? '100.76.147.122') : '100.76.147.122';
-        $dbName = function_exists('app_env') ? (app_env('DB_NAME', 'db_archive') ?? 'db_archive') : 'db_archive';
-        $username = function_exists('app_env') ? (app_env('DB_USER', 'root') ?? 'root') : 'root';
-        $password = function_exists('app_env') ? (app_env('DB_PASSWORD', '') ?? '') : '';
-        $port = function_exists('app_env') ? app_env('DB_PORT') : null;
+        $host = homepageEnv('DB_HOST', '100.76.147.122') ?? '100.76.147.122';
+        $dbName = homepageEnv('DB_NAME', 'db_archive') ?? 'db_archive';
+        $username = homepageEnv('DB_USER', 'root') ?? 'root';
+        $password = homepageEnv('DB_PASSWORD', '') ?? '';
+        $port = homepageEnv('DB_PORT');
 
         $dsn = 'mysql:host=' . $host . ';dbname=' . $dbName . ';charset=utf8mb4';
         if ($port !== null && $port !== '') {
