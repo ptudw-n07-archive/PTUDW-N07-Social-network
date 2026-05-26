@@ -1,32 +1,34 @@
 <?php
-
-if (PHP_SAPI === 'cli-server') {
-    $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-
-    if (is_string($requestPath) && $requestPath !== '/') {
-        $projectRoot = realpath(__DIR__ . '/..');
-        $requestedFile = realpath(($projectRoot ?: (__DIR__ . '/..')) . $requestPath);
-
-        if (
-            $projectRoot !== false
-            && $requestedFile !== false
-            && !str_contains($requestPath, '..')
-            && is_file($requestedFile)
-        ) {
-            return false;
-        }
-    }
-}
-
 // 1. Khởi động Session hệ thống nếu chưa có
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../Config/Database.php';
+try {
+    require_once __DIR__ . '/../Config/Database.php';
+} catch (Throwable $e) {
+    error_log('Public index require Database error: ' . $e->getMessage());
+}
+
+if (!function_exists('app_url')) {
+    function app_url($path = '') {
+        $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
+        $base = $base === '/Public' ? dirname($base) : $base;
+        $base = $base === '/' || $base === '\\' ? '' : $base;
+        return $base . '/' . ltrim((string) $path, '/');
+    }
+}
+
+if (!defined('BASE_URL')) {
+    define('BASE_URL', app_url('Public/index.php'));
+}
 
 // 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
-require_once __DIR__ . '/../App/Controllers/PostController.php';
+try {
+    require_once __DIR__ . '/../App/Controllers/PostController.php';
+} catch (Throwable $e) {
+    error_log('Public index require PostController error: ' . $e->getMessage());
+}
 
 // ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
 use App\Controllers\PostController;
@@ -37,16 +39,29 @@ $registerUrl = app_url('App/Views/auth/register.php');
 $homeUrl     = BASE_URL;
 
 // 4. Khởi tạo đối tượng Controller
-$postController = new PostController();
+$result = [];
 
-// 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
-$result = $postController->index();
+if (class_exists(PostController::class) && homepageCanConnectDatabase()) {
+    try {
+        $postController = new PostController();
+
+        // 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
+        $result = $postController->index();
+    } catch (Throwable $e) {
+        $result = [];
+        error_log('Public index error: ' . $e->getMessage());
+    }
+}
+
+if (!is_array($result)) {
+    $result = [];
+}
 
 if (isset($result['posts'])) {
-    $posts         = $result['posts'];
-    $totalPosts    = $result['totalPosts'];
-    $totalUsers    = $result['totalUsers'];
-    $totalComments = $result['totalComments'];
+    $posts         = is_array($result['posts']) ? $result['posts'] : [];
+    $totalPosts    = $result['totalPosts'] ?? count($posts);
+    $totalUsers    = $result['totalUsers'] ?? count(array_unique(array_column($posts, 'UserID')));
+    $totalComments = $result['totalComments'] ?? array_sum(array_column($posts, 'CommentCount'));
 } else {
     $posts         = $result;
     $totalPosts    = count($posts);
@@ -55,14 +70,73 @@ if (isset($result['posts'])) {
 }
 
 // 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
-function homepageImagePath($path) {
-    if (empty($path)) {
-        return "assets/img/default-avatar.jpg";
+function homepageStartsWith($haystack, $needle) {
+    return $needle === '' || strpos((string) $haystack, (string) $needle) === 0;
+}
+
+function homepageCanConnectDatabase() {
+    if (!class_exists('PDO')) {
+        error_log('Public index database preflight skipped: PDO is unavailable.');
+        return false;
     }
-    if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
+
+    $host = function_exists('app_env') ? (app_env('DB_HOST', '100.76.147.122') ?? '100.76.147.122') : '100.76.147.122';
+    $dbName = function_exists('app_env') ? (app_env('DB_NAME', 'db_archive') ?? 'db_archive') : 'db_archive';
+    $username = function_exists('app_env') ? (app_env('DB_USER', 'root') ?? 'root') : 'root';
+    $password = function_exists('app_env') ? (app_env('DB_PASSWORD', '') ?? '') : '';
+    $port = function_exists('app_env') ? app_env('DB_PORT') : null;
+
+    $dsn = 'mysql:host=' . $host . ';dbname=' . $dbName . ';charset=utf8mb4';
+    if ($port !== null && $port !== '') {
+        $dsn .= ';port=' . $port;
+    }
+
+    try {
+        new PDO($dsn, $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+    } catch (Throwable $e) {
+        error_log('Public index database preflight error: ' . $e->getMessage());
+        return false;
+    }
+
+    return true;
+}
+
+function homepageImagePath($path) {
+    $default = app_url('Public/assets/img/default-avatar.jpg');
+
+    if (empty($path)) {
+        return $default;
+    }
+
+    $path = trim((string) $path);
+
+    if ($path === '') {
+        return $default;
+    }
+
+    if (homepageStartsWith($path, "http://") || homepageStartsWith($path, "https://")) {
         return $path;
     }
-    return str_replace("Public/", "", $path);
+
+    $path = str_replace('\\', '/', $path);
+    $path = ltrim($path, '/');
+
+    if (homepageStartsWith($path, 'Public/')) {
+        return app_url($path);
+    }
+
+    if (homepageStartsWith($path, 'assets/')) {
+        return app_url('Public/' . $path);
+    }
+
+    if (homepageStartsWith($path, 'uploads/')) {
+        return app_url('Public/' . $path);
+    }
+
+    return app_url('Public/assets/img/posts/' . basename($path));
+
 }
 
 function homepageTimeAgo($datetime) {
@@ -111,7 +185,7 @@ function homepageFormatNumber($number) {
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/Public/assets/CSS/style.css">
+    <link rel="stylesheet" href="<?= app_url('Public/assets/CSS/style.css') ?>">
 </head>
 
 <body>
@@ -258,7 +332,7 @@ function homepageFormatNumber($number) {
 
                 <form action="<?= $loginUrl ?>" method="GET" class="bg-white p-3 p-md-4 mb-4 post-composer">
                     <div class="d-flex gap-3 align-items-start">
-                        <img src="assets/img/default-avatar.jpg" class="avatar" alt="avatar">
+                        <img src="<?= app_url('Public/assets/img/default-avatar.jpg') ?>" class="avatar" alt="avatar">
 
                         <div class="flex-grow-1">
                             <h6 class="mb-2 fw-semibold">Bạn đang nghĩ gì?</h6>
@@ -378,15 +452,6 @@ function homepageFormatNumber($number) {
                     >
                         Đăng nhập bằng tên người dùng
                     </a>
-                </div>
-
-                <div class="feed-footer text-center mt-4">
-                    <small>
-                        © 2026 Archive · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Điều khoản</a> · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách riêng tư</a> · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách cookie</a>
-                    </small>
                 </div>
             </div>
 
