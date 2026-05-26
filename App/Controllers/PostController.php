@@ -466,14 +466,12 @@ class PostController {
             return;
         }
 
-        $reporterId = $_SESSION['user_id'] ?? null;
-        $reportedUserId = filter_var($_POST['reportedUserId'] ?? $_POST['reported_user_id'] ?? null, FILTER_VALIDATE_INT);
-        $targetType = $_POST['targetType'] ?? $_POST['target_type'] ?? '';
-        $targetId = filter_var($_POST['targetId'] ?? $_POST['target_id'] ?? null, FILTER_VALIDATE_INT);
+        $reporterId = (int) ($_SESSION['user_id'] ?? 0);
+        $postId = filter_var($_POST['postId'] ?? $_POST['post_id'] ?? null, FILTER_VALIDATE_INT);
         $reason = trim($_POST['reason'] ?? '');
         $details = trim($_POST['details'] ?? '');
 
-        if (!$userId || !$postId || $reason === '') {
+        if (!$reporterId || !$postId || $reason === '') {
             $this->json(false, "Thiếu thông tin báo cáo.");
             return;
         }
@@ -482,7 +480,7 @@ class PostController {
             $details = $reason;
         }
 
-        $success = $this->postModel->createReport((int) $userId, $postId, $reason, $details);
+        $success = $this->postModel->createReport($reporterId, (int) $postId, $reason, $details);
         $this->json($success, $success ? "Đã gửi báo cáo." : "Không thể gửi báo cáo.");
     }
 

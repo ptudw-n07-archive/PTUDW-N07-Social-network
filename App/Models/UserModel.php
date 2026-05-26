@@ -52,7 +52,6 @@ class UserModel {
 
     public function register($name, $username, $email, $password, ?string $verificationTokenHash = null, ?string $verificationExpiresAt = null) {
         $username = self::normalizeUsername((string) $username);
-
         if (!self::isValidUsername($username)) {
             return false;
         }

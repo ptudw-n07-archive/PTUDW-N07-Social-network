@@ -39,13 +39,11 @@ class AuthController
         $this->gmailService = new GmailService();
     }
 
-    public function registerProcess(): void
-    {
+    public function registerProcess(): void {
         $this->register();
     }
 
-    public function register(): void
-    {
+    public function register(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('App/Views/auth/register.php');
         }
@@ -73,6 +71,11 @@ class AuthController
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Email không hợp lệ.';
+            $this->redirect('App/Views/auth/register.php');
+        }
+
+        if (!UserModel::isValidUsername($username)) {
+            $_SESSION['error'] = 'Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm.';
             $this->redirect('App/Views/auth/register.php');
         }
 

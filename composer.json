@@ -1,6 +1,6 @@
 {
   "require": {
-    "php": "^8.2",
+    "php": "^8.0",
     "ext-pdo_mysql": "*",
     "ext-fileinfo": "*",
     "ext-mbstring": "*",
@@ -13,7 +13,7 @@
       "ignore": ["PKSA-y2cr-5h3j-g3ys"]
     },
     "platform": {
-      "php": "8.2.0"
+      "php": "8.0.30"
     }
   }
 }
