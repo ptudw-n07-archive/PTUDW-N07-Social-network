@@ -118,6 +118,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <h2>Thông tin hiển thị</h2>
                     </div>
                     <form id="adminProfileNameForm" class="admin-profile-form">
+                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <label for="adminFullNameInput" class="form-label">FullName</label>
                         <div class="admin-profile-inline-form">
                             <input id="adminFullNameInput" name="FullName" class="form-control admin-control" maxlength="100" value="<?php echo htmlspecialchars($admin['FullName'] ?? '', ENT_QUOTES); ?>" required>
@@ -131,6 +132,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <h2>Bio</h2>
                     </div>
                     <form id="adminProfileBioForm" class="admin-profile-form">
+                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <label for="adminBioInput" class="form-label">Bio quản trị viên</label>
                         <textarea id="adminBioInput" name="Bio" class="form-control admin-control" rows="4" maxlength="500" placeholder="Viết một mô tả ngắn về bạn..."><?php echo htmlspecialchars($admin['Bio'] ?? '', ENT_QUOTES); ?></textarea>
                         <div class="admin-profile-form-footer">
@@ -145,6 +147,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <h2>Avatar</h2>
                     </div>
                     <form id="adminAvatarForm" class="admin-profile-form" enctype="multipart/form-data">
+                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <input id="adminAvatarInput" name="avatar" type="file" class="form-control admin-control" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
                         <small class="text-muted">Hỗ trợ jpg, jpeg, png, webp. Tối đa 5MB.</small>
                         <button type="submit" class="btn btn-pink-admin align-self-start"><i class="bi bi-upload me-1"></i>Cập nhật avatar</button>
@@ -156,6 +159,7 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
                         <h2>Đổi mật khẩu</h2>
                     </div>
                     <form id="adminPasswordForm" class="admin-profile-form">
+                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <input id="adminCurrentPassword" type="password" class="form-control admin-control" placeholder="Mật khẩu hiện tại" autocomplete="current-password" required>
                         <input id="adminNewPassword" type="password" class="form-control admin-control" placeholder="Mật khẩu mới" autocomplete="new-password" required>
                         <input id="adminConfirmPassword" type="password" class="form-control admin-control" placeholder="Xác nhận mật khẩu mới" autocomplete="new-password" required>

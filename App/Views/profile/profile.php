@@ -635,6 +635,7 @@ foreach ($posts as $post) {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="updateProfileForm" enctype="multipart/form-data">
+                <?= \App\Services\CsrfService::hiddenField() ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="editProfileModalLabel">Chỉnh sửa hồ sơ</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>

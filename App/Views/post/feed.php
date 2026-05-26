@@ -230,6 +230,7 @@ function renderPostContentWithHashtags($content) {
                 <div class="feed-title text-center mb-4">Bảng tin</div>
 
                 <form id="postForm" class="bg-white p-3 p-md-4 mb-4 post-composer" method="POST" enctype="multipart/form-data">
+                    <?= \App\Services\CsrfService::hiddenField() ?>
                     <div class="d-flex gap-3 composer-layout">
                        <img
                             src="<?= htmlspecialchars(imagePath($currentAvatar), ENT_QUOTES, 'UTF-8') ?>"

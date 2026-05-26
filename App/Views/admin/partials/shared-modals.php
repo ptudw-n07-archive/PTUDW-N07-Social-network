@@ -163,6 +163,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                 </div>
                 <form id="sendNotificationForm">
+                    <?= \App\Services\CsrfService::hiddenField() ?>
                     <div class="modal-body">
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input" type="checkbox" role="switch" id="sendNotificationAllCheckbox">

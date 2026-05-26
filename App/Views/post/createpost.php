@@ -118,6 +118,7 @@ function imagePath($path) {
                     </div>
 
                     <form id="postForm" method="POST" enctype="multipart/form-data">
+                        <?= \App\Services\CsrfService::hiddenField() ?>
                         <label for="composerTextarea" class="visually-hidden">Nội dung bài viết</label>
                         <textarea 
                             name="content"
