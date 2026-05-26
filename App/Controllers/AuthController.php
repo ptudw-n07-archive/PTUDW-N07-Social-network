@@ -36,130 +36,11 @@ class AuthController {
         $this->gmailService = new GmailService();
     }
 
-<<<<<<< Updated upstream
     public function registerProcess(): void {
         $this->register();
     }
 
     public function register(): void {
-=======
-    // Xử lý Đăng ký tài khoản
-    public function registerProcess() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-           
-            $name = trim($_POST['fullname'] ?? $_POST['name'] ?? '');
-            $username = UserModel::normalizeUsername($_POST['username'] ?? '');
-            $email = trim($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $confirm_password = $_POST['confirm_password'] ?? '';
-
-            if (empty($name) || empty($username) || empty($email) || empty($password)) {
-                $_SESSION['error'] = "Vui lòng nhập đầy đủ tất cả các trường.";
-                header('Location: ' . app_url('App/Views/auth/register.php'));
-                exit();
-            }
-
-            if (!UserModel::isValidUsername($username)) {
-                $_SESSION['error'] = "Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm. Không dùng dấu, khoảng trắng hoặc chữ hoa.";
-                header('Location: ' . app_url('App/Views/auth/register.php'));
-                exit();
-            }
-
-            if ($password !== $confirm_password) {
-                $_SESSION['error'] = "Mật khẩu xác nhận không trùng khớp.";
-                header('Location: ' . app_url('App/Views/auth/register.php'));
-                exit();
-            }
-
-            if ($this->userModel->usernameExists($username)) {
-                $_SESSION['error'] = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.";
-                header('Location: ' . app_url('App/Views/auth/register.php'));
-                exit();
-            }
-
-            if ($this->userModel->emailExists($email)) {
-                $_SESSION['error'] = "Email đã được sử dụng. Vui lòng dùng email khác.";
-                header('Location: ' . app_url('App/Views/auth/register.php'));
-                exit();
-            }
-
-            try {
-                $registered = $this->userModel->register($name, $username, $email, $password);
-            } catch (PDOException $e) {
-                if ($e->getCode() !== '23000') {
-                    $_SESSION['error'] = "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
-                    header('Location: ' . app_url('App/Views/auth/register.php'));
-                    exit();
-                }
-
-                $registered = false;
-
-                if ($this->userModel->usernameExists($username)) {
-                    $_SESSION['error'] = "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.";
-                } elseif ($this->userModel->emailExists($email)) {
-                    $_SESSION['error'] = "Email đã được sử dụng. Vui lòng dùng email khác.";
-                } else {
-                    $_SESSION['error'] = "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
-                }
-            }
-
-            if ($registered) {
-                $_SESSION['success'] = "Đăng ký thành công! Vui lòng đăng nhập.";
-                header('Location: ' . app_url('App/Views/auth/login.php'));
-                exit();
-            }
-
-            $_SESSION['error'] = $_SESSION['error'] ?? "Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.";
-            header('Location: ' . app_url('App/Views/auth/register.php'));
-            exit();
-        }
-    }
-
-    // Xử lý Đăng nhập
-    public function loginProcess() {
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $rawLoginInput = trim($_POST['username'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $loginInput = filter_var($rawLoginInput, FILTER_VALIDATE_EMAIL)
-                ? $rawLoginInput
-                : UserModel::normalizeUsername($rawLoginInput);
-
-            if (empty($rawLoginInput) || empty($password)) {
-                $_SESSION['error'] = "Vui lòng điền đầy đủ tài khoản và mật khẩu.";
-                header('Location: ' . app_url('App/Views/auth/login.php'));
-                exit();
-            }
-
-            $user = $this->userModel->login($loginInput, $password);
-
-            if ($user) {
-                $_SESSION['user_id'] = $user['UserID'];
-                $_SESSION['username'] = $user['Username'];
-                $_SESSION['user_name'] = $user['FullName'];
-                $_SESSION['role'] = $user['RoleName']; 
-                $_SESSION['role_id'] = $user['RoleID'];
-
-                if (isset($user['IsActive']) && (int)$user['IsActive'] === 0) {
-                    header('Location: ' . app_url('App/Views/auth/account_locked.php'));
-                    exit();
-                }
-
-                if ($user['RoleName'] === 'Admin') {
-                    header('Location: ' . app_url('App/Views/admin/dashboard.php'));
-                } else {
-                    header('Location: ' . app_url('App/Views/post/feed.php'));
-                }
-                exit();
-            } else {
-                $_SESSION['error'] = "Tài khoản hoặc mật khẩu không chính xác.";
-                header('Location: ' . app_url('App/Views/auth/login.php'));
-                exit();
-            }
-        }
-    }
-
-    public function sendResetOtpProcess() {
->>>>>>> Stashed changes
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->redirect('App/Views/auth/register.php');
         }
@@ -170,7 +51,7 @@ class AuthController {
         }
 
         $name = trim($_POST['fullname'] ?? $_POST['name'] ?? '');
-        $username = trim($_POST['username'] ?? '');
+        $username = UserModel::normalizeUsername($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $confirmPassword = $_POST['confirm_password'] ?? '';
@@ -182,6 +63,11 @@ class AuthController {
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Email không hợp lệ.';
+            $this->redirect('App/Views/auth/register.php');
+        }
+
+        if (!UserModel::isValidUsername($username)) {
+            $_SESSION['error'] = 'Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm.';
             $this->redirect('App/Views/auth/register.php');
         }
 
