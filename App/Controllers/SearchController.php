@@ -83,6 +83,11 @@ class SearchController {
     public function record(): void {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         try {
             $userId = $this->requireLoginJson();
             $keyword = $this->normalizeKeyword($_POST['keyword'] ?? $_POST['q'] ?? '');
@@ -102,6 +107,11 @@ class SearchController {
     public function delete(): void {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         try {
             $userId = $this->requireLoginJson();
             $searchId = filter_var($_POST['searchId'] ?? null, FILTER_VALIDATE_INT);
@@ -120,6 +130,11 @@ class SearchController {
 
     public function clear(): void {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         try {
             $userId = $this->requireLoginJson();

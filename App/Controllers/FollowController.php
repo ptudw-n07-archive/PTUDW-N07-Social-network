@@ -31,6 +31,11 @@ class FollowController {
     public function toggle() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
         $followerId = $_SESSION['user_id'] ?? null;
         $followingId = filter_var($_POST['userId'] ?? null, FILTER_VALIDATE_INT);
 

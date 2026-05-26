@@ -60,6 +60,11 @@ class NotificationController {
     public function markAsRead() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
         $notificationId = $_POST['notificationId'] ?? null;
 
@@ -76,6 +81,11 @@ class NotificationController {
 
     public function markAllAsRead() {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
 
         $userId = $_SESSION['user_id'] ?? null;
 

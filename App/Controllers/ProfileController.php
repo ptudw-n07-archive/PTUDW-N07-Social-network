@@ -75,6 +75,11 @@ class ProfileController {
     public function update() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         try {
             $userId = $this->requireLoginJson();
 

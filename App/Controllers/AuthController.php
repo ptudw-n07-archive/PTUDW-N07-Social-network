@@ -37,7 +37,11 @@ class AuthController {
     // Xử lý Đăng ký tài khoản
     public function registerProcess() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-           
+            if (!\App\Services\CsrfService::validateRequest()) {
+                $_SESSION['error'] = "Phiên làm việc không hợp lệ. Vui lòng thử lại.";
+                header('Location: ' . app_url('App/Views/auth/register.php'));
+                exit();
+            }
             $name = trim($_POST['fullname'] ?? $_POST['name'] ?? '');
             $username = trim($_POST['username'] ?? '');
             $email = trim($_POST['email'] ?? '');
@@ -103,6 +107,11 @@ class AuthController {
     // Xử lý Đăng nhập
     public function loginProcess() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!\App\Services\CsrfService::validateRequest()) {
+                $_SESSION['error'] = "Phiên làm việc không hợp lệ. Vui lòng thử lại.";
+                header('Location: ' . app_url('App/Views/auth/login.php'));
+                exit();
+            }
             $username = trim($_POST['username'] ?? '');
             $password = $_POST['password'] ?? '';
 
@@ -142,6 +151,12 @@ class AuthController {
 
     public function sendResetOtpProcess() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+            exit();
+        }
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $_SESSION['error'] = "Phiên làm việc không hợp lệ. Vui lòng thử lại.";
             header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
             exit();
         }
@@ -193,6 +208,11 @@ class AuthController {
 
     public function forgotPasswordProcess() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!\App\Services\CsrfService::validateRequest()) {
+                $_SESSION['error'] = "Phiên làm việc không hợp lệ. Vui lòng thử lại.";
+                header('Location: ' . app_url('App/Views/auth/forgotpassword.php'));
+                exit();
+            }
             $email = trim($_POST['email'] ?? ($_SESSION['password_reset_email'] ?? ''));
             $otp = preg_replace('/\D+/', '', $_POST['otp'] ?? '');
             $new_password = $_POST['new_password'] ?? '';

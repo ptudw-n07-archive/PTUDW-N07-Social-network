@@ -32,6 +32,11 @@ class PostController {
     public function create() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
         if (!$userId) {
             echo json_encode(["success" => false, "message" => "Bạn chưa đăng nhập."]);
@@ -156,7 +161,13 @@ class PostController {
     public function like() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
+        $postId = filter_var($_POST['postId'] ?? $_POST['post_id'] ?? null, FILTER_VALIDATE_INT);
 
         if (!$userId) {
             echo json_encode([
@@ -200,7 +211,14 @@ class PostController {
     public function comment() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
+        $postId = filter_var($_POST['postId'] ?? $_POST['post_id'] ?? $_GET['post_id'] ?? null, FILTER_VALIDATE_INT);
+        $content = trim($_POST['content'] ?? $_POST['comment'] ?? '');
 
         if (!$userId) {
             echo json_encode([
@@ -281,6 +299,11 @@ class PostController {
 
     public function updatePost() {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         try {
             $userId = $_SESSION['user_id'] ?? null;
@@ -394,6 +417,11 @@ class PostController {
     public function deletePost() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
         $postId = (int) ($_POST['postId'] ?? 0);
 
@@ -407,6 +435,11 @@ class PostController {
 
     public function updatePostPrivacy() {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         $userId = $_SESSION['user_id'] ?? null;
         $postId = (int) ($_POST['postId'] ?? 0);
@@ -426,8 +459,15 @@ class PostController {
     public function createReport() {
         header('Content-Type: application/json; charset=utf-8');
 
-        $userId = $_SESSION['user_id'] ?? null;
-        $postId = (int) ($_POST['postId'] ?? 0);
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
+
+        $reporterId = $_SESSION['user_id'] ?? null;
+        $reportedUserId = filter_var($_POST['reportedUserId'] ?? $_POST['reported_user_id'] ?? null, FILTER_VALIDATE_INT);
+        $targetType = $_POST['targetType'] ?? $_POST['target_type'] ?? '';
+        $targetId = filter_var($_POST['targetId'] ?? $_POST['target_id'] ?? null, FILTER_VALIDATE_INT);
         $reason = trim($_POST['reason'] ?? '');
         $details = trim($_POST['details'] ?? '');
 
