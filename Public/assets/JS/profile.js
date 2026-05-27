@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const followButton = document.getElementById("profileFollowButton");
     const followAlert = document.getElementById("profileFollowAlert");
     const followerCount = document.getElementById("profileFollowerCount");
+    const reportUserForm = document.getElementById("profileReportUserForm");
+    const reportUserAlert = document.getElementById("profileReportUserAlert");
     const profilePhotos = Array.isArray(window.PROFILE_PHOTOS) ? window.PROFILE_PHOTOS : [];
     const photoModalElement = document.getElementById("profilePhotoModal");
     const photoModalImage = document.getElementById("profilePhotoModalImage");
@@ -153,6 +155,54 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    if (reportUserForm) {
+        reportUserForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const submitButton = reportUserForm.querySelector('button[type="submit"]');
+            const originalHTML = submitButton ? submitButton.innerHTML : "";
+            const formData = new FormData(reportUserForm);
+            appendProfileCsrfToken(formData);
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang gửi';
+            }
+
+            fetch(window.PROFILE_REPORT_USER_URL || appUrl("App/Controllers/ProfileController.php?action=reportUser"), {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        showReportUserAlert(data.message || "Không thể gửi báo cáo.", "danger");
+                        return;
+                    }
+
+                    showReportUserAlert(data.message || "Đã gửi báo cáo người dùng.", "success");
+                    reportUserForm.reset();
+
+                    window.setTimeout(function () {
+                        const modalElement = document.getElementById("reportUserModal");
+                        if (modalElement && window.bootstrap) {
+                            window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+                        }
+                    }, 900);
+                })
+                .catch(error => {
+                    console.error(error);
+                    showReportUserAlert("Có lỗi khi gửi báo cáo.", "danger");
+                })
+                .finally(() => {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalHTML;
+                    }
+                });
+        });
+    }
+
     function showProfileAlert(message, type) {
         if (!alertBox) {
             showPostToast(message);
@@ -161,6 +211,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         alertBox.className = "alert alert-" + type;
         alertBox.textContent = message;
+    }
+
+    function showReportUserAlert(message, type) {
+        if (!reportUserAlert) {
+            showProfileAlert(message, type);
+            return;
+        }
+
+        reportUserAlert.className = "alert alert-" + type;
+        reportUserAlert.textContent = message;
     }
 
     function appendProfileCsrfToken(formData) {

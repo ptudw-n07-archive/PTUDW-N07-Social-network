@@ -183,6 +183,37 @@ class ProfileController {
         }
     }
 
+    public function reportUser(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        try {
+            $reporterUserId = $this->requireLoginJson();
+            $reportedUserId = filter_var($_POST['userId'] ?? null, FILTER_VALIDATE_INT);
+            $reason = trim((string) ($_POST['reason'] ?? ''));
+            $details = trim((string) ($_POST['details'] ?? ''));
+
+            if (!$reportedUserId || $reportedUserId < 1 || $reason === '') {
+                $this->json(false, "Thiếu thông tin báo cáo.");
+                return;
+            }
+
+            if ((int) $reportedUserId === (int) $reporterUserId) {
+                $this->json(false, "Bạn không thể tự báo cáo hồ sơ của mình.");
+                return;
+            }
+
+            $success = $this->userModel->createUserReport($reporterUserId, (int) $reportedUserId, $reason, $details);
+            $this->json($success, $success ? "Đã gửi báo cáo người dùng." : "Không thể gửi báo cáo người dùng.");
+        } catch (Exception $e) {
+            $this->json(false, $e->getMessage());
+        }
+    }
+
     private function requireLogin(): int {
         $userId = $_SESSION['user_id'] ?? null;
 
@@ -281,6 +312,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
 
     if ($_GET['action'] === 'update') {
         $controller->update();
+    } elseif ($_GET['action'] === 'reportUser') {
+        $controller->reportUser();
     }
 }
 ?>
