@@ -2220,16 +2220,21 @@
 
 .notification-receiver-selected {
     margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .notification-receiver-chip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.65rem;
     padding: 0.65rem 0.75rem;
     border: 1px solid rgba(217, 140, 163, 0.24);
     border-radius: 12px;
     background: rgba(232, 180, 195, 0.1);
+    max-width: 100%;
+    min-width: min(100%, 260px);
 }
 
 .notification-receiver-chip .btn {

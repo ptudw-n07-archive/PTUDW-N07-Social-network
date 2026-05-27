@@ -42,6 +42,20 @@ class AdminNotificationController {
         $this->main->logAdminAction($action, $targetType, $targetId, $description);
     }
 
+    private function receiverIdsFromPayload(array $payload): array {
+        $rawIds = $payload['receiverUserIds'] ?? $payload['ReceiverUserIDs'] ?? [];
+        if (!is_array($rawIds)) {
+            $rawIds = [];
+        }
+
+        $legacyId = $this->intPayloadParam($payload, 'receiverUserId') ?? $this->intPayloadParam($payload, 'ReceiverUserID');
+        if ($legacyId) {
+            $rawIds[] = $legacyId;
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $rawIds), fn($id) => $id > 0)));
+    }
+
     public function listNotifications(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
@@ -155,33 +169,42 @@ class AdminNotificationController {
         }
 
         $adminUserId = $this->currentAdminId();
+        if (!$adminUserId) {
+            $this->jsonResponse(false, 'Không xác định được admin đang đăng nhập.');
+            return;
+        }
         try {
-            // Có thể gửi một người hoặc gửi hàng loạt cho các tài khoản đang hoạt động.
+            // Có thể gửi một người, nhiều người hoặc gửi hàng loạt cho các tài khoản đang hoạt động.
             if ($sendAll) {
                 $count = $this->adminNotificationModel->createSystemNotificationsForActiveUsers($adminUserId, $message);
                 $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho ' . $count . ' thành viên.');
-                $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => $count]);
+                $this->jsonResponse(true, 'Đã gửi thông báo cho ' . $count . ' người dùng', ['sentCount' => $count]);
                 return;
             }
 
-            $receiverUserId = $this->intPayloadParam($payload, 'receiverUserId') ?? $this->intPayloadParam($payload, 'ReceiverUserID');
-            if (!$receiverUserId) {
+            $receiverUserIds = $this->receiverIdsFromPayload($payload);
+            if (empty($receiverUserIds)) {
                 $this->jsonResponse(false, 'Vui lòng chọn người nhận.');
                 return;
             }
 
-            if (!$this->adminNotificationModel->getActiveNotificationReceiverById($receiverUserId)) {
-                $this->jsonResponse(false, 'Người nhận không tồn tại hoặc đang bị khóa.');
+            $activeReceiverIds = $this->adminNotificationModel->getActiveNotificationReceiverIds($receiverUserIds, $adminUserId);
+            if (empty($activeReceiverIds)) {
+                $this->jsonResponse(false, 'Người nhận không tồn tại, đang bị khóa hoặc không hợp lệ.');
                 return;
             }
 
-            if (!$this->adminNotificationModel->createSystemNotification($receiverUserId, $adminUserId, $message)) {
+            $count = $this->adminNotificationModel->createSystemNotificationsForReceivers($activeReceiverIds, $adminUserId, $message);
+            if ($count < 1) {
                 $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
                 return;
             }
 
-            $this->logAdminAction('SendSystemNotification', 'Notification', $receiverUserId, 'Gửi thông báo hệ thống cho UserID #' . $receiverUserId . '.');
-            $this->jsonResponse(true, 'Gửi thông báo hệ thống thành công', ['sentCount' => 1]);
+            $this->logAdminAction('SendSystemNotification', 'Notification', 0, 'Gửi thông báo hệ thống cho UserID #' . implode(', #', $activeReceiverIds) . '.');
+            $this->jsonResponse(true, 'Đã gửi thông báo cho ' . $count . ' người dùng', [
+                'sentCount' => $count,
+                'receiverUserIds' => $activeReceiverIds
+            ]);
         } catch (Exception $e) {
             $this->jsonResponse(false, 'Không thể gửi thông báo hệ thống.');
         }

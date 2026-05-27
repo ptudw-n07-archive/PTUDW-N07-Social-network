@@ -185,6 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let notificationSearchTimer = null;
     let notificationReceiverTimer = null;
     let notificationsLoaded = false;
+    let selectedNotificationReceivers = [];
 
     const setLastUpdated = id => {
         const element = document.getElementById(id);
@@ -699,12 +700,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const receiverAvatarSrc = user => adminProfileImageSrc(user.ProfilePictureUrl);
 
-    const clearSelectedReceiver = () => {
-        if (notificationReceiverId) notificationReceiverId.value = '';
-        if (notificationReceiverSelected) {
+    const selectedReceiverIds = () => selectedNotificationReceivers
+        .map(user => Number(user.UserID || 0))
+        .filter(Boolean);
+
+    const renderSelectedReceivers = () => {
+        if (notificationReceiverId) notificationReceiverId.value = selectedReceiverIds().join(',');
+        if (!notificationReceiverSelected) return;
+
+        if (!selectedNotificationReceivers.length) {
             notificationReceiverSelected.innerHTML = '';
             notificationReceiverSelected.classList.add('d-none');
+            return;
         }
+
+        notificationReceiverSelected.innerHTML = selectedNotificationReceivers.map(user => `
+            <div class="notification-receiver-chip" data-user-id="${escapeHtml(user.UserID)}">
+                <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
+                <div>
+                    <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
+                    <span>#${escapeHtml(user.UserID)} · @${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-brown" data-remove-receiver="${escapeHtml(user.UserID)}" aria-label="Bỏ chọn"><i class="bi bi-x-lg"></i></button>
+            </div>
+        `).join('');
+        notificationReceiverSelected.classList.remove('d-none');
+    };
+
+    const clearSelectedReceiver = () => {
+        selectedNotificationReceivers = [];
+        renderSelectedReceivers();
     };
 
     const hideReceiverResults = () => {
@@ -716,21 +741,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const selectNotificationReceiver = user => {
         if (!user || !user.UserID) return;
-        if (notificationReceiverId) notificationReceiverId.value = user.UserID;
-        if (notificationReceiverSearch) notificationReceiverSearch.value = user.Username || user.FullName || user.Email || '';
-        if (notificationReceiverSelected) {
-            notificationReceiverSelected.innerHTML = `
-                <div class="notification-receiver-chip">
-                    <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
-                    <div>
-                        <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
-                        <span>@${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</span>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-brown" data-clear-receiver aria-label="Bỏ chọn"><i class="bi bi-x-lg"></i></button>
-                </div>
-            `;
-            notificationReceiverSelected.classList.remove('d-none');
+        if (!selectedNotificationReceivers.some(item => Number(item.UserID) === Number(user.UserID))) {
+            selectedNotificationReceivers.push(user);
         }
+        if (notificationReceiverSearch) notificationReceiverSearch.value = '';
+        renderSelectedReceivers();
         hideReceiverResults();
         setSendNotificationError('');
     };
@@ -744,12 +759,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const selectedIds = new Set(selectedReceiverIds().map(String));
         notificationReceiverResults.innerHTML = safeUsers.map(user => `
             <button type="button" class="notification-receiver-option" data-user='${escapeHtml(JSON.stringify(user))}'>
                 <img src="${escapeHtml(receiverAvatarSrc(user))}" alt="avatar" data-admin-image="avatar">
                 <span>
                     <strong>${escapeHtml(user.FullName || user.Username || 'Người dùng')}</strong>
-                    <small>#${escapeHtml(user.UserID)} · @${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}</small>
+                    <small>#${escapeHtml(user.UserID)} · @${escapeHtml(user.Username || '')} · ${escapeHtml(user.Email || '')}${selectedIds.has(String(user.UserID)) ? ' · Đã chọn' : ''}</small>
                 </span>
             </button>
         `).join('');
@@ -785,6 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const syncSendAllState = () => {
         const sendAll = !!(sendNotificationAllCheckbox && sendNotificationAllCheckbox.checked);
         if (singleReceiverWrap) singleReceiverWrap.classList.toggle('d-none', sendAll);
+        if (notificationReceiverSearch) notificationReceiverSearch.disabled = sendAll;
         if (sendAll) {
             clearSelectedReceiver();
             hideReceiverResults();
@@ -825,7 +842,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (notificationReceiverSearch) {
         notificationReceiverSearch.addEventListener('input', () => {
-            clearSelectedReceiver();
             clearTimeout(notificationReceiverTimer);
             notificationReceiverTimer = setTimeout(searchNotificationReceivers, 300);
         });
@@ -843,12 +859,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (notificationReceiverSelected) {
         notificationReceiverSelected.addEventListener('click', event => {
-            if (event.target.closest('[data-clear-receiver]')) {
-                clearSelectedReceiver();
-                if (notificationReceiverSearch) {
-                    notificationReceiverSearch.value = '';
-                    notificationReceiverSearch.focus();
-                }
+            const removeButton = event.target.closest('[data-remove-receiver]');
+            if (removeButton) {
+                const userId = Number(removeButton.dataset.removeReceiver || 0);
+                selectedNotificationReceivers = selectedNotificationReceivers.filter(user => Number(user.UserID) !== userId);
+                renderSelectedReceivers();
+                hideReceiverResults();
+                if (notificationReceiverSearch) notificationReceiverSearch.focus();
             }
         });
     }
@@ -858,14 +875,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitButton = event.submitter;
             const message = systemNotificationMessage ? systemNotificationMessage.value.trim() : '';
             const sendAll = !!(sendNotificationAllCheckbox && sendNotificationAllCheckbox.checked);
-            const receiverUserId = notificationReceiverId ? Number(notificationReceiverId.value || 0) : 0;
+            const receiverUserIds = selectedReceiverIds();
+            const receiverUserId = receiverUserIds[0] || 0;
 
             if (message === '' || message.length > 1000) {
                 setSendNotificationError('Message không được rỗng và tối đa 1000 ký tự.');
                 showToast('Message không được rỗng và tối đa 1000 ký tự.', 'warning');
                 return;
             }
-            if (!sendAll && !receiverUserId) {
+            if (!sendAll && receiverUserIds.length < 1) {
                 setSendNotificationError('Vui lòng chọn người nhận.');
                 showToast('Vui lòng chọn người nhận.', 'warning');
                 return;
@@ -879,9 +897,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         sendToAll: sendAll,
+                        receiverUserIds,
                         receiverUserId,
                         message,
                         SendAll: sendAll,
+                        ReceiverUserIDs: receiverUserIds,
                         ReceiverUserID: receiverUserId,
                         Message: message
                     })
