@@ -88,6 +88,11 @@ function notificationMessage($notification) {
         return $storedMessage !== '' ? $storedMessage : 'Bạn có một thông báo hệ thống mới.';
     }
 
+    if (in_array($typeName, ['Repost', 'Share'], true)
+        || ($storedMessage !== '' && str_contains($storedMessage, 'đã đăng lại bài viết của bạn'))) {
+        return 'đã đăng lại bài viết của bạn';
+    }
+
     if ($storedMessage !== '' && str_contains($storedMessage, 'đã trả lời bình luận của bạn')) {
         return 'đã trả lời bình luận của bạn';
     }
