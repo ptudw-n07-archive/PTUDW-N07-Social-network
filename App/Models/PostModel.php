@@ -552,49 +552,26 @@ public function syncPostHashtags($postId, array $hashtagNames) {
 }
 
 public function getTrendingHashtags($limit = 10) {
-    $recentSql = "
-        SELECT 
-            h.HashtagID,
-            h.HashtagName,
-            COUNT(ph.PostID) AS TotalPosts
-        FROM hashtags h
-        JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
-        JOIN posts p ON p.PostID = ph.PostID
-        WHERE ph.CreatedAt >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        AND p.IsHidden = 0
-        GROUP BY h.HashtagID, h.HashtagName
-        ORDER BY TotalPosts DESC
-        LIMIT :limit
-    ";
-
-    $recentStmt = $this->conn->prepare($recentSql);
-    $recentStmt->bindParam(":limit", $limit, PDO::PARAM_INT);
-    $recentStmt->execute();
-    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (!empty($recent)) {
-        return $recent;
-    }
-
-    $fallbackSql = "
+    $sql = "
         SELECT
             h.HashtagID,
             h.HashtagName,
             COUNT(DISTINCT ph.PostID) AS TotalPosts
         FROM hashtags h
         JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
-        JOIN posts p ON p.PostID = ph.PostID AND p.IsHidden = 0
+        JOIN posts p ON p.PostID = ph.PostID
+        WHERE p.IsHidden = 0
+        AND (h.IsHidden = 0 OR h.IsHidden IS NULL)
         GROUP BY h.HashtagID, h.HashtagName
-        HAVING COUNT(DISTINCT ph.PostID) > 0
         ORDER BY TotalPosts DESC, h.HashtagName ASC
         LIMIT :limit
     ";
 
-    $fallbackStmt = $this->conn->prepare($fallbackSql);
-    $fallbackStmt->bindParam(":limit", $limit, PDO::PARAM_INT);
-    $fallbackStmt->execute();
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindValue(":limit", (int) $limit, PDO::PARAM_INT);
+    $stmt->execute();
 
-    return $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 public function getPostsByHashtag($tag, $viewerId = null) {
