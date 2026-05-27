@@ -29,6 +29,17 @@ class PostController {
         return $this->postModel->getAllPosts($_SESSION['user_id'] ?? null);
     }
 
+    public function getCurrentUser($userId = null): array {
+        $userId = $userId ?? ($_SESSION['user_id'] ?? null);
+
+        if (!$userId) {
+            return [];
+        }
+
+        $user = $this->postModel->getUserById((int) $userId);
+        return is_array($user) ? $user : [];
+    }
+
     public function getFeedPosts($viewerId = null): array {
         $viewerId = $viewerId ?? ($_SESSION['user_id'] ?? null);
         $posts = $this->postModel->getAllPosts($viewerId);

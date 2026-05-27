@@ -24,6 +24,19 @@ require_once __DIR__ . '/partials/post-menu.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
+$currentUser = $postController->getCurrentUser($currentUserId);
+$currentUsername = $currentUser['Username'] ?? $currentUsername;
+$currentFullName = $currentUser['FullName'] ?? $currentFullName;
+$currentAvatar = $currentUser['ProfilePictureUrl']
+    ?? $_SESSION['ProfilePictureUrl']
+    ?? $_SESSION['avatar']
+    ?? $_SESSION['user_avatar']
+    ?? '';
+
+if ($currentAvatar !== '') {
+    $_SESSION['ProfilePictureUrl'] = $currentAvatar;
+}
+
 $posts = $postController->getFeedPosts($currentUserId);
 $trendingHashtags = $postController->getTrendingHashtags(10);
 
@@ -53,6 +66,10 @@ function assetPath($path, $default = '') {
 
     if (str_starts_with($path, "uploads/") || str_starts_with($path, "assets/")) {
         return BASE_URL . "Public/" . $path;
+    }
+
+    if (!str_contains($path, "/")) {
+        return BASE_URL . "Public/uploads/avatars/" . basename($path);
     }
 
     return BASE_URL . $path;

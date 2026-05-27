@@ -4,6 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('App/Views/auth/login.php'));
@@ -12,7 +13,21 @@ if (!isset($_SESSION['user_id'])) {
 
 $currentUsername = $_SESSION['username'] ?? '';
 $currentFullName = !empty($_SESSION['user_name']) ? $_SESSION['user_name'] : '@' . $currentUsername;
-$currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
+$postController = new \App\Controllers\PostController();
+$currentUser = $postController->getCurrentUser((int) $_SESSION['user_id']);
+$currentUsername = $currentUser['Username'] ?? $currentUsername;
+$currentFullName = !empty($currentUser['FullName'])
+    ? $currentUser['FullName']
+    : (!empty($currentFullName) ? $currentFullName : '@' . $currentUsername);
+$currentAvatar = $currentUser['ProfilePictureUrl']
+    ?? $_SESSION['ProfilePictureUrl']
+    ?? $_SESSION['avatar']
+    ?? $_SESSION['user_avatar']
+    ?? '';
+
+if ($currentAvatar !== '') {
+    $_SESSION['ProfilePictureUrl'] = $currentAvatar;
+}
 
 function imagePath($path) {
     $path = trim((string) $path);
@@ -33,6 +48,10 @@ function imagePath($path) {
 
     if (str_starts_with($path, "uploads/") || str_starts_with($path, "assets/")) {
         return BASE_URL . "Public/" . $path;
+    }
+
+    if (!str_contains($path, "/")) {
+        return BASE_URL . "Public/uploads/avatars/" . basename($path);
     }
 
     return BASE_URL . $path;
