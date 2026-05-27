@@ -173,6 +173,7 @@
                             <label for="notificationReceiverSearch" class="form-label">Người nhận</label>
                             <input type="search" id="notificationReceiverSearch" class="form-control admin-control mb-2" placeholder="Tìm Username, FullName hoặc Email">
                             <input type="hidden" id="notificationReceiverId" value="">
+                            <small class="text-muted d-block mb-2">Có thể chọn một hoặc nhiều người nhận từ kết quả tìm kiếm.</small>
                             <div id="notificationReceiverSelected" class="notification-receiver-selected d-none"></div>
                             <div id="notificationReceiverResults" class="notification-receiver-results d-none"></div>
                         </div>

@@ -105,7 +105,7 @@ class AdminNotificationModel {
 
     public function searchNotificationReceivers($keyword = '', $limit = 20): array {
         $keyword = trim((string)$keyword);
-        $conditions = ["IsActive = 1"];
+        $conditions = ["IsActive = 1", "RoleID <> 1"];
         $params = [];
         if ($keyword !== '') {
             $conditions[] = "(Username LIKE :keyword OR FullName LIKE :keyword OR Email LIKE :keyword)";
@@ -134,6 +134,38 @@ class AdminNotificationModel {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    public function getActiveNotificationReceiverIds(array $userIds, ?int $senderUserId = null): array {
+        $userIds = array_values(array_unique(array_filter(array_map('intval', $userIds), fn($id) => $id > 0)));
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $placeholders = [];
+        foreach ($userIds as $index => $userId) {
+            $placeholders[] = ':userId' . $index;
+        }
+
+        $sql = "SELECT UserID
+                FROM users
+                WHERE IsActive = 1
+                  AND RoleID <> 1
+                  AND UserID IN (" . implode(',', $placeholders) . ")";
+        if ($senderUserId) {
+            $sql .= " AND UserID <> :senderUserId";
+        }
+
+        $stmt = $this->conn->prepare($sql);
+        foreach ($userIds as $index => $userId) {
+            $stmt->bindValue(':userId' . $index, $userId, PDO::PARAM_INT);
+        }
+        if ($senderUserId) {
+            $stmt->bindValue(':senderUserId', $senderUserId, PDO::PARAM_INT);
+        }
+        $stmt->execute();
+
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
     public function createSystemNotification($receiverUserId, $senderUserId, $message): bool {
         $typeId = $this->getNotificationTypeIdByName('System');
         if (!$typeId) {
@@ -148,6 +180,42 @@ class AdminNotificationModel {
         $stmt->bindValue(':senderUserId', (int)$senderUserId, PDO::PARAM_INT);
         $stmt->bindValue(':message', $message, PDO::PARAM_STR);
         return $stmt->execute();
+    }
+
+    public function createSystemNotificationsForReceivers(array $receiverUserIds, $senderUserId, $message): int {
+        $typeId = $this->getNotificationTypeIdByName('System');
+        if (!$typeId) {
+            return 0;
+        }
+
+        $receiverUserIds = array_values(array_unique(array_filter(array_map('intval', $receiverUserIds), fn($id) => $id > 0)));
+        if (empty($receiverUserIds)) {
+            return 0;
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            $insert = $this->conn->prepare("INSERT INTO notifications (NotificationTypeID, ReceiverUserID, SenderUserID, PostID, CommentID, Message, CreatedAt, IsRead)
+                                            VALUES (:typeId, :receiverUserId, :senderUserId, NULL, NULL, :message, NOW(), 0)");
+            $count = 0;
+            foreach ($receiverUserIds as $receiverUserId) {
+                $insert->bindValue(':typeId', (int)$typeId, PDO::PARAM_INT);
+                $insert->bindValue(':receiverUserId', (int)$receiverUserId, PDO::PARAM_INT);
+                $insert->bindValue(':senderUserId', (int)$senderUserId, PDO::PARAM_INT);
+                $insert->bindValue(':message', $message, PDO::PARAM_STR);
+                $insert->execute();
+                $count++;
+            }
+
+            $this->conn->commit();
+            return $count;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function createSystemNotificationsForActiveUsers($senderUserId, $message): int {
