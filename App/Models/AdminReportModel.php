@@ -43,10 +43,15 @@ class AdminReportModel {
                          reporter.Username AS ReporterUsername,
                          reporter.FullName AS ReporterFullName,
                          CASE
-                             WHEN r.PostID IS NOT NULL THEN 'Bài viết'
                              WHEN r.CommentID IS NOT NULL THEN 'Bình luận'
+                             WHEN r.PostID IS NOT NULL THEN 'Bài viết'
                              ELSE 'Tài khoản'
                          END AS type,
+                         CASE
+                             WHEN r.CommentID IS NOT NULL THEN 'comment'
+                             WHEN r.PostID IS NOT NULL THEN 'post'
+                             ELSE 'account'
+                         END AS targetType,
                          r.Reason AS reason, r.Details AS details, r.PostID, r.CommentID, r.ReportedUserID,
                          r.CreatedAt AS time,
                           CASE
@@ -218,6 +223,39 @@ class AdminReportModel {
         return $this->resolvePendingReports('ReportedUserID', $userId, $adminNote);
     }
 
+    public function resolvePendingAccountReportsByReportedUserId($userId, $adminNote): array {
+        $reportIds = $this->getPendingAccountReportIdsByReportedUserId($userId);
+        if (empty($reportIds)) {
+            return [];
+        }
+
+        $this->conn->beginTransaction();
+        try {
+            $sql = "UPDATE reports
+                    SET Status = 'Resolved',
+                        ResolvedAt = NOW(),
+                        AdminNote = CASE
+                            WHEN AdminNote IS NULL OR TRIM(AdminNote) = '' THEN :adminNote
+                            ELSE AdminNote
+                        END
+                    WHERE ReportedUserID = :userId
+                      AND PostID IS NULL
+                      AND CommentID IS NULL
+                      AND Status = 'Pending'";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':adminNote', $adminNote, PDO::PARAM_STR);
+            $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+            $stmt->execute();
+            $this->conn->commit();
+            return $reportIds;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public function getPendingReportIdsByPostId($postId): array {
         return $this->getPendingReportIds('PostID', $postId);
     }
@@ -228,6 +266,35 @@ class AdminReportModel {
 
     public function getPendingReportIdsByReportedUserId($userId): array {
         return $this->getPendingReportIds('ReportedUserID', $userId);
+    }
+
+    public function getPendingAccountReportIdsByReportedUserId($userId): array {
+        $sql = "SELECT ReportID
+                FROM reports
+                WHERE ReportedUserID = :userId
+                  AND PostID IS NULL
+                  AND CommentID IS NULL
+                  AND Status = 'Pending'";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    public function getPostOwnerId($postId): ?int {
+        $stmt = $this->conn->prepare("SELECT UserID FROM posts WHERE PostID = :postId LIMIT 1");
+        $stmt->bindValue(':postId', $postId, PDO::PARAM_INT);
+        $stmt->execute();
+        $ownerId = $stmt->fetchColumn();
+        return $ownerId !== false ? (int)$ownerId : null;
+    }
+
+    public function getCommentOwnerId($commentId): ?int {
+        $stmt = $this->conn->prepare("SELECT UserID FROM comments WHERE CommentID = :commentId LIMIT 1");
+        $stmt->bindValue(':commentId', $commentId, PDO::PARAM_INT);
+        $stmt->execute();
+        $ownerId = $stmt->fetchColumn();
+        return $ownerId !== false ? (int)$ownerId : null;
     }
 
     private function getPendingReportIds($column, $value): array {
