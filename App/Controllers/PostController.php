@@ -408,6 +408,23 @@ class PostController {
             return;
         }
 
+        if ($reason === 'Vấn đề khác') {
+            if ($details === '') {
+                $this->json(false, "Vui lòng mô tả vấn đề bạn muốn báo cáo.");
+                return;
+            }
+
+            if ((function_exists('mb_strlen') ? mb_strlen($details, 'UTF-8') : strlen($details)) < 5) {
+                $this->json(false, "Mô tả quá ngắn. Vui lòng nhập rõ hơn.");
+                return;
+            }
+        }
+
+        if ((function_exists('mb_strlen') ? mb_strlen($details, 'UTF-8') : strlen($details)) > 500) {
+            $this->json(false, "Mô tả không được vượt quá 500 ký tự.");
+            return;
+        }
+
         $success = $this->postModel->createCommentReport($reporterId, (int) $commentId, $reason, $details);
         $this->json($success, $success ? "Đã gửi báo cáo bình luận." : "Không thể báo cáo bình luận này.");
     }
@@ -620,6 +637,23 @@ class PostController {
 
         if (!$reporterId || !$postId || $reason === '') {
             $this->json(false, "Thiếu thông tin báo cáo.");
+            return;
+        }
+
+        if ($reason === 'Vấn đề khác') {
+            if ($details === '') {
+                $this->json(false, "Vui lòng mô tả vấn đề bạn muốn báo cáo.");
+                return;
+            }
+
+            if ((function_exists('mb_strlen') ? mb_strlen($details, 'UTF-8') : strlen($details)) < 5) {
+                $this->json(false, "Mô tả quá ngắn. Vui lòng nhập rõ hơn.");
+                return;
+            }
+        }
+
+        if ((function_exists('mb_strlen') ? mb_strlen($details, 'UTF-8') : strlen($details)) > 500) {
+            $this->json(false, "Mô tả không được vượt quá 500 ký tự.");
             return;
         }
 
