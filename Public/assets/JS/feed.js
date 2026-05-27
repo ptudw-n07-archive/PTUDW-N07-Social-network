@@ -82,6 +82,27 @@ function bindCommentTextareaAutoResize(scope = document) {
     });
 }
 
+function focusPostDetailComment() {
+    const params = new URLSearchParams(window.location.search);
+    const commentId = params.get("comment_id") || params.get("comment");
+
+    if (!commentId || !/^\d+$/.test(commentId)) {
+        return;
+    }
+
+    const target = document.getElementById(`comment-${commentId}`);
+    if (!target) {
+        return;
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("comment-highlight");
+
+    window.setTimeout(function () {
+        target.classList.remove("comment-highlight");
+    }, 3000);
+}
+
 function safeCommentSelectorValue(value) {
     const stringValue = String(value || "");
 
@@ -1152,6 +1173,7 @@ document.addEventListener("DOMContentLoaded", function () {
     initFeedCreateEntry();
     initCommentDeleteModal();
     bindCommentTextareaAutoResize();
+    focusPostDetailComment();
     initHashtagComposerSuggestions();
     initPostMenu();
 });

@@ -49,8 +49,10 @@ class AdminController {
     private AdminProfileController $adminProfileController;
 
     public function __construct() {
+        date_default_timezone_set('Asia/Ho_Chi_Minh');
         $database = new Database();
         $db = $database->connect();
+        $db->exec("SET time_zone = '+07:00'");
         $this->adminStatsModel = new AdminStatsModel($db);
         $this->adminReportModel = new AdminReportModel($db);
         $this->adminMemberModel = new AdminMemberModel($db);

@@ -96,6 +96,10 @@ class NotificationController {
 
         $success = $this->notificationModel->markAllAsRead($userId);
 
+        if ($success) {
+            $this->acknowledgeBadge($userId, $this->notificationModel->getNotificationsByUser($userId));
+        }
+
         echo json_encode([
             "success" => $success,
             "unreadCount" => $this->notificationModel->countUnread($userId)
@@ -142,10 +146,15 @@ class NotificationController {
         $this->notificationModel->markAsRead($notificationId, $userId);
 
         if (!empty($notification['PostID'])) {
+            if ((int) ($notification['PostIsHidden'] ?? 0) === 1) {
+                header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+                exit();
+            }
+
             $url = app_url('App/Views/post/post-detail.php?id=' . urlencode((string) $notification['PostID']));
 
             if (!empty($notification['CommentID'])) {
-                $url .= "&comment=" . urlencode((string) $notification['CommentID']) . "#comment-" . urlencode((string) $notification['CommentID']);
+                $url .= "&comment_id=" . urlencode((string) $notification['CommentID']) . "#comment-" . urlencode((string) $notification['CommentID']);
             }
 
             header('Location: ' . $url);

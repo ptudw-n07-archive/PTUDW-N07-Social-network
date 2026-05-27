@@ -4,18 +4,26 @@ function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
 }
 
+function notificationFormData(values = {}) {
+    const formData = new FormData();
+    Object.keys(values).forEach(key => formData.append(key, values[key]));
+
+    if (window.NOTIFICATION_CSRF_TOKEN) {
+        formData.append("csrf_token", window.NOTIFICATION_CSRF_TOKEN);
+    }
+
+    return formData;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const markAllReadBtn = document.getElementById("markAllReadBtn");
-    const badge = document.querySelector(".notification-badge");
-
-    if (badge) {
-        badge.remove();
-    }
+    document.querySelectorAll(".notification-badge, .bottom-nav-badge").forEach(badge => badge.remove());
 
     if (markAllReadBtn) {
         markAllReadBtn.addEventListener("click", function () {
             fetch(appUrl("App/Controllers/NotificationController.php?action=markAllAsRead"), {
-                method: "POST"
+                method: "POST",
+                body: notificationFormData()
             })
                 .then(response => response.json())
                 .then(data => {
@@ -55,12 +63,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 return;
             }
 
-            const formData = new FormData();
-            formData.append("notificationId", notificationId);
-
             fetch(appUrl("App/Controllers/NotificationController.php?action=markAsRead"), {
                 method: "POST",
-                body: formData
+                body: notificationFormData({ notificationId: notificationId })
             })
                 .then(response => response.json())
                 .then(data => {

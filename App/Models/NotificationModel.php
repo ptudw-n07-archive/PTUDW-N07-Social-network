@@ -11,7 +11,17 @@ class NotificationModel {
         $this->conn = $db;
     }
 
-    public function createNotification($typeId, $receiverUserId, $senderUserId, $postId = null, $commentId = null) {
+    public function getTypeIdByName($typeName) {
+        $sql = "SELECT NotificationTypeID FROM notificationtypes WHERE TypeName = :typeName LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(":typeName", (string) $typeName, PDO::PARAM_STR);
+        $stmt->execute();
+
+        $typeId = $stmt->fetchColumn();
+        return $typeId ? (int) $typeId : null;
+    }
+
+    public function createNotification($typeId, $receiverUserId, $senderUserId, $postId = null, $commentId = null, $message = null) {
         if ((int) $receiverUserId === (int) $senderUserId) {
             return false;
         }
@@ -21,20 +31,21 @@ class NotificationModel {
         if ($existingId) {
             $sql = "
                 UPDATE notifications
-                SET IsRead = 0, CreatedAt = NOW()
+                SET Message = :message, IsRead = 0, CreatedAt = NOW()
                 WHERE NotificationID = :notificationId
             ";
 
             $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(":message", $message, $message === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(":notificationId", $existingId, PDO::PARAM_INT);
             return $stmt->execute() ? $existingId : false;
         }
 
         $sql = "
             INSERT INTO notifications
-                (NotificationTypeID, ReceiverUserID, SenderUserID, PostID, CommentID, CreatedAt, IsRead)
+                (NotificationTypeID, ReceiverUserID, SenderUserID, PostID, CommentID, Message, CreatedAt, IsRead)
             VALUES
-                (:typeId, :receiverUserId, :senderUserId, :postId, :commentId, NOW(), 0)
+                (:typeId, :receiverUserId, :senderUserId, :postId, :commentId, :message, NOW(), 0)
         ";
 
         $stmt = $this->conn->prepare($sql);
@@ -43,6 +54,7 @@ class NotificationModel {
         $stmt->bindValue(":senderUserId", (int) $senderUserId, PDO::PARAM_INT);
         $this->bindNullableInt($stmt, ":postId", $postId);
         $this->bindNullableInt($stmt, ":commentId", $commentId);
+        $stmt->bindValue(":message", $message, $message === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
 
         if (!$stmt->execute()) {
             return false;
@@ -64,6 +76,7 @@ class NotificationModel {
                 sender.ProfilePictureUrl AS SenderAvatar,
                 n.PostID,
                 n.CommentID,
+                n.Message AS NotificationMessage,
                 c.Content AS CommentContent,
                 p.Content AS PostContent,
                 (
@@ -91,9 +104,18 @@ class NotificationModel {
 
     public function getNotificationByUser($notificationId, $userId) {
         $sql = "
-            SELECT n.NotificationID, n.NotificationTypeID, nt.TypeName, n.SenderUserID, n.PostID, n.CommentID
+            SELECT
+                n.NotificationID,
+                n.NotificationTypeID,
+                nt.TypeName,
+                n.SenderUserID,
+                n.PostID,
+                n.CommentID,
+                n.Message AS NotificationMessage,
+                p.IsHidden AS PostIsHidden
             FROM notifications n
             JOIN notificationtypes nt ON nt.NotificationTypeID = n.NotificationTypeID
+            LEFT JOIN posts p ON p.PostID = n.PostID
             WHERE n.NotificationID = :notificationId AND n.ReceiverUserID = :userId
             LIMIT 1
         ";

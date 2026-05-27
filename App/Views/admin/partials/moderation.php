@@ -86,9 +86,9 @@
                                         <?php if ($r['status'] === 'Chờ duyệt'): ?>
                                             <div class="report-actions-group">
                                                 <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="<?php echo $r['id']; ?>" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
-                                                <button class="btn btn-outline-secondary btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'ignore')">Bỏ qua</button>
-                                                <button class="btn btn-danger btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'hide')">Ẩn</button>
-                                                <button class="btn btn-warning btn-sm text-white" onclick="handleReportAction(<?php echo $r['id']; ?>, 'warn')">Cảnh cáo</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="ignore">Bỏ qua</button>
+                                                <button type="button" class="btn btn-danger btn-sm btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="hide">Ẩn</button>
+                                                <button type="button" class="btn btn-warning btn-sm text-white btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="warn">Cảnh cáo</button>
                                             </div>
                                         <?php else: ?>
                                             <div class="report-actions-group is-completed">

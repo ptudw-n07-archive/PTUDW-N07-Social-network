@@ -283,6 +283,7 @@ class PostController {
         $content = trim($_POST['content'] ?? $_POST['comment'] ?? '');
         $parentCommentId = filter_var($_POST['parentCommentId'] ?? $_POST['parent_comment_id'] ?? null, FILTER_VALIDATE_INT);
         $parentCommentId = $parentCommentId ?: null;
+        $replyTarget = null;
 
         if (!$userId) {
             echo json_encode([
@@ -300,13 +301,35 @@ class PostController {
             return;
         }
 
+        if ($parentCommentId) {
+            $replyTarget = $this->postModel->getCommentById((int) $parentCommentId);
+        }
+
         $commentId = $this->postModel->createComment($userId, $postId, $content, $parentCommentId);
 
         if ($commentId) {
-            $receiverUserId = $this->postModel->getPostOwnerId($postId);
+            if ($parentCommentId && $replyTarget && (int) ($replyTarget['PostID'] ?? 0) === (int) $postId) {
+                $replyTypeId = $this->notificationModel->getTypeIdByName('ReplyComment')
+                    ?: $this->notificationModel->getTypeIdByName('CommentReply')
+                    ?: $this->notificationModel->getTypeIdByName('Comment');
+                $receiverUserId = (int) ($replyTarget['UserID'] ?? 0);
 
-            if ($receiverUserId && (int) $receiverUserId !== (int) $userId) {
-                $this->notificationModel->createNotification(2, $receiverUserId, $userId, $postId, $commentId);
+                if ($replyTypeId && $receiverUserId !== (int) $userId) {
+                    $sender = $this->postModel->getUserById((int) $userId);
+                    $senderName = trim((string) ($sender['FullName'] ?? ''));
+                    if ($senderName === '') {
+                        $senderName = !empty($sender['Username']) ? '@' . $sender['Username'] : 'Người dùng';
+                    }
+
+                    $message = $senderName . ' đã trả lời bình luận của bạn';
+                    $this->notificationModel->createNotification($replyTypeId, $receiverUserId, $userId, $postId, $commentId, $message);
+                }
+            } elseif (!$parentCommentId) {
+                $receiverUserId = $this->postModel->getPostOwnerId($postId);
+
+                if ($receiverUserId && (int) $receiverUserId !== (int) $userId) {
+                    $this->notificationModel->createNotification(2, $receiverUserId, $userId, $postId, $commentId);
+                }
             }
         }
 
