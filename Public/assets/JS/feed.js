@@ -274,38 +274,79 @@ function parseRepostContent(content) {
 }
 
 function renderPostMediaHtml(images, wrapperClass = "post-media-list") {
+    const mediaItems = (Array.isArray(images) ? images : []).map(img => {
+        const imageSrc = normalizeImagePath(img);
+
+        if (!imageSrc) {
+            return null;
+        }
+
+        return {
+            path: img,
+            src: imageSrc,
+            type: getMediaType(img)
+        };
+    }).filter(Boolean);
+
+    if (!mediaItems.length) {
+        return "";
+    }
+
+    const isCarousel = mediaItems.length > 1;
     let html = "";
 
-    images.forEach(img => {
-        const imageSrc = normalizeImagePath(img);
-        const mediaType = getMediaType(img);
+    mediaItems.forEach(media => {
+        let mediaHtml = "";
 
-        if (mediaType === "video") {
-            html += `
-                <video controls class="repost-embed-image no-post-nav">
-                    <source src="${escapeHTML(imageSrc)}" type="${escapeHTML(getMediaMimeType(img))}">
+        if (media.type === "video") {
+            mediaHtml = `
+                <video controls class="post-media-video no-post-nav">
+                    <source src="${escapeHTML(media.src)}" type="${escapeHTML(getMediaMimeType(media.path))}">
                     Trình duyệt không hỗ trợ video này.
                 </video>
             `;
-            return;
-        }
-
-        if (mediaType === "image") {
-            html += `
+        } else if (media.type === "image") {
+            mediaHtml = `
                 <img
-                    src="${escapeHTML(imageSrc)}"
-                    class="repost-embed-image"
+                    src="${escapeHTML(media.src)}"
+                    class="post-media-image"
                     alt="post image"
+                    loading="lazy"
                     onerror="this.style.display='none';"
                 >
             `;
-            return;
+        } else {
+            mediaHtml = `<a href="${escapeHTML(media.src)}" target="_blank" class="post-media-file no-post-nav">Mở file ảnh</a>`;
         }
 
-        html += `<a href="${escapeHTML(imageSrc)}" target="_blank" class="small d-block no-post-nav">Mở file ảnh</a>`;
+        html += `<div class="post-media-slide">${mediaHtml}</div>`;
     });
 
-    return html ? `<div class="${escapeHTML(wrapperClass)}">${html}</div>` : "";
+    const prevButton = isCarousel
+        ? `<button type="button" class="post-media-nav post-media-prev no-post-nav" onclick="scrollPostMedia(this, -1)" aria-label="Ảnh trước"><i class="bi bi-chevron-left"></i></button>`
+        : "";
+    const nextButton = isCarousel
+        ? `<button type="button" class="post-media-nav post-media-next no-post-nav" onclick="scrollPostMedia(this, 1)" aria-label="Ảnh tiếp theo"><i class="bi bi-chevron-right"></i></button><span class="post-media-counter">${mediaItems.length} ảnh</span>`
+        : "";
+
+    return `<div class="${escapeHTML(wrapperClass)} post-media-scroll media-count-${Math.min(mediaItems.length, 4)} media-total-${mediaItems.length}${isCarousel ? " has-multiple-media" : " has-single-media"}">${prevButton}<div class="post-media-track">${html}</div>${nextButton}</div>`;
+}
+
+function scrollPostMedia(button, direction) {
+    const mediaWrap = button.closest(".post-media-scroll");
+    const track = mediaWrap ? mediaWrap.querySelector(".post-media-track") : null;
+    const slide = track ? track.querySelector(".post-media-slide") : null;
+
+    if (!track || !slide) {
+        return;
+    }
+
+    const gap = 12;
+    const scrollAmount = slide.getBoundingClientRect().width + gap;
+    track.scrollBy({
+        left: scrollAmount * direction,
+        behavior: "smooth"
+    });
 }
 
 function renderRepostEmbedHtml(content, images) {

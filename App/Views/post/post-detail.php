@@ -206,7 +206,7 @@ function detailRenderPostMediaList($images, string $wrapperClass = 'post-media-l
         return '';
     }
 
-    $html = '<div class="' . htmlspecialchars($wrapperClass, ENT_QUOTES, 'UTF-8') . '">';
+    $mediaItems = [];
 
     foreach ($imageItems as $img) {
         $mediaSrc = detailPostMediaPath($img);
@@ -214,22 +214,57 @@ function detailRenderPostMediaList($images, string $wrapperClass = 'post-media-l
             continue;
         }
 
-        $mediaType = detailPostMediaType($img);
+        $mediaItems[] = [
+            'path' => $img,
+            'src' => $mediaSrc,
+            'type' => detailPostMediaType($img)
+        ];
+    }
+
+    if (empty($mediaItems)) {
+        return '';
+    }
+
+    $totalItems = count($mediaItems);
+    $isCarousel = $totalItems > 1;
+    $classes = trim($wrapperClass . ' post-media-scroll media-count-' . min($totalItems, 4) . ' media-total-' . $totalItems . ($isCarousel ? ' has-multiple-media' : ' has-single-media'));
+    $html = '<div class="' . htmlspecialchars($classes, ENT_QUOTES, 'UTF-8') . '">';
+
+    if ($isCarousel) {
+        $html .= '<button type="button" class="post-media-nav post-media-prev no-post-nav" onclick="scrollPostMedia(this, -1)" aria-label="Ảnh trước"><i class="bi bi-chevron-left"></i></button>';
+    }
+
+    $html .= '<div class="post-media-track">';
+
+    foreach ($mediaItems as $index => $media) {
+        $html .= '<div class="post-media-slide">';
+
+        $mediaType = $media['type'];
 
         if ($mediaType === 'video') {
-            $html .= '<video controls class="repost-embed-image no-post-nav">'
-                . '<source src="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" type="' . htmlspecialchars(detailPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') . '">'
+            $html .= '<video controls class="post-media-video no-post-nav">'
+                . '<source src="' . htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8') . '" type="' . htmlspecialchars(detailPostMediaMimeType($media['path']), ENT_QUOTES, 'UTF-8') . '">'
                 . 'Trình duyệt không hỗ trợ video này.'
                 . '</video>';
+            $html .= '</div>';
             continue;
         }
 
         if ($mediaType === 'image') {
-            $html .= '<img src="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" class="repost-embed-image" alt="post image" onerror="this.style.display=\'none\';">';
+            $html .= '<img src="' . htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8') . '" class="post-media-image" alt="post image" loading="lazy" onerror="this.style.display=\'none\';">';
+            $html .= '</div>';
             continue;
         }
 
-        $html .= '<a href="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" target="_blank" class="small d-block no-post-nav">Mở file ảnh</a>';
+        $html .= '<a href="' . htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8') . '" target="_blank" class="post-media-file no-post-nav">Mở file ảnh</a>';
+        $html .= '</div>';
+    }
+
+    $html .= '</div>';
+
+    if ($isCarousel) {
+        $html .= '<button type="button" class="post-media-nav post-media-next no-post-nav" onclick="scrollPostMedia(this, 1)" aria-label="Ảnh tiếp theo"><i class="bi bi-chevron-right"></i></button>';
+        $html .= '<span class="post-media-counter">' . $totalItems . ' ảnh</span>';
     }
 
     return $html . '</div>';
