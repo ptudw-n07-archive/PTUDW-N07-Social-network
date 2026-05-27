@@ -8,6 +8,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const followButton = document.getElementById("profileFollowButton");
     const followAlert = document.getElementById("profileFollowAlert");
     const followerCount = document.getElementById("profileFollowerCount");
+    const profilePhotos = Array.isArray(window.PROFILE_PHOTOS) ? window.PROFILE_PHOTOS : [];
+    const photoModalElement = document.getElementById("profilePhotoModal");
+    const photoModalImage = document.getElementById("profilePhotoModalImage");
+    const photoModalLabel = document.getElementById("profilePhotoModalLabel");
+    let activePhotoIndex = 0;
 
     if (followButton) {
         followButton.addEventListener("click", function () {
@@ -24,6 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const formData = new FormData();
             formData.append("userId", userId);
+            appendProfileCsrfToken(formData);
 
             fetch(window.PROFILE_FOLLOW_URL || appUrl("App/Controllers/FollowController.php?action=toggle"), {
                 method: "POST",
@@ -52,6 +58,39 @@ document.addEventListener("DOMContentLoaded", function () {
                 .finally(() => {
                     followButton.disabled = false;
                 });
+        });
+    }
+
+    document.querySelectorAll("[data-profile-photo-index]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            openProfilePhoto(Number.parseInt(button.dataset.profilePhotoIndex || "0", 10));
+        });
+    });
+
+    const prevPhotoButton = document.querySelector("[data-profile-photo-prev]");
+    const nextPhotoButton = document.querySelector("[data-profile-photo-next]");
+
+    if (prevPhotoButton) {
+        prevPhotoButton.addEventListener("click", function () {
+            openProfilePhoto(activePhotoIndex - 1);
+        });
+    }
+
+    if (nextPhotoButton) {
+        nextPhotoButton.addEventListener("click", function () {
+            openProfilePhoto(activePhotoIndex + 1);
+        });
+    }
+
+    if (photoModalElement) {
+        photoModalElement.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowLeft") {
+                openProfilePhoto(activePhotoIndex - 1);
+            }
+
+            if (event.key === "ArrowRight") {
+                openProfilePhoto(activePhotoIndex + 1);
+            }
         });
     }
 
@@ -122,6 +161,33 @@ document.addEventListener("DOMContentLoaded", function () {
 
         alertBox.className = "alert alert-" + type;
         alertBox.textContent = message;
+    }
+
+    function appendProfileCsrfToken(formData) {
+        const token = window.FEED_CSRF_TOKEN || "";
+
+        if (token && !formData.has("csrf_token")) {
+            formData.append("csrf_token", token);
+        }
+    }
+
+    function openProfilePhoto(index) {
+        if (!photoModalElement || !photoModalImage || profilePhotos.length === 0 || !window.bootstrap) {
+            return;
+        }
+
+        activePhotoIndex = (index + profilePhotos.length) % profilePhotos.length;
+        const photo = profilePhotos[activePhotoIndex] || {};
+
+        photoModalImage.src = photo.src || "";
+        photoModalImage.alt = photo.alt || "Ảnh đã đăng";
+
+        if (photoModalLabel) {
+            photoModalLabel.textContent = `Ảnh đã đăng ${activePhotoIndex + 1}/${profilePhotos.length}`;
+        }
+
+        const modal = window.bootstrap.Modal.getOrCreateInstance(photoModalElement);
+        modal.show();
     }
 
     function updateFollowButton(isFollowing) {

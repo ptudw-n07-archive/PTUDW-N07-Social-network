@@ -15,6 +15,7 @@ $profileData = $profileController->index();
 
 $profile = $profileData['profile'];
 $posts = $profileData['posts'];
+$reposts = $profileData['reposts'] ?? [];
 $stats = $profileData['stats'];
 $currentUserId = $profileData['currentUserId'];
 $profileUserId = $profileData['profileUserId'];
@@ -165,6 +166,72 @@ function renderProfilePostContentWithHashtags($content) {
     }
 
     return $html;
+}
+
+function parseProfileRepostContent($content): ?array {
+    if (!preg_match('/^Đăng lại từ\s+(@[^\s:]+):\s*(.*)$/su', (string) $content, $matches)) {
+        return null;
+    }
+
+    return [
+        'source' => trim($matches[1]),
+        'content' => ltrim((string) ($matches[2] ?? ''))
+    ];
+}
+
+function renderProfileComment(array $comment, array $post, int $currentUserId, bool $isReply = false): void {
+    $commentId = (int) ($comment['CommentID'] ?? 0);
+    $commentOwnerId = (int) ($comment['UserID'] ?? 0);
+    $postOwnerId = (int) ($post['UserID'] ?? 0);
+    $parentCommentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+    $rootCommentId = $isReply && $parentCommentId > 0 ? $parentCommentId : $commentId;
+    $canEdit = $commentOwnerId === $currentUserId;
+    $canDelete = $canEdit || $postOwnerId === $currentUserId;
+    $canReport = $commentOwnerId !== $currentUserId;
+    $displayName = !empty($comment['FullName']) ? $comment['FullName'] : '@' . ($comment['Username'] ?? '');
+    ?>
+    <div
+        class="comment-item<?= $isReply ? ' comment-reply' : '' ?>"
+        id="comment-<?= $commentId ?>"
+        data-comment-id="<?= $commentId ?>"
+        data-post-id="<?= (int) ($post['PostID'] ?? 0) ?>"
+        data-owner-id="<?= $commentOwnerId ?>"
+        data-parent-comment-id="<?= $parentCommentId ?>"
+        data-root-comment-id="<?= $rootCommentId ?>"
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>"
+        data-can-delete="<?= $canDelete ? '1' : '0' ?>"
+        data-can-report="<?= $canReport ? '1' : '0' ?>"
+    >
+        <img
+            src="<?= htmlspecialchars(profileImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+            class="comment-avatar"
+            alt="avatar"
+            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+        >
+        <div class="comment-body">
+            <div class="comment-bubble">
+                <div class="comment-meta">
+                    <strong class="comment-author"><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></strong>
+                    <span class="comment-time">• <?= htmlspecialchars(profileTimeAgo($comment['CreatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <div class="comment-content"><?= htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+            </div>
+            <div class="comment-actions">
+                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                <?php if ($canEdit): ?>
+                    <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
+                <?php endif; ?>
+                <?php if ($canDelete): ?>
+                    <button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>
+                <?php endif; ?>
+                <?php if ($canReport): ?>
+                    <button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>
+                <?php endif; ?>
+            </div>
+            <div class="comment-inline-form"></div>
+        </div>
+    </div>
+    <?php
 }
 
 $profileName = $profile ? ($profile['FullName'] ?: '@' . $profile['Username']) : '';
@@ -399,6 +466,7 @@ foreach ($posts as $post) {
                     >
                 <?php if (!empty($posts)): ?>
                     <?php foreach ($posts as $post): ?>
+                        <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
                         <article class="bg-white post-card profile-post-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
                             <div class="profile-post-body">
                                 <div class="d-flex gap-3">
@@ -454,15 +522,61 @@ foreach ($posts as $post) {
                                         <?php endif; ?>
 
                                         <div class="post-actions profile-post-actions d-flex gap-4">
-                                            <button type="button" onclick="toggleLike(this)" data-post-id="<?php echo (int) $post['PostID']; ?>">
-                                                <i class="bi bi-heart"></i>
+                                            <button
+                                                type="button"
+                                                class="feed-like-btn no-post-nav <?php echo $isLiked ? 'liked' : ''; ?>"
+                                                onclick="toggleLike(this)"
+                                                data-post-id="<?php echo (int) $post['PostID']; ?>"
+                                                aria-pressed="<?php echo $isLiked ? 'true' : 'false'; ?>"
+                                            >
+                                                <i class="bi <?php echo $isLiked ? 'bi-heart-fill' : 'bi-heart'; ?>"></i>
                                                 <span class="like-count"><?php echo (int) ($post['LikeCount'] ?? 0); ?></span>
                                             </button>
 
-                                            <span class="d-inline-flex align-items-center gap-2 text-muted">
+                                            <button type="button" class="no-post-nav" onclick="toggleCommentBox(this)">
                                                 <i class="bi bi-chat"></i>
-                                                <?php echo (int) ($post['CommentCount'] ?? 0); ?>
-                                            </span>
+                                                <span class="comment-count"><?php echo (int) ($post['CommentCount'] ?? 0); ?></span>
+                                            </button>
+                                        </div>
+
+                                        <div class="comment-box mt-3 d-none no-post-nav">
+                                            <div class="comment-form d-flex gap-2">
+                                                <?php $commentInputId = 'profileCommentInput-' . (int) $post['PostID']; ?>
+                                                <label for="<?php echo htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8'); ?>" class="visually-hidden">Viết bình luận</label>
+                                                <textarea
+                                                    id="<?php echo htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    class="form-control comment-input"
+                                                    placeholder="Viết bình luận..."
+                                                    rows="1"
+                                                ></textarea>
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-pink comment-submit"
+                                                    onclick="sendComment(this)"
+                                                    data-post-id="<?php echo (int) $post['PostID']; ?>"
+                                                >
+                                                    Gửi
+                                                </button>
+                                            </div>
+
+                                            <div class="comment-list">
+                                                <?php
+                                                    $commentsByParent = [];
+                                                    foreach ($post['Comments'] ?? [] as $comment) {
+                                                        $parentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+                                                        $commentsByParent[$parentId][] = $comment;
+                                                    }
+                                                ?>
+                                                <?php foreach ($commentsByParent[0] ?? [] as $comment): ?>
+                                                    <?php
+                                                        $commentId = (int) ($comment['CommentID'] ?? 0);
+                                                        renderProfileComment($comment, $post, (int) $currentUserId);
+                                                    ?>
+                                                    <?php foreach ($commentsByParent[$commentId] ?? [] as $reply): ?>
+                                                        <?php renderProfileComment($reply, $post, (int) $currentUserId, true); ?>
+                                                    <?php endforeach; ?>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -489,14 +603,21 @@ foreach ($posts as $post) {
                     >
                         <?php if (!empty($profilePhotoItems)): ?>
                             <div class="profile-photo-grid">
+                                <?php $photoIndex = 0; ?>
                                 <?php foreach ($profilePhotoItems as $photo): ?>
-                                    <a href="<?php echo htmlspecialchars($photo['src'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="profile-photo-item">
+                                    <button
+                                        type="button"
+                                        class="profile-photo-item"
+                                        data-profile-photo-index="<?php echo $photoIndex; ?>"
+                                        aria-label="Xem ảnh"
+                                    >
                                         <img
                                             src="<?php echo htmlspecialchars($photo['src'], ENT_QUOTES, 'UTF-8'); ?>"
                                             alt="<?php echo htmlspecialchars($photo['alt'], ENT_QUOTES, 'UTF-8'); ?>"
                                             loading="lazy"
                                         >
-                                    </a>
+                                    </button>
+                                    <?php $photoIndex++; ?>
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
@@ -517,13 +638,128 @@ foreach ($posts as $post) {
                         aria-labelledby="profile-reposts-tab"
                         tabindex="0"
                     >
-                        <div class="bg-white profile-empty-state" role="status">
-                            <div class="profile-empty-icon">
-                                <i class="bi bi-arrow-repeat"></i>
+                        <?php if (!empty($reposts)): ?>
+                            <?php foreach ($reposts as $post): ?>
+                                <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
+                                <?php $fallbackRepost = empty($post['OriginalPostID']) ? parseProfileRepostContent($post['Content'] ?? '') : null; ?>
+                                <article class="bg-white post-card profile-post-card repost-card mb-3" id="post-<?php echo (int) $post['PostID']; ?>" <?php echo archivePostCardAttributes($post, (int) $currentUserId); ?>>
+                                    <div class="profile-post-body">
+                                        <div class="d-flex gap-3">
+                                            <img
+                                                src="<?php echo profileImagePath($post['ProfilePictureUrl'] ?? $profileAvatar); ?>"
+                                                class="avatar profile-post-avatar"
+                                                alt="Avatar"
+                                            >
+
+                                            <div class="flex-grow-1">
+                                                <div class="post-card-header profile-post-header mb-2">
+                                                    <div>
+                                                        <div class="repost-source-label mb-1">
+                                                            <i class="bi bi-arrow-repeat"></i>
+                                                            <span>Đã đăng lại <?php echo profileTimeAgo($post['RepostedAt'] ?? $post['CreatedAt']); ?></span>
+                                                        </div>
+                                                        <div class="profile-post-meta">
+                                                            <span class="profile-post-author">
+                                                                <?php echo htmlspecialchars($post['FullName'] ?: '@' . $post['Username']); ?>
+                                                            </span>
+                                                            <span class="profile-post-username">@<?php echo htmlspecialchars($post['Username']); ?></span>
+                                                            <span class="profile-post-time">• <?php echo profileTimeAgo($post['CreatedAt']); ?></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
+                                                </div>
+
+                                                <p class="post-text profile-post-content mb-3">
+                                                    <?php
+                                                        $content = $fallbackRepost ? $fallbackRepost['content'] : ($post['Content'] ?? '');
+                                                        echo trim((string) $content) !== ''
+                                                            ? renderProfilePostContentWithHashtags($content)
+                                                            : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
+                                                    ?>
+                                                </p>
+
+                                                <?php if (!empty($post['Images'])): ?>
+                                                    <div class="d-flex flex-column gap-3 mb-3">
+                                                        <?php foreach (explode(',', $post['Images']) as $image): ?>
+                                                            <?php $profilePostMediaSrc = profilePostMediaPath($image); ?>
+                                                            <?php if ($profilePostMediaSrc !== ''): ?>
+                                                                <?php $profilePostMediaType = profilePostMediaType($image); ?>
+                                                                <?php if ($profilePostMediaType === 'video'): ?>
+                                                                    <video controls class="profile-post-image">
+                                                                        <source src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" type="<?php echo htmlspecialchars(profilePostMediaMimeType($image), ENT_QUOTES, 'UTF-8'); ?>">
+                                                                        Trình duyệt không hỗ trợ video này.
+                                                                    </video>
+                                                                <?php elseif ($profilePostMediaType === 'image'): ?>
+                                                                    <img
+                                                                        src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>"
+                                                                        class="profile-post-image"
+                                                                        alt="Post image"
+                                                                        onerror="this.style.display='none';"
+                                                                    >
+                                                                <?php endif; ?>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                <?php endif; ?>
+
+                                                <div class="post-actions profile-post-actions d-flex gap-4">
+                                                    <button
+                                                        type="button"
+                                                        class="feed-like-btn no-post-nav <?php echo $isLiked ? 'liked' : ''; ?>"
+                                                        onclick="toggleLike(this)"
+                                                        data-post-id="<?php echo (int) $post['PostID']; ?>"
+                                                        aria-pressed="<?php echo $isLiked ? 'true' : 'false'; ?>"
+                                                    >
+                                                        <i class="bi <?php echo $isLiked ? 'bi-heart-fill' : 'bi-heart'; ?>"></i>
+                                                        <span class="like-count"><?php echo (int) ($post['LikeCount'] ?? 0); ?></span>
+                                                    </button>
+
+                                                    <button type="button" class="no-post-nav" onclick="toggleCommentBox(this)">
+                                                        <i class="bi bi-chat"></i>
+                                                        <span class="comment-count"><?php echo (int) ($post['CommentCount'] ?? 0); ?></span>
+                                                    </button>
+                                                </div>
+
+                                                <div class="comment-box mt-3 d-none no-post-nav">
+                                                    <div class="comment-form d-flex gap-2">
+                                                        <textarea class="form-control comment-input" placeholder="Viết bình luận..." rows="1"></textarea>
+                                                        <button type="button" class="btn btn-pink comment-submit" onclick="sendComment(this)" data-post-id="<?php echo (int) $post['PostID']; ?>">Gửi</button>
+                                                    </div>
+
+                                                    <div class="comment-list">
+                                                        <?php
+                                                            $commentsByParent = [];
+                                                            foreach ($post['Comments'] ?? [] as $comment) {
+                                                                $parentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+                                                                $commentsByParent[$parentId][] = $comment;
+                                                            }
+                                                        ?>
+                                                        <?php foreach ($commentsByParent[0] ?? [] as $comment): ?>
+                                                            <?php
+                                                                $commentId = (int) ($comment['CommentID'] ?? 0);
+                                                                renderProfileComment($comment, $post, (int) $currentUserId);
+                                                            ?>
+                                                            <?php foreach ($commentsByParent[$commentId] ?? [] as $reply): ?>
+                                                                <?php renderProfileComment($reply, $post, (int) $currentUserId, true); ?>
+                                                            <?php endforeach; ?>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="bg-white profile-empty-state" role="status">
+                                <div class="profile-empty-icon">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </div>
+                                <h4>Chưa có bài đăng lại.</h4>
+                                <p><?php echo $isOwnProfile ? 'Những bài bạn đăng lại sẽ nằm ở đây.' : 'Người dùng này chưa đăng lại bài viết nào.'; ?></p>
                             </div>
-                            <h4>Chưa có bài đăng lại.</h4>
-                            <p>Tính năng đăng lại sẽ được hoàn thiện sau.</p>
-                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -533,6 +769,44 @@ foreach ($posts as $post) {
 </section>
 
 <?php if (!$profileNotFound): ?>
+<div class="modal fade profile-photo-modal" id="profilePhotoModal" tabindex="-1" aria-labelledby="profilePhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="profilePhotoModalLabel">Ảnh đã đăng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <button type="button" class="profile-photo-nav profile-photo-prev" data-profile-photo-prev aria-label="Ảnh trước">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <img id="profilePhotoModalImage" src="" alt="Ảnh đã đăng">
+                <button type="button" class="profile-photo-nav profile-photo-next" data-profile-photo-next aria-label="Ảnh tiếp theo">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade archive-comment-delete-modal" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCommentModalLabel">Xóa bình luận?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                Bình luận này sẽ được ẩn khỏi bài viết. Bạn vẫn muốn tiếp tục?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn comment-delete-cancel-btn" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn comment-delete-confirm-btn" data-confirm-delete-comment>Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade follow-modal" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -730,6 +1004,8 @@ foreach ($posts as $post) {
 
 <?php if (!$profileNotFound): ?>
 <script>
+    window.FEED_CSRF_TOKEN = "<?php echo htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8'); ?>";
+    window.PROFILE_PHOTOS = <?php echo json_encode(array_values($profilePhotoItems), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     <?php if ($isOwnProfile): ?>
     window.PROFILE_UPDATE_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=update";
     <?php else: ?>
