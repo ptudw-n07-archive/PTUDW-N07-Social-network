@@ -192,6 +192,8 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
         window.ADMIN_CHANGE_PASSWORD_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=changeAdminPassword";
         window.ADMIN_LOGS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=adminLogs";
         window.ADMIN_BASE_URL = "<?php echo BASE_URL; ?>";
+        window.ADMIN_CSRF_TOKEN = "<?php echo htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES); ?>";
+        window.ADMIN_TIMEZONE = "Asia/Ho_Chi_Minh";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-core.js"></script>

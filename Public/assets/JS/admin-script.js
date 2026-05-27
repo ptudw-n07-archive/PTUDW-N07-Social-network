@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingStateHtml,
         tableLoadingRow,
         formatClientTime,
+        formatAdminDateTime,
+        formatReportReason,
+        csrfToken,
         downloadCsv,
         reportDateSlug,
         printTableReport,
@@ -20,12 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('AdminCore chưa được tải trước admin-script.js.');
         return;
     }
+    const bootstrapApi = window.bootstrap || null;
 
     const adminNoteModalEl = document.getElementById('adminNoteModal');
     const adminNoteTextarea = document.getElementById('adminNoteTextarea');
     const adminNoteSaveBtn = document.getElementById('adminNoteSaveBtn');
     const adminNoteError = document.getElementById('adminNoteError');
-    const adminNoteModal = adminNoteModalEl ? new bootstrap.Modal(adminNoteModalEl) : null;
+    const adminNoteModal = adminNoteModalEl && bootstrapApi ? new bootstrapApi.Modal(adminNoteModalEl) : null;
     let adminNoteResolve = null;
     let adminNoteRequired = false;
 
@@ -93,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const reportDetailContent = document.getElementById('reportDetailContent');
     const reportDetailLoading = document.getElementById('reportDetailLoading');
     const reportDetailError = document.getElementById('reportDetailError');
-    const reportDetailModal = reportDetailModalEl ? new bootstrap.Modal(reportDetailModalEl) : null;
+    const reportDetailModal = reportDetailModalEl && bootstrapApi ? new bootstrapApi.Modal(reportDetailModalEl) : null;
 
     const membersTableBody = document.getElementById('membersTableBody');
     const memberSearchInput = document.getElementById('memberSearchInput');
@@ -107,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const overviewDetailLoading = document.getElementById('overviewDetailLoading');
     const overviewDetailError = document.getElementById('overviewDetailError');
     const overviewDetailBody = document.getElementById('overviewDetailBody');
-    const overviewDetailModal = overviewDetailModalEl && window.bootstrap ? new bootstrap.Modal(overviewDetailModalEl) : null;
+    const overviewDetailModal = overviewDetailModalEl && bootstrapApi ? new bootstrapApi.Modal(overviewDetailModalEl) : null;
     const printStatisticsBtn = document.getElementById('printStatisticsBtn');
     const exportStatisticsCsvBtn = document.getElementById('exportStatisticsCsvBtn');
     const reportSearchInput = document.getElementById('reportSearchInput');
@@ -152,9 +156,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const notificationDetailLoading = document.getElementById('notificationDetailLoading');
     const notificationDetailError = document.getElementById('notificationDetailError');
     const notificationDetailBody = document.getElementById('notificationDetailBody');
-    const notificationDetailModal = notificationDetailModalEl ? new bootstrap.Modal(notificationDetailModalEl) : null;
+    const notificationDetailModal = notificationDetailModalEl && bootstrapApi ? new bootstrapApi.Modal(notificationDetailModalEl) : null;
     const sendNotificationModalEl = document.getElementById('sendNotificationModal');
-    const sendNotificationModal = sendNotificationModalEl ? new bootstrap.Modal(sendNotificationModalEl) : null;
+    const sendNotificationModal = sendNotificationModalEl && bootstrapApi ? new bootstrapApi.Modal(sendNotificationModalEl) : null;
     const sendNotificationForm = document.getElementById('sendNotificationForm');
     const sendNotificationAllCheckbox = document.getElementById('sendNotificationAllCheckbox');
     const singleReceiverWrap = document.getElementById('singleReceiverWrap');
@@ -170,10 +174,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const editRoleSaveBtn = document.getElementById('editRoleSaveBtn');
     const editRoleUserName = document.getElementById('editRoleUserName');
     const editRoleError = document.getElementById('editRoleError');
-    const editRoleModal = editRoleModalEl ? new bootstrap.Modal(editRoleModalEl) : null;
+    const editRoleModal = editRoleModalEl && bootstrapApi ? new bootstrapApi.Modal(editRoleModalEl) : null;
     const memberDetailModalEl = document.getElementById('memberDetailModal');
     const memberDetailContent = document.getElementById('memberDetailContent');
-    const memberDetailModal = memberDetailModalEl ? new bootstrap.Modal(memberDetailModalEl) : null;
+    const memberDetailModal = memberDetailModalEl && bootstrapApi ? new bootstrapApi.Modal(memberDetailModalEl) : null;
     let currentMembers = [];
     let currentNotifications = [];
     let currentEditUserId = null;
@@ -198,6 +202,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateRealtimeClock, 1000);
 
     const normalizeAssetPath = path => normalizeAdminImagePath(path, '');
+    const displayDateTime = value => (formatAdminDateTime ? formatAdminDateTime(value) : (value || ''));
+    const displayReportReason = value => (formatReportReason ? formatReportReason(value) : (value || ''));
 
     // --- Quản lý thành viên ---
 
@@ -253,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="member-count-pill"><i class="bi bi-file-earmark-post"></i>${member.PostCount}</span>
                     <span class="member-count-pill danger"><i class="bi bi-flag"></i>${member.ReportCount}</span>
                 </td>
-                <td class="small text-center">${escapeHtml(member.joined || member.CreatedAt || '')}</td>
+                <td class="small text-center">${escapeHtml(displayDateTime(member.CreatedAt || member.joined || ''))}</td>
                 <td class="member-status text-center">${statusBadgeHtml(member.IsActive)}</td>
                 <td class="text-center">
                     <div class="member-actions-group">
@@ -348,24 +354,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function saveRoleChange(userId, roleId) {
         try {
-            const res = await fetch(window.ADMIN_UPDATE_USER_ROLE_URL, {
+            const data = await fetchJson(window.ADMIN_UPDATE_USER_ROLE_URL, {
                 method: 'POST',
-                credentials: 'same-origin',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     UserID: Number(userId),
                     RoleID: Number(roleId)
                 })
             });
-
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                setEditRoleError(data.message || 'Không thể cập nhật vai trò.');
-                return;
-            }
 
             const updated = data.data || {};
             mergeMember({
@@ -380,8 +378,8 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast(data.message || 'Cập nhật vai trò thành công.', 'success');
         } catch (err) {
             console.error('Update role error:', err);
-            setEditRoleError('Có lỗi khi gửi yêu cầu cập nhật vai trò.');
-            showToast('Có lỗi khi cập nhật vai trò.', 'error');
+            setEditRoleError(err.message || 'Có lỗi khi gửi yêu cầu cập nhật vai trò.');
+            showToast(err.message || 'Có lỗi khi cập nhật vai trò.', 'error');
         }
     }
 
@@ -401,24 +399,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         button.disabled = true;
         try {
-            const res = await fetch(window.ADMIN_TOGGLE_USER_ACTIVE_URL, {
+            const data = await fetchJson(window.ADMIN_TOGGLE_USER_ACTIVE_URL, {
                 method: 'POST',
-                credentials: 'same-origin',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     UserID: userId,
                     IsActive: nextActive
                 })
             });
-            const data = await res.json();
-
-            if (!res.ok || !data.success) {
-                showToast(data.message || 'Không thể cập nhật trạng thái tài khoản.', 'error');
-                return;
-            }
 
             const updated = data.data || {};
             mergeMember({
@@ -434,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast(data.message || 'Cập nhật trạng thái tài khoản thành công.', 'success');
         } catch (err) {
             console.error('Toggle active error:', err);
-            showToast('Có lỗi khi cập nhật trạng thái tài khoản.', 'error');
+            showToast(err.message || 'Có lỗi khi cập nhật trạng thái tài khoản.', 'error');
         } finally {
             button.disabled = false;
         }
@@ -451,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ['Email', member.Email],
             ['RoleName', member.RoleName],
             ['Trạng thái', member.IsActive === 1 ? 'Hoạt động' : 'Bị khóa'],
-            ['CreatedAt', member.CreatedAt],
+            ['CreatedAt', displayDateTime(member.CreatedAt)],
             ['Tổng bài viết', member.PostCount],
             ['Tổng report bị nhận', member.ReportCount]
         ];
@@ -472,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
         Email: member.Email || '',
         RoleName: member.RoleName || '',
         IsActive: member.IsActive === 1 ? 'Hoạt động' : 'Bị khóa',
-        CreatedAt: member.CreatedAt || '',
+        CreatedAt: displayDateTime(member.CreatedAt || member.joined || ''),
         PostCount: member.PostCount,
         ReportCount: member.ReportCount
     }));
@@ -574,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td><span class="notification-message" title="${escapeHtml(item.Message || '')}">${escapeHtml(item.Message || '-')}</span></td>
                 <td class="small">${escapeHtml(links)}</td>
                 <td>${notificationReadBadge(item)}</td>
-                <td class="small text-muted">${escapeHtml(item.CreatedAt || '')}</td>
+                <td class="small text-muted">${escapeHtml(displayDateTime(item.CreatedAt))}</td>
                 <td class="text-end">
                     <div class="notification-actions">
                         <button type="button" class="btn btn-outline-brown btn-sm btn-icon-detail btn-notification-detail" data-id="${escapeHtml(item.NotificationID)}" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
@@ -619,7 +609,7 @@ document.addEventListener('DOMContentLoaded', function() {
         Sender: notificationPerson('Sender', item),
         Message: item.Message || '',
         IsRead: notificationReadText(item),
-        CreatedAt: item.CreatedAt || ''
+        CreatedAt: displayDateTime(item.CreatedAt)
     }));
 
     const exportNotificationsCsv = async () => {
@@ -669,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ['PostID', item.PostID],
                 ['CommentID', item.CommentID],
                 ['IsRead', notificationReadText(item)],
-                ['CreatedAt', item.CreatedAt]
+                ['CreatedAt', displayDateTime(item.CreatedAt)]
             ];
             if (notificationDetailBody) {
                 notificationDetailBody.innerHTML = rows.map(([label, value]) => notificationDetailItem(label, value)).join('');
@@ -962,7 +952,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="report-detail-grid">
                         ${detailItem('PostID', post.PostID)}
                         ${detailItem('Tác giả bài viết', personName(post.author))}
-                        ${detailItem('CreatedAt', post.CreatedAt)}
+                        ${detailItem('CreatedAt', displayDateTime(post.CreatedAt))}
                     </div>
                     <div class="report-content-box">${detailValue(post.Content)}</div>
                     ${images.length ? `<div class="report-image-list">${images.map(image => `<img src="${escapeHtml(normalizeAssetPath(image))}" alt="post image" data-admin-image="post">`).join('')}</div>` : ''}
@@ -977,7 +967,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="report-detail-grid">
                         ${detailItem('PostID', post ? post.PostID : null)}
                         ${detailItem('Tác giả bài viết', post ? personName(post.author) : null)}
-                        ${detailItem('CreatedAt', post ? post.CreatedAt : null)}
+                        ${detailItem('CreatedAt', post ? displayDateTime(post.CreatedAt) : null)}
                     </div>
                     <div class="report-content-box">${detailValue(post ? post.Content : null)}</div>
                 </div>
@@ -986,7 +976,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="report-detail-grid">
                         ${detailItem('CommentID', comment ? comment.CommentID : null)}
                         ${detailItem('Tác giả bình luận', comment ? personName(comment.author) : null)}
-                        ${detailItem('CreatedAt', comment ? comment.CreatedAt : null)}
+                        ${detailItem('CreatedAt', comment ? displayDateTime(comment.CreatedAt) : null)}
                     </div>
                     <div class="report-content-box">${detailValue(comment ? comment.Content : null)}</div>
                 </div>
@@ -1003,7 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${detailItem('FullName', reportedUser ? reportedUser.FullName : null)}
                         ${detailItem('Email', reportedUser ? reportedUser.Email : null)}
                         ${detailItem('RoleName', reportedUser ? reportedUser.RoleName : null)}
-                        ${detailItem('CreatedAt', reportedUser ? reportedUser.CreatedAt : null)}
+                        ${detailItem('CreatedAt', reportedUser ? displayDateTime(reportedUser.CreatedAt) : null)}
                         ${detailItem('IsActive', reportedUser && Number(reportedUser.IsActive) === 1 ? 'Hoạt động' : 'Bị khóa')}
                     </div>
                 </div>
@@ -1016,8 +1006,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="report-detail-grid">
                     ${detailItem('ReportID', detail.ReportID)}
                     ${detailItem('Loại đối tượng', reportTypeText(detail.reportType))}
-                    ${detailItem('Reason', detail.Reason)}
-                    ${detailItem('CreatedAt', detail.CreatedAt)}
+                    ${detailItem('Reason', displayReportReason(detail.Reason))}
+                    ${detailItem('CreatedAt', displayDateTime(detail.CreatedAt))}
                     ${detailItem('Status', detail.Status)}
                     ${detailItem('Details', detail.Details)}
                 </div>
@@ -1056,16 +1046,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const url = new URL(window.ADMIN_REPORT_DETAIL_URL, window.location.href);
             url.searchParams.set('reportId', reportId);
-            const res = await fetch(url.toString(), {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: { 'Accept': 'application/json' }
-            });
-            const data = await res.json();
-
-            if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Không thể lấy chi tiết báo cáo.');
-            }
+            const data = await fetchJson(url.toString());
 
             reportDetailContent.innerHTML = renderReportDetail(data.data || {});
         } catch (err) {
@@ -1081,12 +1062,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.addEventListener('click', event => {
         const detailButton = event.target.closest('.btn-report-detail, .btn-report-detail-link');
+        const actionButton = event.target.closest('.btn-report-action');
         if (detailButton) {
             openReportDetail(detailButton.dataset.reportId);
         }
+        if (actionButton) {
+            event.preventDefault();
+            handleReportAction(actionButton.dataset.reportId, actionButton.dataset.reportAction, actionButton);
+        }
     });
 
-    async function handleReportAction(reportId, action) {
+    async function handleReportAction(reportId, action, triggerButton = null) {
         // Xử lý report theo từng action rồi cập nhật lại dòng report ngay trên UI.
         const titleMap = {
             ignore: 'Bỏ qua báo cáo',
@@ -1115,19 +1101,16 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('reportId', reportId);
         formData.append('action', action);
         formData.append('adminNote', adminNote);
+        if (csrfToken) {
+            formData.append('csrf_token', csrfToken());
+        }
 
+        if (triggerButton) triggerButton.disabled = true;
         try {
-            const res = await fetch(window.ADMIN_PROCESS_REPORT_URL, {
+            const data = await fetchJson(window.ADMIN_PROCESS_REPORT_URL, {
                 method: 'POST',
-                credentials: 'same-origin',
                 body: formData
             });
-
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                showToast(data.message || 'Không thể xử lý báo cáo.', 'error');
-                return;
-            }
 
             const reportIdValue = data.data && data.data.reportId ? data.data.reportId : reportId;
             const responseUpdatedReports = Array.isArray(data.updatedReports) ? data.updatedReports : (data.data && Array.isArray(data.data.updatedReports) ? data.data.updatedReports : []);
@@ -1146,13 +1129,22 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast(data.message || 'Xử lý báo cáo thành công.', 'success');
         } catch (err) {
             console.error('Report action error:', err);
-            showToast('Có lỗi xảy ra khi gọi API xử lý báo cáo.', 'error');
+            showToast(err.message || 'Có lỗi xảy ra khi gọi API xử lý báo cáo.', 'error');
+            if (triggerButton) triggerButton.disabled = false;
         }
     }
 
     let currentReports = Array.from(document.querySelectorAll('#reports tbody tr[data-report]')).map(row => {
         try {
-            return { ...JSON.parse(row.dataset.report || '{}'), row };
+            const report = JSON.parse(row.dataset.report || '{}');
+            report.Reason = displayReportReason(report.Reason);
+            report.CreatedAt = displayDateTime(report.CreatedAt);
+            const reasonCell = row.querySelector('.report-reason-cell span');
+            const timeCell = row.querySelector('.report-time-cell');
+            if (reasonCell) reasonCell.textContent = report.Reason;
+            if (timeCell) timeCell.textContent = report.CreatedAt;
+            row.dataset.report = JSON.stringify(report);
+            return { ...report, row };
         } catch (err) {
             return { row };
         }
@@ -1261,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentDetailBody = document.getElementById('contentDetailBody');
     const contentDetailLoading = document.getElementById('contentDetailLoading');
     const contentDetailError = document.getElementById('contentDetailError');
-    const contentDetailModal = contentDetailModalEl ? new bootstrap.Modal(contentDetailModalEl) : null;
+    const contentDetailModal = contentDetailModalEl && bootstrapApi ? new bootstrapApi.Modal(contentDetailModalEl) : null;
     let contentPostTimer = null;
     let contentCommentTimer = null;
     let contentHashtagTimer = null;
@@ -1299,14 +1291,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const fetchJson = async (url, options = {}) => {
         // Dùng chung cho các request AJAX của trang admin.
+        const method = String(options.method || 'GET').toUpperCase();
+        const token = csrfToken ? csrfToken() : '';
+        const headers = {
+            'Accept': 'application/json',
+            ...(options.headers || {})
+        };
+        if (token && !['GET', 'HEAD'].includes(method)) {
+            headers['X-CSRF-Token'] = token;
+        }
+        let body = options.body;
+        if (token && headers['Content-Type'] && String(headers['Content-Type']).includes('application/json') && typeof body === 'string') {
+            try {
+                body = JSON.stringify({ ...JSON.parse(body || '{}'), csrf_token: token });
+            } catch (err) {
+                body = options.body;
+            }
+        }
+
         const res = await fetch(url, {
             credentials: 'same-origin',
-            headers: { 'Accept': 'application/json', ...(options.headers || {}) },
-            ...options
+            ...options,
+            method,
+            headers,
+            body
         });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-            throw new Error(data.message || 'Yêu cầu không thành công.');
+        const rawText = await res.text();
+        const contentType = res.headers.get('content-type') || '';
+        let data = null;
+        if (rawText !== '') {
+            if (contentType.includes('application/json') || /^[\[{]/.test(rawText.trim())) {
+                try {
+                    data = JSON.parse(rawText);
+                } catch (err) {
+                    throw new Error('Phản hồi JSON không hợp lệ từ server.');
+                }
+            } else {
+                throw new Error(res.redirected ? 'Phiên đăng nhập đã hết hạn hoặc request bị chuyển hướng.' : 'Server không trả JSON cho request admin.');
+            }
+        }
+
+        if (!res.ok || !data || !data.success) {
+            throw new Error((data && data.message) || 'Yêu cầu không thành công.');
         }
         return data;
     };
@@ -1348,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="admin-log-main">
                     <div class="admin-log-head">
                         <span class="content-pill">${escapeHtml(log.Action || 'Action')}</span>
-                        <time>${escapeHtml(log.CreatedAt || '')}</time>
+                        <time>${escapeHtml(displayDateTime(log.CreatedAt))}</time>
                     </div>
                     <p>${escapeHtml(log.Description || 'Không có mô tả.')}</p>
                     <div class="admin-log-meta">
@@ -1590,6 +1616,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const detailCellValue = (column, value) => {
+            const columnText = String(column || '').toLowerCase();
+            if (columnText.includes('createdat') || columnText.includes('ngày tạo')) {
+                return displayDateTime(value);
+            }
+            if (columnText === 'reason') {
+                return displayReportReason(value);
+            }
+            return value ?? '';
+        };
+
         overviewDetailBody.innerHTML = `
             <div class="table-responsive overview-detail-table-wrap">
                 <table class="table align-middle overview-detail-table">
@@ -1599,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <tbody>
                         ${safeRows.map(row => `
                             <tr>
-                                ${safeColumns.map(column => `<td><span class="overview-detail-cell">${escapeHtml(row[column] ?? '')}</span></td>`).join('')}
+                                ${safeColumns.map(column => `<td><span class="overview-detail-cell">${escapeHtml(detailCellValue(column, row[column]))}</span></td>`).join('')}
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1682,7 +1719,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${post.ThumbnailUrl ? `<img class="rank-thumb" src="${escapeHtml(normalizeAssetPath(post.ThumbnailUrl))}" alt="thumbnail" data-admin-image="post">` : '<div class="rank-thumb rank-thumb-empty"><i class="bi bi-image"></i></div>'}
                 <div class="rank-main">
                     <strong>#${escapeHtml(post.PostID)} ${escapeHtml(compactText(post.Content, 80) || 'Bài viết không có nội dung')}</strong>
-                    <span>${escapeHtml(personDisplayName(post))} · ${escapeHtml(post.CreatedAt || '')}</span>
+                    <span>${escapeHtml(personDisplayName(post))} · ${escapeHtml(displayDateTime(post.CreatedAt))}</span>
                 </div>
                 <div class="rank-metrics">
                     <span><i class="bi bi-heart"></i>${formatNumber(post.LikeCount)}</span>
@@ -1838,8 +1875,8 @@ document.addEventListener('DOMContentLoaded', function() {
         target.innerHTML = reports.map(report => `
             <div class="insight-list-item">
                 <div class="insight-list-main">
-                    <strong>${escapeHtml(report.Reason || 'Không rõ lý do')}</strong>
-                    <span>${escapeHtml(report.ReporterFullName || report.ReporterUsername || 'Ẩn danh')} báo cáo ${escapeHtml(report.ReportedFullName || report.ReportedUsername || 'nội dung')} · ${escapeHtml(report.CreatedAt || '')}</span>
+                    <strong>${escapeHtml(displayReportReason(report.Reason) || 'Không rõ lý do')}</strong>
+                    <span>${escapeHtml(report.ReporterFullName || report.ReporterUsername || 'Ẩn danh')} báo cáo ${escapeHtml(report.ReportedFullName || report.ReportedUsername || 'nội dung')} · ${escapeHtml(displayDateTime(report.CreatedAt))}</span>
                 </div>
                 <div class="insight-list-badge"><span class="content-pill">${escapeHtml(report.Status || '-')}</span></div>
             </div>
@@ -2054,8 +2091,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
         currentStatisticsInsights.latestReports.forEach(report => rows.push({
             Section: 'Latest Reports',
-            Item: report.Reason || '',
-            Detail: `${report.ReporterFullName || report.ReporterUsername || ''} -> ${report.ReportedFullName || report.ReportedUsername || ''} (${report.Status || ''}) ${report.CreatedAt || ''}`
+            Item: displayReportReason(report.Reason) || '',
+            Detail: `${report.ReporterFullName || report.ReporterUsername || ''} -> ${report.ReportedFullName || report.ReportedUsername || ''} (${report.Status || ''}) ${displayDateTime(report.CreatedAt)}`
         }));
         return rows;
     };
@@ -2134,7 +2171,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td><div class="content-user-cell"><img src="${escapeHtml(contentAvatarSrc(post))}" alt="avatar" data-admin-image="avatar"><div><strong>${escapeHtml(contentPersonName(post))}</strong><span>@${escapeHtml(post.Username || '')}</span></div></div></td>
                 <td><span class="content-clamp" title="${escapeHtml(post.Content || '')}">${escapeHtml(compactText(post.Content, 130))}</span></td>
                 <td>${thumbnail}</td>
-                <td class="small text-muted">${escapeHtml(post.CreatedAt || '')}</td>
+                <td class="small text-muted">${escapeHtml(displayDateTime(post.CreatedAt))}</td>
                 <td><span class="content-pill">${escapeHtml(post.Privacy || 'public')}</span></td>
                 <td class="content-status">${contentHiddenBadgeHtml(post.IsHidden)}</td>
                 <td class="small"><span class="member-count-pill"><i class="bi bi-heart"></i>${Number(post.LikeCount || 0)}</span><span class="member-count-pill"><i class="bi bi-chat"></i>${Number(post.CommentCount || 0)}</span></td>
@@ -2150,7 +2187,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <td><span class="content-clamp" title="${escapeHtml(comment.Content || '')}">${escapeHtml(compactText(comment.Content, 110))}</span></td>
             <td><span class="content-clamp" title="${escapeHtml(comment.PostContent || '')}">${escapeHtml(compactText(comment.PostContent, 95))}</span></td>
             <td class="small">${escapeHtml(comment.PostAuthorFullName || comment.PostAuthorUsername || '-')}</td>
-            <td class="small text-muted">${escapeHtml(comment.CreatedAt || '')}</td>
+            <td class="small text-muted">${escapeHtml(displayDateTime(comment.CreatedAt))}</td>
             <td class="small">${comment.ParentCommentID ? `#${escapeHtml(comment.ParentCommentID)}` : '-'}</td>
             <td class="content-status">${contentHiddenBadgeHtml(comment.IsHidden)}</td>
             <td class="text-end">${contentActionsHtml('comment', comment.CommentID, comment.IsHidden)}</td>
@@ -2162,7 +2199,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <td class="fw-bold">#${escapeHtml(hashtag.HashtagID)}</td>
             <td><span class="content-hashtag-name">#${escapeHtml(hashtag.HashtagName || '')}</span></td>
             <td>${Number(hashtag.UsageCount || 0)}</td>
-            <td class="small text-muted">${escapeHtml(hashtag.CreatedAt || '')}</td>
+            <td class="small text-muted">${escapeHtml(displayDateTime(hashtag.CreatedAt))}</td>
             <td class="content-status">${contentHiddenBadgeHtml(hashtag.IsHidden)}</td>
             <td>${Number(hashtag.PostCount || 0)}</td>
             <td class="text-end">${contentActionsHtml('hashtag', hashtag.HashtagID, hashtag.IsHidden, false)}</td>
@@ -2236,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', function() {
         LikeCount: post.LikeCount || 0,
         CommentCount: post.CommentCount || 0,
         IsHidden: contentStatusText(post.IsHidden),
-        CreatedAt: post.CreatedAt || ''
+        CreatedAt: displayDateTime(post.CreatedAt)
     }));
     const contentCommentRows = () => currentContentComments.map(comment => ({
         CommentID: comment.CommentID || '',
@@ -2244,14 +2281,14 @@ document.addEventListener('DOMContentLoaded', function() {
         CommentContent: comment.Content || '',
         PostContent: comment.PostContent || '',
         IsHidden: contentStatusText(comment.IsHidden),
-        CreatedAt: comment.CreatedAt || ''
+        CreatedAt: displayDateTime(comment.CreatedAt)
     }));
     const contentHashtagRows = () => currentContentHashtags.map(hashtag => ({
         HashtagID: hashtag.HashtagID || '',
         HashtagName: hashtag.HashtagName || '',
         UsageCount: hashtag.UsageCount || 0,
         IsHidden: contentStatusText(hashtag.IsHidden),
-        CreatedAt: hashtag.CreatedAt || ''
+        CreatedAt: displayDateTime(hashtag.CreatedAt)
     }));
 
     const ensureContentLoaded = async loader => {
@@ -2306,7 +2343,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return `
             <div class="report-detail-section"><h6>Thông tin bài viết</h6><div class="report-detail-grid">
                 ${detailGridItem('PostID', post.PostID)}${detailGridItem('Tác giả', contentPersonName(post))}
-                ${detailGridItem('Username', post.Username ? `@${post.Username}` : '-')}${detailGridItem('CreatedAt', post.CreatedAt)}
+                ${detailGridItem('Username', post.Username ? `@${post.Username}` : '-')}${detailGridItem('CreatedAt', displayDateTime(post.CreatedAt))}
                 ${detailGridItem('Privacy', post.Privacy)}${detailGridItem('Trạng thái', Number(post.IsHidden) === 1 ? 'Đã ẩn' : 'Hiển thị')}
                 ${detailGridItem('Số like', Number(post.LikeCount || 0))}${detailGridItem('Số comment', Number(post.CommentCount || 0))}
             </div></div>
@@ -2317,7 +2354,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const renderCommentDetail = comment => `
         <div class="report-detail-section"><h6>Thông tin bình luận</h6><div class="report-detail-grid">
             ${detailGridItem('CommentID', comment.CommentID)}${detailGridItem('Người bình luận', contentPersonName(comment))}
-            ${detailGridItem('Username', comment.Username ? `@${comment.Username}` : '-')}${detailGridItem('CreatedAt', comment.CreatedAt)}
+            ${detailGridItem('Username', comment.Username ? `@${comment.Username}` : '-')}${detailGridItem('CreatedAt', displayDateTime(comment.CreatedAt))}
             ${detailGridItem('Trạng thái', Number(comment.IsHidden) === 1 ? 'Đã ẩn' : 'Hiển thị')}${detailGridItem('ParentCommentID', comment.ParentCommentID || '-')}
             ${detailGridItem('PostID', comment.PostID)}${detailGridItem('Tác giả bài viết', comment.PostAuthorFullName || comment.PostAuthorUsername || '-')}
         </div></div>
@@ -2374,6 +2411,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const nextHidden = Number(button.dataset.isHidden) === 1 ? 0 : 1;
         const urlMap = { post: window.ADMIN_TOGGLE_CONTENT_POST_URL, comment: window.ADMIN_TOGGLE_CONTENT_COMMENT_URL, hashtag: window.ADMIN_TOGGLE_CONTENT_HASHTAG_URL };
         const keyMap = { post: 'PostID', comment: 'CommentID', hashtag: 'HashtagID' };
+        const labelMap = { post: 'bài viết', comment: 'bình luận', hashtag: 'hashtag' };
+        const messageMap = {
+            post: nextHidden === 1 ? 'Bạn có chắc muốn ẩn bài viết này không?' : 'Bạn có chắc muốn hiển thị lại bài viết này không?',
+            comment: nextHidden === 1 ? 'Bạn có chắc muốn ẩn bình luận này không?' : 'Bạn có chắc muốn hiển thị lại bình luận này không?',
+            hashtag: nextHidden === 1 ? 'Bạn có chắc muốn ẩn hashtag này không?' : 'Bạn có chắc muốn hiển thị lại hashtag này không?'
+        };
+        if (!urlMap[type] || !keyMap[type]) return;
+
+        const confirmed = await showConfirmModal(
+            messageMap[type],
+            nextHidden === 1 ? `Ẩn ${labelMap[type]}` : `Hiển thị ${labelMap[type]}`,
+            'Xác nhận',
+            'Hủy'
+        );
+        if (!confirmed) return;
+
         button.disabled = true;
         try {
             const data = await fetchJson(urlMap[type], {
@@ -2478,9 +2531,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (dashboardLogo) {
         dashboardLogo.addEventListener('click', event => {
             const overviewTab = document.querySelector('#adminTab button[data-bs-target="#overview"]');
-            if (!overviewTab || !window.bootstrap) return;
+            if (!overviewTab || !bootstrapApi) return;
             event.preventDefault();
-            bootstrap.Tab.getOrCreateInstance(overviewTab).show();
+            bootstrapApi.Tab.getOrCreateInstance(overviewTab).show();
             if (window.history && window.location.hash !== '#overview') {
                 window.history.replaceState(null, '', '#overview');
             }
