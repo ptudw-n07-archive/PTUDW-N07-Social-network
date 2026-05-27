@@ -10,6 +10,32 @@ class AdminReportModel {
         $this->conn = $db_connection;
     }
 
+    private function formatReason($reason): string {
+        $value = trim((string)($reason ?? ''));
+        $map = [
+            'spam' => 'Thư rác / spam',
+            'inappropriate' => 'Nội dung không phù hợp',
+            'harassment' => 'Quấy rối',
+            'violence' => 'Bạo lực',
+            'misinformation' => 'Thông tin sai lệch',
+            'hate speech' => 'Thù ghét/kích động',
+            'copyright' => 'Vi phạm bản quyền',
+            'other' => 'Khác'
+        ];
+        $key = strtolower(preg_replace('/\s+/', ' ', $value));
+        return $map[$key] ?? $value;
+    }
+
+    private function formatDateTime($value): string {
+        $value = trim((string)($value ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value, new \DateTimeZone('Asia/Ho_Chi_Minh'));
+        return $date ? $date->format('d/m/Y H:i:s') : $value;
+    }
+
     // --- Báo cáo và xử lý report ---
 
     public function getReportsList() {
@@ -39,6 +65,8 @@ class AdminReportModel {
         $stmt = $this->conn->query($query);
         return array_map(function ($row) {
             $row['reporter'] = $row['ReporterFullName'] ?: ($row['ReporterUsername'] ?: '');
+            $row['reason'] = $this->formatReason($row['reason'] ?? '');
+            $row['time'] = $this->formatDateTime($row['time'] ?? '');
             return $row;
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
@@ -117,10 +145,10 @@ class AdminReportModel {
 
         return [
             'ReportID' => (int)$row['ReportID'],
-            'Reason' => $row['Reason'],
+            'Reason' => $this->formatReason($row['Reason']),
             'Details' => $row['Details'],
             'Status' => $row['Status'],
-            'CreatedAt' => $row['ReportCreatedAt'],
+            'CreatedAt' => $this->formatDateTime($row['ReportCreatedAt']),
             'reportType' => $reportType,
             'reporter' => [
                 'UserID' => $row['ReporterUserIDValue'] !== null ? (int)$row['ReporterUserIDValue'] : null,
@@ -134,13 +162,13 @@ class AdminReportModel {
                 'FullName' => $row['ReportedFullName'],
                 'Email' => $row['ReportedEmail'],
                 'RoleName' => $row['ReportedUserRoleName'],
-                'CreatedAt' => $row['ReportedUserCreatedAt'],
+                'CreatedAt' => $this->formatDateTime($row['ReportedUserCreatedAt']),
                 'IsActive' => $row['ReportedUserIsActive'] !== null ? (int)$row['ReportedUserIsActive'] : null
             ],
             'post' => $postId ? [
                 'PostID' => $postId,
                 'Content' => $row['PostContent'],
-                'CreatedAt' => $row['PostCreatedAt'],
+                'CreatedAt' => $this->formatDateTime($row['PostCreatedAt']),
                 'author' => [
                     'UserID' => $row['PostAuthorID'] !== null ? (int)$row['PostAuthorID'] : null,
                     'Username' => $row['PostAuthorUsername'],
@@ -150,7 +178,7 @@ class AdminReportModel {
             'comment' => !empty($row['DetailCommentID']) ? [
                 'CommentID' => (int)$row['DetailCommentID'],
                 'Content' => $row['CommentContent'],
-                'CreatedAt' => $row['CommentCreatedAt'],
+                'CreatedAt' => $this->formatDateTime($row['CommentCreatedAt']),
                 'author' => [
                     'UserID' => $row['CommentAuthorID'] !== null ? (int)$row['CommentAuthorID'] : null,
                     'Username' => $row['CommentAuthorUsername'],

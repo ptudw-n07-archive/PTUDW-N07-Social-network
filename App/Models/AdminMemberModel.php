@@ -31,7 +31,7 @@ class AdminMemberModel {
         $query = "SELECT u.UserID, u.FullName, u.Username, u.Email,
                          COALESCE(NULLIF(u.FullName, ''), u.Username) AS name,
                          u.ProfilePictureUrl AS avatar, u.RoleID, u.IsActive, u.CreatedAt,
-                         DATE_FORMAT(u.CreatedAt, '%d/%m/%Y') AS joined,
+                         DATE_FORMAT(u.CreatedAt, '%d/%m/%Y %H:%i:%s') AS joined,
                          r.RoleName, r.RoleName AS role,
                          COALESCE(pc.PostCount, 0) AS PostCount,
                          COALESCE(rc.ReportCount, 0) AS ReportCount,
