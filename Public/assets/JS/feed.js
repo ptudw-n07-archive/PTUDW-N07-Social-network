@@ -846,45 +846,16 @@ function initCommentDeleteModal() {
 
 function showReportCommentForm(btn) {
     const comment = btn.closest(".comment-item");
-    const formSlot = comment.querySelector(".comment-inline-form");
 
-    formSlot.innerHTML = `
-        <div class="comment-report-form">
-            <select class="form-select comment-report-reason">
-                <option value="Spam">Spam</option>
-                <option value="Harassment">Quấy rối</option>
-                <option value="Inappropriate">Nội dung không phù hợp</option>
-                <option value="Other">Khác</option>
-            </select>
-            <input type="text" class="form-control comment-report-details" placeholder="Mô tả thêm nếu cần">
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-pink comment-submit" onclick="reportComment(this)">Gửi báo cáo</button>
-                <button type="button" class="btn btn-light comment-cancel-btn">Hủy</button>
-            </div>
-        </div>
-    `;
-    formSlot.querySelector(".comment-cancel-btn").onclick = function () {
-        formSlot.innerHTML = "";
-    };
-}
+    if (!comment || !comment.dataset.commentId) {
+        showPostToast("Không tìm thấy bình luận để báo cáo.");
+        return;
+    }
 
-function reportComment(btn) {
-    const comment = btn.closest(".comment-item");
-    const form = btn.closest(".comment-report-form");
-    const reason = form.querySelector(".comment-report-reason").value;
-    const details = form.querySelector(".comment-report-details").value.trim();
-
-    postForm(appUrl("App/Controllers/PostController.php?action=reportComment"), {
-        commentId: comment.dataset.commentId,
-        reason: reason,
-        details: details
-    })
-    .then(function (data) {
-        if (!data.success) throw new Error(data.message || "Không thể báo cáo bình luận.");
-        comment.querySelector(".comment-inline-form").innerHTML = "";
-        showPostToast("Đã gửi báo cáo bình luận.");
-    })
-    .catch(showPostError);
+    openReportModal({
+        kind: "comment",
+        commentId: comment.dataset.commentId
+    });
 }
 
 
@@ -1348,7 +1319,7 @@ const REPORT_DETAIL_OPTIONS = {
     ]
 };
 
-function openReportModal(card) {
+function openReportModal(target) {
     const reasons = [
         "Tôi không thích nội dung này",
         "Bắt nạt hoặc quấy rối",
@@ -1370,9 +1341,15 @@ function openReportModal(card) {
         document.querySelectorAll(".post-action-option[data-reason]").forEach(function (button) {
             button.onclick = function () {
                 const reason = button.dataset.reason;
+
+                if (reason === "Vấn đề khác") {
+                    renderOtherDetails();
+                    return;
+                }
+
                 const details = REPORT_DETAIL_OPTIONS[reason];
                 if (!details) {
-                    submitReport(card, reason, reason);
+                    submitReport(target, reason, reason);
                     return;
                 }
 
@@ -1391,28 +1368,82 @@ function openReportModal(card) {
 
         document.querySelectorAll(".post-action-option[data-detail]").forEach(function (button) {
             button.onclick = function () {
-                submitReport(card, reason, button.dataset.detail);
+                submitReport(target, reason, button.dataset.detail);
             };
         });
+    }
+
+    function renderOtherDetails() {
+        openBaseModal("Báo cáo", `
+            <form class="post-action-report-form">
+                <div class="post-action-question">Mô tả vấn đề</div>
+                <textarea
+                    class="post-action-report-textarea"
+                    rows="5"
+                    maxlength="500"
+                    placeholder="Mô tả vấn đề bạn đang gặp phải..."
+                ></textarea>
+                <div class="post-action-report-error" role="alert" hidden></div>
+                <div class="post-action-modal-actions">
+                    <button type="button" class="btn post-action-secondary">Hủy</button>
+                    <button type="submit" class="btn btn-pink">Gửi báo cáo</button>
+                </div>
+            </form>
+        `, { onBack: renderReasons });
+
+        const layer = document.getElementById("postActionModalLayer");
+        const form = layer.querySelector(".post-action-report-form");
+        const textarea = layer.querySelector(".post-action-report-textarea");
+        const errorBox = layer.querySelector(".post-action-report-error");
+
+        layer.querySelector(".post-action-secondary").onclick = closePostActionModal;
+        textarea.focus();
+
+        form.onsubmit = function (event) {
+            event.preventDefault();
+            const details = textarea.value.trim();
+
+            if (details === "") {
+                errorBox.innerText = "Vui lòng mô tả vấn đề bạn muốn báo cáo.";
+                errorBox.hidden = false;
+                return;
+            }
+
+            if (details.length < 5) {
+                errorBox.innerText = "Mô tả quá ngắn. Vui lòng nhập rõ hơn.";
+                errorBox.hidden = false;
+                return;
+            }
+
+            errorBox.hidden = true;
+            submitReport(target, "Vấn đề khác", details);
+        };
     }
 
     renderReasons();
 }
 
-function submitReport(card, reason, details) {
-    postForm(appUrl("App/Controllers/PostController.php?action=createReport"), {
-        postId: card.dataset.postId,
+function submitReport(target, reason, details) {
+    const isCommentReport = target && target.kind === "comment";
+    const endpoint = isCommentReport
+        ? appUrl("App/Controllers/PostController.php?action=reportComment")
+        : appUrl("App/Controllers/PostController.php?action=createReport");
+    const values = {
         reason: reason,
         details: details
-    })
+    };
+
+    if (isCommentReport) {
+        values.commentId = target.commentId;
+    } else {
+        values.postId = target.dataset.postId;
+    }
+
+    postForm(endpoint, values)
     .then(function (data) {
         if (!data.success) throw new Error(data.message || "Không thể gửi báo cáo.");
-        openBaseModal("Báo cáo", `
-            <div class="post-action-success">
-                <i class="bi bi-check-circle-fill"></i>
-                <p>Cảm ơn bạn đã báo cáo. Báo cáo của bạn đã được gửi đến quản trị viên để xem xét.</p>
-            </div>
-        `);
+        closePostActionModal();
+        showPostToast(isCommentReport ? "Đã gửi báo cáo bình luận." : "Đã gửi báo cáo.");
     })
     .catch(showPostError);
 }
