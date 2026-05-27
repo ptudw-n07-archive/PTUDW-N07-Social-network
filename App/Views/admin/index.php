@@ -131,6 +131,8 @@ $adminAvatarUrl = admin_image_url($currentAdmin['ProfilePictureUrl'] ?? ($_SESSI
         window.ADMIN_DELETE_CONTENT_HASHTAG_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteContentHashtag";
         window.ADMIN_CURRENT_USER_ID = <?php echo (int)($currentAdminId ?? 0); ?>;
         window.ADMIN_BASE_URL = "<?php echo BASE_URL; ?>";
+        window.ADMIN_CSRF_TOKEN = "<?php echo htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES); ?>";
+        window.ADMIN_TIMEZONE = "Asia/Ho_Chi_Minh";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>

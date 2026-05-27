@@ -281,6 +281,84 @@ function repostPost(btn) {
     });
 }
 
+function parseRepostContent(content) {
+    const match = String(content || "").match(/^Đăng lại từ\s+(@[^\s:]+):\s*([\s\S]*)$/u);
+
+    if (!match) {
+        return null;
+    }
+
+    return {
+        source: match[1].trim(),
+        content: (match[2] || "").replace(/^\s+/, "")
+    };
+}
+
+function renderPostMediaHtml(images, wrapperClass = "post-media-list") {
+    let html = "";
+
+    images.forEach(img => {
+        const imageSrc = normalizeImagePath(img);
+        const mediaType = getMediaType(img);
+
+        if (mediaType === "video") {
+            html += `
+                <video controls class="repost-embed-image no-post-nav">
+                    <source src="${escapeHTML(imageSrc)}" type="${escapeHTML(getMediaMimeType(img))}">
+                    Trình duyệt không hỗ trợ video này.
+                </video>
+            `;
+            return;
+        }
+
+        if (mediaType === "image") {
+            html += `
+                <img
+                    src="${escapeHTML(imageSrc)}"
+                    class="repost-embed-image"
+                    alt="post image"
+                    onerror="this.style.display='none';"
+                >
+            `;
+            return;
+        }
+
+        html += `<a href="${escapeHTML(imageSrc)}" target="_blank" class="small d-block no-post-nav">Mở file ảnh</a>`;
+    });
+
+    return html ? `<div class="${escapeHTML(wrapperClass)}">${html}</div>` : "";
+}
+
+function renderRepostEmbedHtml(content, images) {
+    const repost = parseRepostContent(content);
+
+    if (!repost) {
+        return "";
+    }
+
+    const body = repost.content.trim()
+        ? renderContentWithHashtags(repost.content)
+        : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
+
+    return `
+        <div class="repost-source-label">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Đăng lại bài viết</span>
+        </div>
+        <div class="repost-embed no-post-nav">
+            <div class="repost-embed-header">
+                <div class="repost-embed-author">
+                    <span class="repost-embed-avatar"><i class="bi bi-person"></i></span>
+                    <span>${escapeHTML(repost.source)}</span>
+                </div>
+                <div class="repost-embed-meta">Bài viết gốc</div>
+            </div>
+            <div class="repost-embed-content post-text">${body}</div>
+            ${renderPostMediaHtml(images, "repost-embed-media")}
+        </div>
+    `;
+}
+
 
 // =======================
 // THÊM BÀI MỚI LÊN FEED
@@ -292,44 +370,11 @@ function addPostToUI(post) {
         return;
     }
 
-    let imageHtml = "";
     const images = Array.isArray(post.Images) ? post.Images : [];
-
-    images.forEach(img => {
-        const imageSrc = normalizeImagePath(img);
-        const mediaType = getMediaType(img);
-
-        if (mediaType === "video") {
-            imageHtml += `
-                <video
-                    controls
-                    class="img-fluid rounded-4 mb-3"
-                    style="max-height: 450px; object-fit: cover;"
-                >
-                    <source src="${escapeHTML(imageSrc)}" type="${escapeHTML(getMediaMimeType(img))}">
-                    Trình duyệt không hỗ trợ video này.
-                </video>
-                <a href="${escapeHTML(imageSrc)}" target="_blank" class="small d-block mb-3">Mở file video</a>
-            `;
-            return;
-        }
-
-        if (mediaType === "image") {
-            imageHtml += `
-                <img
-                    src="${escapeHTML(imageSrc)}"
-                    class="img-fluid rounded-4 mb-3"
-                    style="max-height: 450px; object-fit: cover;"
-                    alt="post image"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                >
-                <a href="${escapeHTML(imageSrc)}" target="_blank" class="small mb-3" style="display:none;">Mở file ảnh</a>
-            `;
-            return;
-        }
-
-        imageHtml += `<a href="${escapeHTML(imageSrc)}" target="_blank" class="small d-block mb-3">Mở file ảnh</a>`;
-    });
+    const repost = parseRepostContent(post.Content || "");
+    const postBodyHtml = repost
+        ? renderRepostEmbedHtml(post.Content || "", images)
+        : `<p class="post-text"></p>${renderPostMediaHtml(images, "post-media-list")}`;
 
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
     const fullName = post.FullName || (post.Username ? `@${post.Username}` : "Bạn");
@@ -339,7 +384,7 @@ function addPostToUI(post) {
     const privacy = post.Privacy || "public";
 
     const newPost = document.createElement("div");
-    newPost.className = "bg-white post-card mb-3";
+    newPost.className = `bg-white post-card mb-3${repost ? " repost-card" : ""}`;
     newPost.id = `post-${post.PostID}`;
     newPost.dataset.postId = post.PostID || "";
     newPost.dataset.ownerId = post.UserID || "";
@@ -372,8 +417,7 @@ function addPostToUI(post) {
                         onclick="openPostDetail(this, event)"
                         onkeydown="handlePostClickableKeydown(this, event)"
                     >
-                        <p class="post-text"></p>
-                        ${imageHtml}
+                        ${postBodyHtml}
                     </div>
 
                     <div class="post-actions d-flex gap-4">
@@ -417,7 +461,10 @@ function addPostToUI(post) {
         </div>
     `;
 
-    newPost.querySelector(".post-text").innerHTML = renderContentWithHashtags(post.Content || "");
+    const textElement = newPost.querySelector(".post-clickable > .post-text");
+    if (textElement && !repost) {
+        textElement.innerHTML = renderContentWithHashtags(post.Content || "");
+    }
     postsList.prepend(newPost);
     bindCommentTextareaAutoResize(newPost);
 }
@@ -553,7 +600,7 @@ function sendComment(btn) {
         const isPostDetail = Boolean(postCard.querySelector(".post-detail-text"));
         const comment = isPostDetail ? renderPostDetailComment(data.comment) : renderComment(data.comment);
 
-        if (!isPostDetail && data.comment.parentCommentId) {
+        if (data.comment.parentCommentId) {
             insertReplyComment(commentList, comment, data.comment.parentCommentId);
         } else {
             commentList.appendChild(comment);
@@ -599,20 +646,7 @@ function insertReplyComment(commentList, comment, rootCommentId) {
 }
 
 function renderPostDetailComment(commentData) {
-    const comment = document.createElement("div");
-    const commentAvatar = normalizeImagePath(commentData.profilePictureUrl || "Public/assets/img/default-avatar.jpg");
-
-    comment.className = "post-detail-comment";
-    comment.id = commentData.commentId ? `comment-${commentData.commentId}` : "";
-    comment.innerHTML = `
-        <img src="${escapeHTML(commentAvatar)}" class="avatar" alt="avatar" onerror="this.src='${appUrl("Public/assets/img/default-avatar.jpg")}';">
-        <div>
-            <div class="fw-semibold">${escapeHTML(commentData.fullName || "Bạn")}</div>
-            <div>${escapeHTML(commentData.content || "")}</div>
-        </div>
-    `;
-
-    return comment;
+    return renderComment(commentData);
 }
 
 function renderComment(commentData) {

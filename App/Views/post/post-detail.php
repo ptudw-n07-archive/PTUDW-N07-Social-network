@@ -195,6 +195,130 @@ function renderDetailPostContent($content) {
 
     return $html;
 }
+
+function detailParseRepostContent($content): ?array {
+    if (!preg_match('/^Đăng lại từ\s+(@[^\s:]+):\s*(.*)$/su', (string) $content, $matches)) {
+        return null;
+    }
+
+    return [
+        'source' => trim($matches[1]),
+        'content' => ltrim((string) ($matches[2] ?? ''))
+    ];
+}
+
+function detailRenderPostMediaList($images, string $wrapperClass = 'post-media-list'): string {
+    $imageItems = array_values(array_filter(array_map('trim', explode(',', (string) $images))));
+
+    if (empty($imageItems)) {
+        return '';
+    }
+
+    $html = '<div class="' . htmlspecialchars($wrapperClass, ENT_QUOTES, 'UTF-8') . '">';
+
+    foreach ($imageItems as $img) {
+        $mediaSrc = detailPostMediaPath($img);
+        if ($mediaSrc === '') {
+            continue;
+        }
+
+        $mediaType = detailPostMediaType($img);
+
+        if ($mediaType === 'video') {
+            $html .= '<video controls class="repost-embed-image no-post-nav">'
+                . '<source src="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" type="' . htmlspecialchars(detailPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') . '">'
+                . 'Trình duyệt không hỗ trợ video này.'
+                . '</video>';
+            continue;
+        }
+
+        if ($mediaType === 'image') {
+            $html .= '<img src="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" class="repost-embed-image" alt="post image" onerror="this.style.display=\'none\';">';
+            continue;
+        }
+
+        $html .= '<a href="' . htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') . '" target="_blank" class="small d-block no-post-nav">Mở file ảnh</a>';
+    }
+
+    return $html . '</div>';
+}
+
+function detailRenderRepostEmbed(array $post): string {
+    $repost = detailParseRepostContent($post['Content'] ?? '');
+
+    if (!$repost) {
+        return '';
+    }
+
+    $contentHtml = trim($repost['content']) !== ''
+        ? renderDetailPostContent($repost['content'])
+        : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
+
+    return '<div class="repost-source-label"><i class="bi bi-arrow-repeat"></i><span>Đăng lại bài viết</span></div>'
+        . '<div class="repost-embed no-post-nav">'
+        . '<div class="repost-embed-header">'
+        . '<div class="repost-embed-author"><span class="repost-embed-avatar"><i class="bi bi-person"></i></span><span>' . htmlspecialchars($repost['source'], ENT_QUOTES, 'UTF-8') . '</span></div>'
+        . '<div class="repost-embed-meta">Bài viết gốc</div>'
+        . '</div>'
+        . '<div class="repost-embed-content post-text">' . $contentHtml . '</div>'
+        . detailRenderPostMediaList($post['Images'] ?? '', 'repost-embed-media')
+        . '</div>';
+}
+
+function renderDetailComment(array $comment, array $post, int $currentUserId, int $highlightCommentId = 0, bool $isReply = false): void {
+    $commentId = (int) ($comment['CommentID'] ?? 0);
+    $commentOwnerId = (int) ($comment['UserID'] ?? 0);
+    $postOwnerId = (int) ($post['UserID'] ?? 0);
+    $parentCommentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+    $rootCommentId = $isReply && $parentCommentId > 0 ? $parentCommentId : $commentId;
+    $canEdit = $commentOwnerId === $currentUserId;
+    $canDelete = $canEdit || $postOwnerId === $currentUserId;
+    $canReport = $commentOwnerId !== $currentUserId;
+    $displayName = !empty($comment['FullName']) ? $comment['FullName'] : '@' . ($comment['Username'] ?? '');
+    ?>
+    <div
+        class="comment-item<?= $isReply ? ' comment-reply' : '' ?><?= $commentId === $highlightCommentId ? ' highlight' : '' ?>"
+        id="comment-<?= $commentId ?>"
+        data-comment-id="<?= $commentId ?>"
+        data-post-id="<?= (int) ($post['PostID'] ?? 0) ?>"
+        data-owner-id="<?= $commentOwnerId ?>"
+        data-parent-comment-id="<?= $parentCommentId ?>"
+        data-root-comment-id="<?= $rootCommentId ?>"
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>"
+        data-can-delete="<?= $canDelete ? '1' : '0' ?>"
+        data-can-report="<?= $canReport ? '1' : '0' ?>"
+    >
+        <img
+            src="<?= htmlspecialchars(detailImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+            class="comment-avatar"
+            alt="avatar"
+            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+        >
+        <div class="comment-body">
+            <div class="comment-bubble">
+                <div class="comment-meta">
+                    <strong class="comment-author"><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></strong>
+                    <span class="comment-time">• <?= htmlspecialchars(detailTimeAgo($comment['CreatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <div class="comment-content"><?= htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+            </div>
+            <div class="comment-actions">
+                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                <?php if ($canEdit): ?>
+                    <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
+                <?php endif; ?>
+                <?php if ($canDelete): ?>
+                    <button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>
+                <?php endif; ?>
+                <?php if ($canReport): ?>
+                    <button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>
+                <?php endif; ?>
+            </div>
+            <div class="comment-inline-form"></div>
+        </div>
+    </div>
+    <?php
+}
 ?>
 
 <!DOCTYPE html>
@@ -210,7 +334,7 @@ function renderDetailPostContent($content) {
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
 
-<body>
+<body class="feed-page post-detail-page">
 <header class="archive-header">
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
@@ -257,7 +381,8 @@ function renderDetailPostContent($content) {
                         Không tìm thấy bài viết.
                     </div>
                 <?php else: ?>
-                    <article class="bg-white post-card post-detail-card mb-3" id="post-<?= (int) $post['PostID'] ?>" <?= archivePostCardAttributes($post, (int) $currentUserId) ?>>
+                    <?php $isRepost = detailParseRepostContent($post['Content'] ?? '') !== null; ?>
+                    <article class="bg-white post-card post-detail-card mb-3<?= $isRepost ? ' repost-card' : '' ?>" id="post-<?= (int) $post['PostID'] ?>" <?= archivePostCardAttributes($post, (int) $currentUserId) ?>>
                         <div class="p-3 p-md-4">
                             <div class="d-flex gap-3">
                                 <a href="<?= detailProfileUrl($post['UserID']) ?>">
@@ -282,36 +407,13 @@ function renderDetailPostContent($content) {
                                     <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                     </div>
 
-                                    <p class="post-text post-detail-text">
-                                        <?= renderDetailPostContent($post['Content']) ?>
-                                    </p>
-
-                                    <?php if (!empty($post['Images'])): ?>
-                                        <div class="post-detail-media">
-                                            <?php foreach (explode(',', $post['Images']) as $img): ?>
-                                                <?php $mediaSrc = detailPostMediaPath($img); ?>
-                                                <?php if ($mediaSrc !== ''): ?>
-                                                    <?php $mediaType = detailPostMediaType($img); ?>
-                                                    <?php if ($mediaType === 'video'): ?>
-                                                        <video controls class="img-fluid rounded-4 mb-3">
-                                                            <source src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(detailPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
-                                                            Trình duyệt không hỗ trợ video này.
-                                                        </video>
-                                                    <?php elseif ($mediaType === 'image'): ?>
-                                                        <img
-                                                            src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>"
-                                                            class="img-fluid rounded-4 mb-3"
-                                                            style="max-height: 450px; object-fit: contain;"
-                                                            alt="post image"
-                                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                                        >
-                                                        <a href="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small mb-3" style="display:none;">Mở file ảnh</a>
-                                                    <?php else: ?>
-                                                        <a href="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3">Mở file ảnh</a>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </div>
+                                    <?php if ($isRepost): ?>
+                                        <?= detailRenderRepostEmbed($post) ?>
+                                    <?php else: ?>
+                                        <p class="post-text post-detail-text">
+                                            <?= renderDetailPostContent($post['Content']) ?>
+                                        </p>
+                                        <?= detailRenderPostMediaList($post['Images'] ?? '', 'post-detail-media') ?>
                                     <?php endif; ?>
 
                                     <div class="post-actions d-flex gap-4">
@@ -338,18 +440,18 @@ function renderDetailPostContent($content) {
                                     </div>
 
                                     <div class="comment-box mt-3">
-                                        <div class="d-flex gap-2">
+                                        <div class="comment-form d-flex gap-2">
                                             <label for="detailCommentInput" class="visually-hidden">Viết bình luận</label>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 id="detailCommentInput"
                                                 class="form-control comment-input"
                                                 placeholder="Viết bình luận..."
-                                            >
+                                                rows="1"
+                                            ></textarea>
 
                                             <button
                                                 type="button"
-                                                class="btn btn-pink"
+                                                class="btn btn-pink comment-submit"
                                                 onclick="sendComment(this)"
                                                 data-post-id="<?= (int) $post['PostID'] ?>"
                                             >
@@ -365,26 +467,21 @@ function renderDetailPostContent($content) {
 
                                         <div class="comment-list mt-3">
                                             <?php if (!empty($comments)): ?>
-                                                <?php foreach ($comments as $comment): ?>
-                                                    <div
-                                                        class="post-detail-comment"
-                                                        id="comment-<?= (int) $comment['CommentID'] ?>"
-                                                        data-comment-id="<?= (int) $comment['CommentID'] ?>"
-                                                    >
-                                                        <img
-                                                            src="<?= htmlspecialchars(detailImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-                                                            class="avatar"
-                                                            alt="avatar"
-                                                            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
-                                                        >
-                                                        <div>
-                                                            <div class="fw-semibold">
-                                                                <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username'], ENT_QUOTES, 'UTF-8') ?>
-                                                                <span class="text-muted fw-normal">• <?= htmlspecialchars(detailTimeAgo($comment['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
-                                                            </div>
-                                                            <div><?= htmlspecialchars($comment['Content'], ENT_QUOTES, 'UTF-8') ?></div>
-                                                        </div>
-                                                    </div>
+                                                <?php
+                                                    $commentsByParent = [];
+                                                    foreach ($comments as $comment) {
+                                                        $parentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+                                                        $commentsByParent[$parentId][] = $comment;
+                                                    }
+                                                ?>
+                                                <?php foreach ($commentsByParent[0] ?? [] as $comment): ?>
+                                                    <?php
+                                                        $commentId = (int) ($comment['CommentID'] ?? 0);
+                                                        renderDetailComment($comment, $post, $currentUserId, $focusCommentId);
+                                                    ?>
+                                                    <?php foreach ($commentsByParent[$commentId] ?? [] as $reply): ?>
+                                                        <?php renderDetailComment($reply, $post, $currentUserId, $focusCommentId, true); ?>
+                                                    <?php endforeach; ?>
                                                 <?php endforeach; ?>
                                             <?php else: ?>
                                                 <div class="post-detail-empty-comments">Chưa có bình luận nào.</div>
@@ -400,6 +497,24 @@ function renderDetailPostContent($content) {
         </div>
     </div>
 </section>
+
+<div class="modal fade archive-comment-delete-modal" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCommentModalLabel">Xóa bình luận?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                Bình luận này sẽ được ẩn khỏi bài viết. Bạn vẫn muốn tiếp tục?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn comment-delete-cancel-btn" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn comment-delete-confirm-btn" data-confirm-delete-comment>Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";

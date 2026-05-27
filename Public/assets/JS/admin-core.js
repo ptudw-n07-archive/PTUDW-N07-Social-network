@@ -80,7 +80,8 @@
     const showConfirmModal = (message, title = 'Xác nhận', confirmText = 'Xác nhận', cancelText = 'Hủy') => {
         const parts = getConfirmModalParts();
         if (!parts.title || !parts.message || !parts.confirm || !parts.cancel) {
-            return Promise.resolve(window.confirm(message));
+            showToast('Không thể mở hộp thoại xác nhận.', 'error');
+            return Promise.resolve(false);
         }
 
         parts.title.textContent = title;
@@ -216,6 +217,60 @@
         return `${time} · ${date.toLocaleDateString('vi-VN')}`;
     };
 
+    const csrfToken = () => {
+        const tokenInput = document.querySelector('input[name="csrf_token"]');
+        return window.ADMIN_CSRF_TOKEN || (tokenInput ? tokenInput.value : '');
+    };
+
+    const formatAdminDateTime = value => {
+        if (value === null || value === undefined || value === '') return '';
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return value.toLocaleString('vi-VN', {
+                timeZone: window.ADMIN_TIMEZONE || 'Asia/Ho_Chi_Minh',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        }
+
+        const text = String(value).trim();
+        const localMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+        if (localMatch) {
+            const [, year, month, day, hour = '00', minute = '00', second = '00'] = localMatch;
+            return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
+        }
+
+        const parsed = new Date(text);
+        if (!Number.isNaN(parsed.getTime())) {
+            return formatAdminDateTime(parsed);
+        }
+
+        return text;
+    };
+
+    const normalizeReasonKey = value => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const reportReasonMap = new Map(Object.entries({
+        spam: 'Thư rác / spam',
+        inappropriate: 'Nội dung không phù hợp',
+        harassment: 'Quấy rối',
+        violence: 'Bạo lực',
+        misinformation: 'Thông tin sai lệch',
+        'hate speech': 'Thù ghét/kích động',
+        copyright: 'Vi phạm bản quyền',
+        other: 'Khác',
+        'bắt nạt hoặc quấy rối': 'Bắt nạt hoặc quấy rối',
+        'nội dung nhạy cảm hoặc gây hại': 'Nội dung nhạy cảm hoặc gây hại',
+        'bạo lực, thù ghét hoặc bóc lột': 'Bạo lực, thù ghét hoặc bóc lột',
+        'thông tin sai lệch': 'Thông tin sai lệch',
+        'vấn đề khác': 'Khác',
+        'tôi không thích nội dung này': 'Tôi không thích nội dung này'
+    }));
+    const formatReportReason = value => reportReasonMap.get(normalizeReasonKey(value)) || String(value || '');
+
     const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
     const downloadCsv = (filename, headers, rows) => {
@@ -281,6 +336,9 @@
         loadingStateHtml,
         tableLoadingRow,
         formatClientTime,
+        formatAdminDateTime,
+        formatReportReason,
+        csrfToken,
         downloadCsv,
         reportDateSlug,
         printTableReport
