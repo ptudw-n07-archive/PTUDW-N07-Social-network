@@ -5,12 +5,15 @@ if (PHP_SAPI === 'cli-server') {
 
     if (is_string($requestPath) && $requestPath !== '/') {
         $projectRoot = realpath(__DIR__ . '/..');
+        $currentFile = realpath(__FILE__);
         $requestedFile = realpath(($projectRoot ?: (__DIR__ . '/..')) . $requestPath);
 
         if (
             $projectRoot !== false
+            && $currentFile !== false
             && $requestedFile !== false
             && !str_contains($requestPath, '..')
+            && $requestedFile !== $currentFile
             && is_file($requestedFile)
         ) {
             return false;
@@ -18,83 +21,35 @@ if (PHP_SAPI === 'cli-server') {
     }
 }
 
-// 1. Khởi động Session hệ thống nếu chưa có
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../Config/Database.php';
-
-// 2. Nhúng file PostController nằm TRONG folder App (Thêm /../App/ vào đường dẫn)
-require_once __DIR__ . '/../App/Controllers/PostController.php';
-
-// ✨ KHAI BÁO SỬ DỤNG CLASS CÓ NAMESPACE ĐỂ XÓA VỆT VÀNG CỦA VS CODE
-use App\Controllers\PostController;
-
-// Chỉnh lại link dẫn vào Views vì nó đã chui vào trong App/Views/
-$loginUrl    = app_url('App/Views/auth/login.php');
-$registerUrl = app_url('App/Views/auth/register.php');
-$homeUrl     = BASE_URL;
-
-// 4. Khởi tạo đối tượng Controller
-$postController = new PostController();
-
-// 5. Chạy hàm lấy dữ liệu để đổ ra giao diện Archive
-$result = $postController->index();
-
-if (isset($result['posts'])) {
-    $posts         = $result['posts'];
-    $totalPosts    = $result['totalPosts'];
-    $totalUsers    = $result['totalUsers'];
-    $totalComments = $result['totalComments'];
-} else {
-    $posts         = $result;
-    $totalPosts    = count($posts);
-    $totalUsers    = count(array_unique(array_column($posts, 'UserID')));
-    $totalComments = array_sum(array_column($posts, 'CommentCount'));
+try {
+    require_once __DIR__ . '/../Config/Database.php';
+} catch (Throwable $e) {
+    error_log('[PublicIndex] Could not load app config: ' . $e->getMessage());
 }
 
-// 6. CÁC HÀM HELPER ĐỊNH DẠNG GIAO DIỆN 
-function homepageImagePath($path) {
-    if (empty($path)) {
-        return "assets/img/default-avatar.jpg";
-    }
-    if (str_starts_with($path, "http://") || str_starts_with($path, "https://")) {
-        return $path;
-    }
-    return str_replace("Public/", "", $path);
-}
-
-function homepageTimeAgo($datetime) {
-    if (empty($datetime)) return "Không rõ thời gian";
-    
-    $time = strtotime($datetime);
-    $now  = time();
-    $diff = $now - $time;
-    
-    if ($diff < 60) return "vừa xong";
-    
-    $intervals = [
-        31536000 => 'năm',
-        2592000  => 'tháng',
-        604800   => 'tuần',
-        86400    => 'ngày',
-        3600     => 'giờ',
-        60       => 'phút'
-    ];
-    
-    foreach ($intervals as $secs => $str) {
-        $d = $diff / $secs;
-        if ($d >= 1) {
-            return round($d) . ' ' . $str . ' trước';
+if (!function_exists('homepageUrl')) {
+    function homepageUrl(string $path = ''): string {
+        if (function_exists('app_url')) {
+            return app_url($path);
         }
+
+        return '/' . ltrim($path, '/');
     }
-    return $datetime;
 }
 
-function homepageFormatNumber($number) {
-    return number_format((float)$number, 0, '.', ',');
-}
+$loginUrl    = homepageUrl('App/Views/auth/login.php');
+$registerUrl = homepageUrl('App/Views/auth/register.php');
+$homeUrl     = homepageUrl('Public/index.php');
+
+$projectStats = [
+    ['value' => 'MVC', 'label' => 'kiến trúc'],
+    ['value' => '5+', 'label' => 'tính năng'],
+    ['value' => 'Nhóm 7', 'label' => 'thực hiện']
+];
 ?>
 
 <!DOCTYPE html>
@@ -120,31 +75,31 @@ function homepageFormatNumber($number) {
         <div class="row align-items-center py-3">
 
             <div class="col-4 d-flex align-items-center">
-                <a href="<?= $homeUrl ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?= htmlspecialchars($homeUrl, ENT_QUOTES, 'UTF-8') ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center align-items-center">
-                <a href="<?= $loginUrl ?>" class="header-badge text-decoration-none">
+                <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="header-badge text-decoration-none">
                     <i class="bi bi-stars"></i>
                 </a>
             </div>
 
             <div class="col-4 d-flex justify-content-end align-items-center">
                 <div class="header-actions">
-                    <a href="<?= $loginUrl ?>" class="header-search-btn" title="Tìm kiếm">
+                    <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="header-search-btn" title="Tìm kiếm">
                         <i class="bi bi-search"></i>
                     </a>
 
-                    <a href="<?= $loginUrl ?>" class="header-star-btn" title="About us">
+                    <a href="#project-section" class="header-star-btn" title="About us">
                         <i class="bi bi-star"></i>
                     </a>
 
-                    <a href="<?= $loginUrl ?>" class="header-login-btn" title="Đăng nhập">
+                    <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="header-login-btn" title="Đăng nhập">
                         <i class="bi bi-person"></i>
                         <span>Đăng nhập</span>
                     </a>
 
-                    <a href="<?= $registerUrl ?>" class="header-register-btn" title="Đăng ký">
+                    <a href="<?= htmlspecialchars($registerUrl, ENT_QUOTES, 'UTF-8') ?>" class="header-register-btn" title="Đăng ký">
                         <i class="bi bi-plus-lg"></i>
                         <span>Đăng ký</span>
                     </a>
@@ -178,35 +133,25 @@ function homepageFormatNumber($number) {
                         <div class="hero-divider mx-auto mb-4"></div>
 
                         <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mb-5">
-                            <button class="btn hero-main-btn" onclick="scrollToFeed()">Bắt đầu</button>
-                            <a href="<?= $loginUrl ?>" class="btn hero-outline-btn">Đăng nhập</a>
+                            <button class="btn hero-main-btn" type="button" onclick="scrollToProject()">Bắt đầu</button>
+                            <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="btn hero-outline-btn">Đăng nhập</a>
                         </div>
 
                         <div class="hero-stats mx-auto">
                             <div class="row g-0">
-                                <div class="col-4">
-                                    <div class="stat-box">
-                                        <h4><?= homepageFormatNumber($totalUsers) ?>+</h4>
-                                        <p>người dùng</p>
+                                <?php foreach ($projectStats as $stat): ?>
+                                    <div class="col-4">
+                                        <div class="stat-box">
+                                            <h4><?= htmlspecialchars($stat['value'], ENT_QUOTES, 'UTF-8') ?></h4>
+                                            <p><?= htmlspecialchars($stat['label'], ENT_QUOTES, 'UTF-8') ?></p>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="stat-box">
-                                        <h4><?= homepageFormatNumber($totalPosts) ?>+</h4>
-                                        <p>bài viết</p>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="stat-box">
-                                        <h4><?= homepageFormatNumber($totalComments) ?>+</h4>
-                                        <p>bình luận</p>
-                                    </div>
-                                </div>
+                                <?php endforeach; ?>
                             </div>
                         </div>
 
-                        <div class="scroll-down mt-5" onclick="scrollToFeed()">
-                            <span>Xem bài đăng</span>
+                        <div class="scroll-down mt-5" onclick="scrollToProject()">
+                            <span>Xem đồ án</span>
                             <i class="bi bi-chevron-down"></i>
                         </div>
                     </div>
@@ -217,186 +162,162 @@ function homepageFormatNumber($number) {
     </div>
 </section>
 
-<section id="feed-section" class="feed-section py-5">
-    <div class="container-fluid px-3 px-lg-4">
-        <div class="row g-4">
+<main id="project-section" class="feed-section py-5">
+    <div class="container px-3 px-lg-4">
+        <div class="text-center mb-5">
+            <div class="hero-pill d-inline-flex align-items-center gap-2 mb-3">
+                <span class="mini-star"><i class="bi bi-journal-code"></i></span>
+                <span>ĐỒ ÁN MÔN PHÁT TRIỂN ỨNG DỤNG WEB</span>
+            </div>
+            <h2 class="feed-title mb-3">Archive - mạng xã hội mini</h2>
+            <p class="hero-subtitle mx-auto mb-0">
+                Archive giúp người dùng đăng tải trạng thái, chia sẻ khoảnh khắc, lưu giữ cảm xúc và kết nối với bạn bè
+                trong một không gian nhẹ nhàng, tối giản.
+            </p>
+        </div>
 
-            <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-                    <div class="sidebar-logo">
-                        <i class="bi bi-circle-square"></i>
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="bg-white post-card h-100 p-4 p-md-5">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="header-badge">
+                            <i class="bi bi-bullseye"></i>
+                        </span>
+                        <h3 class="login-card-title mb-0">Mục tiêu đồ án</h3>
                     </div>
-
-                    <a href="<?= $homeUrl ?>" class="sidebar-icon active" title="Trang chủ">
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-
-                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Tìm kiếm">
-                        <i class="bi bi-search"></i>
-                    </a>
-
-                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Tạo bài viết">
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-
-                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Thông báo">
-                        <i class="bi bi-heart"></i>
-                    </a>
-
-                    <a href="<?= $loginUrl ?>" class="sidebar-icon" title="Trang cá nhân">
-                        <i class="bi bi-person"></i>
-                    </a>
-
-                    <a href="<?= $loginUrl ?>" class="sidebar-icon mt-auto" title="About us">
-                        <i class="bi bi-pin-angle"></i>
-                    </a>
-                </aside>
+                    <p class="login-card-text mb-0">
+                        Xây dựng prototype mạng xã hội theo mô hình MVC, có các chức năng đăng nhập, đăng ký, đăng bài,
+                        xem feed, like, comment, follow và quản lý hồ sơ cá nhân.
+                    </p>
+                </div>
             </div>
 
-            <div class="col-lg-7 col-md-8">
-                <div class="feed-title text-center mb-4">Trang chủ</div>
-
-                <form action="<?= $loginUrl ?>" method="GET" class="bg-white p-3 p-md-4 mb-4 post-composer">
-                    <div class="d-flex gap-3 align-items-start">
-                        <img src="assets/img/default-avatar.jpg" class="avatar" alt="avatar">
-
-                        <div class="flex-grow-1">
-                            <h6 class="mb-2 fw-semibold">Bạn đang nghĩ gì?</h6>
-
-                            <textarea 
-                                name="content"
-                                class="form-control composer-input" 
-                                rows="3" 
-                                placeholder="Viết vài dòng cho hôm nay..."
-                            ></textarea>
-
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <small class="text-muted">Đăng nhập để chia sẻ bài viết.</small>
-                                <button type="submit" class="btn btn-pink px-4">Đăng</button>
-                            </div>
-                        </div>
+            <div class="col-lg-6">
+                <div class="bg-white post-card h-100 p-4 p-md-5">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="header-badge">
+                            <i class="bi bi-code-slash"></i>
+                        </span>
+                        <h3 class="login-card-title mb-0">Công nghệ sử dụng</h3>
                     </div>
-                </form>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">PHP</span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">MySQL</span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">HTML</span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">CSS</span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">JavaScript</span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2">Bootstrap 5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <?php if (!empty($posts)): ?>
-                    <?php foreach ($posts as $post): ?>
-                        <div class="bg-white post-card mb-3">
-                            <div class="p-3 p-md-4">
-                                <div class="d-flex justify-content-between">
-                                    <div class="d-flex gap-3">
-                                        <a href="<?= $loginUrl ?>">
-                                            <img 
-                                                src="<?= homepageImagePath($post['ProfilePictureUrl'] ?? '') ?>" 
-                                                class="avatar" 
-                                                alt="avatar"
-                                            >
-                                        </a>
+        <section class="py-2 mb-4">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="header-badge">
+                    <i class="bi bi-stars"></i>
+                </span>
+                <h3 class="login-card-title mb-0">Tính năng nổi bật</h3>
+            </div>
 
-                                        <div>
-                                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                                <a 
-                                                    href="<?= $loginUrl ?>" 
-                                                    class="fw-semibold text-decoration-none text-dark"
-                                                >
-                                                    <?= htmlspecialchars($post['FullName'] ?: $post['Username']) ?>
-                                                </a>
+            <div class="row g-3">
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-pencil-square fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Đăng bài</h4>
+                        <p class="text-muted mb-0">Chia sẻ trạng thái ngắn gọn và những suy nghĩ trong ngày.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-image fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Upload ảnh</h4>
+                        <p class="text-muted mb-0">Lưu lại khoảnh khắc bằng hình ảnh và media gắn với bài viết.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-heart fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Like và comment</h4>
+                        <p class="text-muted mb-0">Tương tác với bài viết qua thích và bình luận.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-person-plus fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Follow người dùng</h4>
+                        <p class="text-muted mb-0">Kết nối bạn bè và theo dõi những tài khoản quan tâm.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-person-circle fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Hồ sơ cá nhân</h4>
+                        <p class="text-muted mb-0">Quản lý thông tin, avatar và các bài viết của riêng mình.</p>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="bg-light login-card h-100 p-4">
+                        <i class="bi bi-layout-text-window fs-3 mb-3 d-inline-block"></i>
+                        <h4 class="h6 fw-semibold">Giao diện feed</h4>
+                        <p class="text-muted mb-0">Trải nghiệm bảng tin gọn gàng, dễ đọc và thân thiện.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-                                                <span class="text-muted small">
-                                                    <?= homepageTimeAgo($post['CreatedAt']) ?>
-                                                </span>
-                                            </div>
-
-                                            <p class="post-text mb-2">
-                                                <?= nl2br(htmlspecialchars($post['Content'])) ?>
-                                            </p>
-
-                                            <?php if (!empty($post['Images'])): ?>
-                                                <?php $images = explode(',', $post['Images']); ?>
-
-                                                <?php foreach ($images as $img): ?>
-                                                    <a href="<?= $loginUrl ?>">
-                                                        <img 
-                                                            src="<?= homepageImagePath(trim($img)) ?>" 
-                                                            class="img-fluid rounded-4 mb-3"
-                                                            style="max-height: 450px; object-fit: cover;"
-                                                            alt="post image"
-                                                        >
-                                                    </a>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-
-                                            <div class="post-actions d-flex gap-4">
-                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
-                                                    <i class="bi bi-heart"></i> <?= $post['LikeCount'] ?? 0 ?>
-                                                </a>
-
-                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
-                                                    <i class="bi bi-chat"></i> <?= $post['CommentCount'] ?? 0 ?>
-                                                </a>
-
-                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
-                                                    <i class="bi bi-arrow-repeat"></i> 0
-                                                </a>
-
-                                                <a href="<?= $loginUrl ?>" class="text-decoration-none">
-                                                    <i class="bi bi-send"></i>
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <a href="<?= $loginUrl ?>" class="more-btn">
-                                        <i class="bi bi-three-dots"></i>
-                                    </a>
-
+        <div class="row g-4 align-items-stretch">
+            <div class="col-lg-7">
+                <div class="bg-white post-card h-100 p-4 p-md-5">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <span class="header-badge">
+                            <i class="bi bi-people"></i>
+                        </span>
+                        <h3 class="login-card-title mb-0">Thông tin nhóm</h3>
+                    </div>
+                    <p class="login-card-text mb-4">
+                        Đồ án môn Phát triển ứng dụng Web - Nhóm 7.
+                    </p>
+                    <div class="row g-3">
+                        <?php foreach (['Nguyễn Du Mỹ Kỳ', 'Nguyễn Gia Hân', 'Trần Hồng Mai', 'Trịnh Nguyễn Thanh Tuyền'] as $member): ?>
+                            <div class="col-sm-6">
+                                <div class="d-flex align-items-center gap-3 bg-light rounded-4 p-3">
+                                    <span class="mini-star"><i class="bi bi-person"></i></span>
+                                    <span class="fw-semibold"><?= htmlspecialchars($member, ENT_QUOTES, 'UTF-8') ?></span>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="bg-white post-card mb-3">
-                        <div class="p-3 p-md-4 text-center text-muted">
-                            Hiện chưa có bài viết nào trong database.
-                        </div>
+                        <?php endforeach; ?>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
 
-            <div class="col-lg-4 col-md-4 mt-4 mt-md-0">
-                <div class="bg-light login-card p-4">
-                    <h2 class="login-card-title text-center mb-3">
-                        Đăng nhập hoặc đăng ký Archive
-                    </h2>
-
-                    <p class="text-center login-card-text mb-4">
-                        Xem mọi người đang lưu lại điều gì và tham gia vào những cuộc trò chuyện nhỏ.
+            <div class="col-lg-5">
+                <div class="bg-light login-card h-100 p-4 p-md-5 d-flex flex-column justify-content-center text-center">
+                    <h3 class="login-card-title mb-3">Sẵn sàng trải nghiệm Archive?</h3>
+                    <p class="login-card-text mb-4">
+                        Đăng nhập hoặc tạo tài khoản để vào feed đầy đủ và thử các chức năng của prototype.
                     </p>
-
-                    <a 
-                        href="<?= $loginUrl ?>" 
-                        class="username-login-btn w-100 text-center text-decoration-none d-block"
-                    >
-                        Đăng nhập bằng tên người dùng
-                    </a>
-                </div>
-
-                <div class="feed-footer text-center mt-4">
-                    <small>
-                        © 2026 Archive · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Điều khoản</a> · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách riêng tư</a> · 
-                        <a href="<?= $loginUrl ?>" class="text-decoration-none text-muted">Chính sách cookie</a>
-                    </small>
+                    <div class="d-flex flex-column flex-sm-row gap-3 justify-content-center">
+                        <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="btn hero-main-btn">Đăng nhập</a>
+                        <a href="<?= htmlspecialchars($registerUrl, ENT_QUOTES, 'UTF-8') ?>" class="btn hero-outline-btn">Đăng ký</a>
+                    </div>
                 </div>
             </div>
+        </div>
 
+        <div class="feed-footer text-center mt-5">
+            <small>
+                &copy; 2026 Archive &middot;
+                <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none text-muted">Điều khoản</a> &middot;
+                <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none text-muted">Chính sách riêng tư</a>
+            </small>
         </div>
     </div>
-</section>
+</main>
 
 <script>
-    function scrollToFeed() {
-        document.getElementById("feed-section").scrollIntoView({
+    function scrollToProject() {
+        document.getElementById("project-section").scrollIntoView({
             behavior: "smooth"
         });
     }
