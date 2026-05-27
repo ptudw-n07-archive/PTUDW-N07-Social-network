@@ -252,6 +252,53 @@ class UserModel {
         return (int) $stmt->fetchColumn();
     }
 
+    public function createUserReport(int $reporterUserId, int $reportedUserId, string $reason, string $details = ''): bool {
+        if ($reporterUserId === $reportedUserId || !$this->findById($reportedUserId)) {
+            return false;
+        }
+
+        if ($details === '') {
+            $details = $reason;
+        }
+
+        $duplicateQuery = "
+            SELECT 1
+            FROM reports
+            WHERE ReporterUserID = :reporterUserId
+            AND ReportedUserID = :reportedUserId
+            AND PostID IS NULL
+            AND CommentID IS NULL
+            AND Reason = :reason
+            AND Details = :details
+            AND CreatedAt >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+            LIMIT 1
+        ";
+        $duplicateStmt = $this->conn->prepare($duplicateQuery);
+        $duplicateStmt->bindParam(':reporterUserId', $reporterUserId, PDO::PARAM_INT);
+        $duplicateStmt->bindParam(':reportedUserId', $reportedUserId, PDO::PARAM_INT);
+        $duplicateStmt->bindParam(':reason', $reason);
+        $duplicateStmt->bindParam(':details', $details);
+        $duplicateStmt->execute();
+
+        if ($duplicateStmt->fetchColumn()) {
+            return true;
+        }
+
+        $query = "
+            INSERT INTO reports
+                (ReporterUserID, ReportedUserID, PostID, CommentID, Reason, Details, CreatedAt, Status, AdminNote, ResolvedAt)
+            VALUES
+                (:reporterUserId, :reportedUserId, NULL, NULL, :reason, :details, NOW(), 'Pending', NULL, NULL)
+        ";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':reporterUserId', $reporterUserId, PDO::PARAM_INT);
+        $stmt->bindParam(':reportedUserId', $reportedUserId, PDO::PARAM_INT);
+        $stmt->bindParam(':reason', $reason);
+        $stmt->bindParam(':details', $details);
+
+        return $stmt->execute();
+    }
+
     public function updatePassword($email, $newPassword): bool {
         $query = "UPDATE " . $this->table . " SET PasswordHash = :password WHERE Email = :email";
         $stmt = $this->conn->prepare($query);

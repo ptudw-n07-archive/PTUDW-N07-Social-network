@@ -143,6 +143,20 @@ function profileNumber($number) {
     return number_format((int) $number, 0, '.', ',');
 }
 
+function profileMaskEmail($email): string {
+    $email = trim((string) $email);
+
+    if ($email === '' || !str_contains($email, '@')) {
+        return $email;
+    }
+
+    [$localPart, $domain] = explode('@', $email, 2);
+    $visibleLength = min(3, max(1, mb_strlen($localPart)));
+    $visible = mb_substr($localPart, 0, $visibleLength);
+
+    return $visible . '****@' . $domain;
+}
+
 function profileUrl($userId) {
     return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
 }
@@ -166,6 +180,56 @@ function renderProfilePostContentWithHashtags($content) {
     }
 
     return $html;
+}
+
+function renderProfilePostMediaGrid($images): void {
+    $mediaItems = array_values(array_filter(array_map('trim', explode(',', (string) $images))));
+
+    if (empty($mediaItems)) {
+        return;
+    }
+
+    $validMedia = [];
+    foreach ($mediaItems as $image) {
+        $src = profilePostMediaPath($image);
+        if ($src === '') {
+            continue;
+        }
+
+        $validMedia[] = [
+            'raw' => $image,
+            'src' => $src,
+            'type' => profilePostMediaType($image)
+        ];
+    }
+
+    if (empty($validMedia)) {
+        return;
+    }
+    ?>
+    <div class="profile-post-media-grid media-count-<?php echo min(count($validMedia), 4); ?> mb-3">
+        <?php foreach ($validMedia as $media): ?>
+            <div class="profile-post-media-item">
+                <?php if ($media['type'] === 'video'): ?>
+                    <video controls class="profile-post-media">
+                        <source src="<?php echo htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8'); ?>" type="<?php echo htmlspecialchars(profilePostMediaMimeType($media['raw']), ENT_QUOTES, 'UTF-8'); ?>">
+                        Trình duyệt không hỗ trợ video này.
+                    </video>
+                <?php elseif ($media['type'] === 'image'): ?>
+                    <img
+                        src="<?php echo htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8'); ?>"
+                        class="profile-post-media"
+                        alt="Post image"
+                        loading="lazy"
+                        onerror="this.closest('.profile-post-media-item').style.display='none';"
+                    >
+                <?php else: ?>
+                    <a href="<?php echo htmlspecialchars($media['src'], ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small">Mở file ảnh</a>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
 }
 
 function parseProfileRepostContent($content): ?array {
@@ -325,6 +389,32 @@ foreach ($posts as $post) {
             <?php else: ?>
             <div class="col-lg-3">
                 <div class="bg-white p-4 profile-card text-center h-100">
+                    <?php if (!$isOwnProfile): ?>
+                        <div class="profile-report-menu dropdown">
+                            <button
+                                type="button"
+                                class="profile-report-menu-toggle"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false"
+                                aria-label="Mở menu báo cáo"
+                            >
+                                <i class="bi bi-flag"></i>
+                            </button>
+
+                            <div class="dropdown-menu dropdown-menu-end profile-report-dropdown">
+                                <button
+                                    type="button"
+                                    class="dropdown-item profile-report-dropdown-item"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#reportUserModal"
+                                >
+                                    <i class="bi bi-flag me-2"></i>
+                                    Báo cáo người dùng
+                                </button>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
                     <img
                         id="profileAvatarPreview"
                         src="<?php echo htmlspecialchars(profileImagePath($profileAvatar), ENT_QUOTES, 'UTF-8'); ?>"
@@ -343,7 +433,9 @@ foreach ($posts as $post) {
                     <div class="list-group list-group-flush text-start mt-4 profile-meta">
                         <div class="list-group-item bg-transparent px-0 d-flex gap-2">
                             <i class="bi bi-envelope text-muted"></i>
-                            <span id="profileEmailText"><?php echo htmlspecialchars($profileEmail); ?></span>
+                            <span id="profileEmailText" title="<?php echo htmlspecialchars(profileMaskEmail($profileEmail), ENT_QUOTES, 'UTF-8'); ?>">
+                                <?php echo htmlspecialchars(profileMaskEmail($profileEmail), ENT_QUOTES, 'UTF-8'); ?>
+                            </span>
                         </div>
                         <div class="list-group-item bg-transparent px-0 d-flex gap-2">
                             <i class="bi bi-person-badge text-muted"></i>
@@ -493,33 +585,7 @@ foreach ($posts as $post) {
                                             <?php echo renderProfilePostContentWithHashtags($post['Content']); ?>
                                         </p>
 
-                                        <?php if (!empty($post['Images'])): ?>
-                                            <div class="d-flex flex-column gap-3 mb-3">
-                                                <?php foreach (explode(',', $post['Images']) as $image): ?>
-                                                    <?php $profilePostMediaSrc = profilePostMediaPath($image); ?>
-                                                    <?php if ($profilePostMediaSrc !== ''): ?>
-                                                        <?php $profilePostMediaType = profilePostMediaType($image); ?>
-                                                        <?php if ($profilePostMediaType === 'video'): ?>
-                                                            <video controls class="profile-post-image">
-                                                                <source src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" type="<?php echo htmlspecialchars(profilePostMediaMimeType($image), ENT_QUOTES, 'UTF-8'); ?>">
-                                                                Trình duyệt không hỗ trợ video này.
-                                                            </video>
-                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small">Mở file video</a>
-                                                        <?php elseif ($profilePostMediaType === 'image'): ?>
-                                                            <img
-                                                                src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                class="profile-post-image"
-                                                                alt="Post image"
-                                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                                            >
-                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small" style="display:none;">Mở file ảnh</a>
-                                                        <?php else: ?>
-                                                            <a href="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="small">Mở file ảnh</a>
-                                                        <?php endif; ?>
-                                                    <?php endif; ?>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php endif; ?>
+                                        <?php renderProfilePostMediaGrid($post['Images'] ?? ''); ?>
 
                                         <div class="post-actions profile-post-actions d-flex gap-4">
                                             <button
@@ -679,29 +745,7 @@ foreach ($posts as $post) {
                                                     ?>
                                                 </p>
 
-                                                <?php if (!empty($post['Images'])): ?>
-                                                    <div class="d-flex flex-column gap-3 mb-3">
-                                                        <?php foreach (explode(',', $post['Images']) as $image): ?>
-                                                            <?php $profilePostMediaSrc = profilePostMediaPath($image); ?>
-                                                            <?php if ($profilePostMediaSrc !== ''): ?>
-                                                                <?php $profilePostMediaType = profilePostMediaType($image); ?>
-                                                                <?php if ($profilePostMediaType === 'video'): ?>
-                                                                    <video controls class="profile-post-image">
-                                                                        <source src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>" type="<?php echo htmlspecialchars(profilePostMediaMimeType($image), ENT_QUOTES, 'UTF-8'); ?>">
-                                                                        Trình duyệt không hỗ trợ video này.
-                                                                    </video>
-                                                                <?php elseif ($profilePostMediaType === 'image'): ?>
-                                                                    <img
-                                                                        src="<?php echo htmlspecialchars($profilePostMediaSrc, ENT_QUOTES, 'UTF-8'); ?>"
-                                                                        class="profile-post-image"
-                                                                        alt="Post image"
-                                                                        onerror="this.style.display='none';"
-                                                                    >
-                                                                <?php endif; ?>
-                                                            <?php endif; ?>
-                                                        <?php endforeach; ?>
-                                                    </div>
-                                                <?php endif; ?>
+                                                <?php renderProfilePostMediaGrid($post['Images'] ?? ''); ?>
 
                                                 <div class="post-actions profile-post-actions d-flex gap-4">
                                                     <button
@@ -806,6 +850,55 @@ foreach ($posts as $post) {
         </div>
     </div>
 </div>
+
+<?php if (!$isOwnProfile): ?>
+<div class="modal fade profile-report-modal" id="reportUserModal" tabindex="-1" aria-labelledby="reportUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="profileReportUserForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="reportUserModalLabel">Báo cáo người dùng</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="profileReportUserAlert" class="alert d-none" role="alert"></div>
+                    <input type="hidden" name="userId" value="<?php echo (int) $profileUserId; ?>">
+
+                    <div class="mb-3">
+                        <label for="profileReportReason" class="form-label">Lý do</label>
+                        <select id="profileReportReason" name="reason" class="form-select" required>
+                            <option value="Spam">Spam</option>
+                            <option value="Harassment">Quấy rối</option>
+                            <option value="Inappropriate">Nội dung không phù hợp</option>
+                            <option value="Misinformation">Thông tin sai lệch</option>
+                            <option value="Other">Khác</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-0">
+                        <label for="profileReportDetails" class="form-label">Mô tả thêm</label>
+                        <textarea
+                            id="profileReportDetails"
+                            name="details"
+                            class="form-control"
+                            rows="3"
+                            maxlength="500"
+                            placeholder="Nhập thêm chi tiết nếu cần"
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn profile-outline-btn px-4" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-pink px-4">
+                        <i class="bi bi-send me-1"></i>
+                        Gửi báo cáo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="modal fade follow-modal" id="followingModal" tabindex="-1" aria-labelledby="followingModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1010,6 +1103,7 @@ foreach ($posts as $post) {
     window.PROFILE_UPDATE_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=update";
     <?php else: ?>
     window.PROFILE_FOLLOW_URL = "<?php echo BASE_URL; ?>App/Controllers/FollowController.php?action=toggle";
+    window.PROFILE_REPORT_USER_URL = "<?php echo BASE_URL; ?>App/Controllers/ProfileController.php?action=reportUser";
     <?php endif; ?>
 </script>
 <?php endif; ?>
