@@ -28,11 +28,23 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
         .full-width {
             grid-column: span 2;
         }
+        @media (max-width: 520px) {
+            .login-container {
+                margin: 12px;
+                padding: 28px 20px;
+            }
+            .register-grid {
+                grid-template-columns: 1fr;
+            }
+            .full-width {
+                grid-column: span 1;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="login-container">
-        <h2>Tham gia cùng chúng mình!</h2>
+        <h2>Lưu giữ câu chuyện của bạn.</h2>
         <p class="subtitle">Tạo tài khoản để kết nối và chia sẻ ngay</p>
         
         <?php if(isset($_SESSION['error'])): ?>
@@ -57,12 +69,12 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
 
                 <div class="form-group">
                     <label for="username">Tài khoản</label>
-                    <input type="text" id="username" name="username" placeholder="mai.tran07" minlength="3" maxlength="50" autocapitalize="none" required>
+                    <input type="text" id="username" name="username" placeholder="archive26" minlength="3" maxlength="50" autocapitalize="none" required>
                 </div>
 
                 <div class="form-group">
                     <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="abc@gmail.com" required>
+                    <input type="email" id="email" name="email" placeholder="hello@archive.com" required>
                 </div>
 
                 <div class="form-group">

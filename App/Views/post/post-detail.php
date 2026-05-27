@@ -14,12 +14,20 @@ require_once __DIR__ . '/../../Controllers/PostController.php';
 require_once __DIR__ . '/partials/post-menu.php';
 
 $postId = (int) ($_GET['id'] ?? 0);
-$highlightCommentId = (int) ($_GET['comment'] ?? 0);
+$focusCommentId = (int) ($_GET['comment_id'] ?? $_GET['comment'] ?? 0);
 $currentUserId = (int) $_SESSION['user_id'];
 
 $postController = new \App\Controllers\PostController();
 $post = $postId > 0 ? $postController->detail($postId, $currentUserId) : null;
 $comments = $post ? $postController->getComments($postId) : [];
+$focusedCommentAvailable = $focusCommentId === 0;
+
+foreach ($comments as $comment) {
+    if ((int) ($comment['CommentID'] ?? 0) === $focusCommentId) {
+        $focusedCommentAvailable = true;
+        break;
+    }
+}
 
 function detailAssetPath($path, $default = '') {
     $path = trim((string) $path);
@@ -349,12 +357,19 @@ function renderDetailPostContent($content) {
                                             </button>
                                         </div>
 
+                                        <?php if ($focusCommentId > 0 && !$focusedCommentAvailable): ?>
+                                            <div class="post-detail-comment-unavailable" role="status">
+                                                Bình luận này hiện không khả dụng.
+                                            </div>
+                                        <?php endif; ?>
+
                                         <div class="comment-list mt-3">
                                             <?php if (!empty($comments)): ?>
                                                 <?php foreach ($comments as $comment): ?>
                                                     <div
-                                                        class="post-detail-comment <?= (int) $comment['CommentID'] === $highlightCommentId ? 'highlight' : '' ?>"
+                                                        class="post-detail-comment"
                                                         id="comment-<?= (int) $comment['CommentID'] ?>"
+                                                        data-comment-id="<?= (int) $comment['CommentID'] ?>"
                                                     >
                                                         <img
                                                             src="<?= htmlspecialchars(detailImagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
@@ -389,7 +404,7 @@ function renderDetailPostContent($content) {
 <script>
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
 </script>
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-post-detail-csrf"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-comment-focus"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
