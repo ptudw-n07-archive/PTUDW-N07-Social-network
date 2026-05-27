@@ -48,6 +48,39 @@ class AdminReportController {
         return $this->main->mergeReportIds(...$sets);
     }
 
+    private function reportTargetType(array $report): string {
+        if (!empty($report['CommentID'])) {
+            return 'comment';
+        }
+
+        if (!empty($report['PostID'])) {
+            return 'post';
+        }
+
+        if (!empty($report['ReportedUserID'])) {
+            return 'account';
+        }
+
+        return 'unknown';
+    }
+
+    private function warningReceiverId(array $report): ?int {
+        $targetType = $this->reportTargetType($report);
+        if ($targetType === 'comment') {
+            return $this->adminReportModel->getCommentOwnerId((int)$report['CommentID']);
+        }
+
+        if ($targetType === 'post') {
+            return $this->adminReportModel->getPostOwnerId((int)$report['PostID']);
+        }
+
+        if ($targetType === 'account' && !empty($report['ReportedUserID'])) {
+            return (int)$report['ReportedUserID'];
+        }
+
+        return null;
+    }
+
     public function processReport(): void {
         if (!$this->isAdmin()) {
             $this->jsonResponse(false, 'Bạn không có quyền quản trị viên.');
@@ -88,50 +121,79 @@ class AdminReportController {
         try {
             $adminUserId = $this->currentAdminId();
             $updatedReports = [];
+            $targetType = $this->reportTargetType($report);
             // Mỗi action report có cách xử lý riêng nhưng đều trả ReportID để frontend cập nhật UI.
             if ($action === 'ignore') {
                 $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = [$reportId];
                 $msg = 'Báo cáo đã bị bỏ qua.';
             } elseif ($action === 'hide') {
-                $hidden = false;
-                if (!empty($report['PostID'])) {
-                    $this->adminReportModel->hidePostById((int)$report['PostID']);
-                    // Khi một nội dung đã bị ẩn, các report pending liên quan cũng được hoàn tất.
-                    $updatedReports = $this->mergeReportIds(
-                        $updatedReports,
-                        $this->adminReportModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
-                    );
-                    $hidden = true;
-                }
-                if (!empty($report['CommentID'])) {
+                if ($targetType === 'comment') {
                     $this->adminReportModel->hideCommentById((int)$report['CommentID']);
                     $updatedReports = $this->mergeReportIds(
                         $updatedReports,
-                        $this->adminReportModel->resolvePendingReportsByCommentId((int)$report['CommentID'], 'Tự động hoàn tất vì nội dung/tài khoản đã được xử lý ở báo cáo khác.')
+                        $this->adminReportModel->resolvePendingReportsByCommentId((int)$report['CommentID'], 'Tự động hoàn tất vì bình luận đã được xử lý ở báo cáo khác.')
                     );
-                    $hidden = true;
+                    if ($adminUserId) {
+                        $receiverId = $this->warningReceiverId($report);
+                        if ($receiverId) {
+                            $this->adminNotificationModel->createNotificationByType($receiverId, $adminUserId, 'ContentHidden');
+                        }
+                    }
+                    $msg = 'Bình luận đã được ẩn và báo cáo được đánh dấu hoàn tất.';
+                } elseif ($targetType === 'post') {
+                    $this->adminReportModel->hidePostById((int)$report['PostID']);
+                    $updatedReports = $this->mergeReportIds(
+                        $updatedReports,
+                        $this->adminReportModel->resolvePendingReportsByPostId((int)$report['PostID'], 'Tự động hoàn tất vì bài viết đã được xử lý ở báo cáo khác.')
+                    );
+                    if ($adminUserId) {
+                        $receiverId = $this->warningReceiverId($report);
+                        if ($receiverId) {
+                            $this->adminNotificationModel->createNotificationByType($receiverId, $adminUserId, 'ContentHidden');
+                        }
+                    }
+                    $msg = 'Bài viết đã được ẩn và báo cáo được đánh dấu hoàn tất.';
+                } elseif ($targetType === 'account') {
+                    $targetUserId = (int)$report['ReportedUserID'];
+                    if ($targetUserId === $adminUserId) {
+                        $this->jsonResponse(false, 'Bạn không thể khóa chính tài khoản đang đăng nhập.');
+                        return;
+                    }
+                    if (!$this->adminMemberModel->getUserById($targetUserId)) {
+                        $this->jsonResponse(false, 'Tài khoản bị báo cáo không tồn tại.');
+                        return;
+                    }
+                    $this->adminMemberModel->updateUserActiveStatus($targetUserId, 0);
+                    $updatedReports = $this->mergeReportIds(
+                        $updatedReports,
+                        $this->adminReportModel->resolvePendingAccountReportsByReportedUserId($targetUserId, 'Tự động hoàn tất vì tài khoản đã bị khóa ở báo cáo khác.')
+                    );
+                    if ($adminUserId) {
+                        $this->adminNotificationModel->createNotificationByType($targetUserId, $adminUserId, 'AccountLocked');
+                    }
+                    $msg = 'Tài khoản đã bị khóa và báo cáo được đánh dấu hoàn tất.';
+                } else {
+                    $this->jsonResponse(false, 'Không xác định được đối tượng cần xử lý.');
+                    return;
                 }
                 $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = $this->mergeReportIds($updatedReports, [$reportId]);
-                if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminNotificationModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ContentHidden');
-                }
-                $msg = $hidden ? 'Nội dung đã được ẩn và báo cáo được đánh dấu hoàn tất.' : 'Không có nội dung để ẩn; báo cáo đã được đánh dấu hoàn tất.';
             } else {
                 $this->adminReportModel->markReportResolved($reportId, $adminNote);
                 $updatedReports = [$reportId];
-                if (!empty($report['ReportedUserID']) && $adminUserId) {
-                    $this->adminNotificationModel->createNotificationByType((int)$report['ReportedUserID'], $adminUserId, 'ReportWarning');
+                $receiverId = $this->warningReceiverId($report);
+                if ($receiverId && $adminUserId) {
+                    $this->adminNotificationModel->createNotificationByType($receiverId, $adminUserId, 'ReportWarning');
                 }
                 $msg = 'Người dùng đã được cảnh cáo; báo cáo đã xử lý.';
             }
 
             $this->logAdminAction('ProcessReport', 'Report', $reportId, 'Xử lý report #' . $reportId . ' với action ' . $action . '.');
             if ($action === 'hide' && !empty($updatedReports)) {
-                $targetType = !empty($report['CommentID']) ? 'Comment' : (!empty($report['PostID']) ? 'Post' : 'Report');
-                $targetId = !empty($report['CommentID']) ? (int)$report['CommentID'] : (!empty($report['PostID']) ? (int)$report['PostID'] : $reportId);
-                $this->logAdminAction('ModerateReport', $targetType, $targetId, 'Ẩn nội dung và tự động resolve các report liên quan.');
+                $targetTypeText = $targetType === 'comment' ? 'Comment' : ($targetType === 'post' ? 'Post' : 'User');
+                $targetId = $targetType === 'comment' ? (int)$report['CommentID'] : ($targetType === 'post' ? (int)$report['PostID'] : (int)$report['ReportedUserID']);
+                $this->logAdminAction('ModerateReport', $targetTypeText, $targetId, ($targetType === 'account' ? 'Khóa tài khoản' : 'Ẩn nội dung') . ' và tự động resolve các report liên quan.');
             }
             $this->jsonResponse(true, $msg, [
                 'reportId' => $reportId,

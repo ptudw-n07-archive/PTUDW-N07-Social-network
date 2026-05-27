@@ -47,13 +47,19 @@
                                         'Reporter' => $r['reporter'] ?? '',
                                         'ReportedUser' => $r['user'] ?? '',
                                         'ReportType' => $r['type'] ?? '',
+                                        'TargetType' => $r['targetType'] ?? '',
                                         'Reason' => $r['reason'] ?? '',
                                         'Status' => $r['status'] ?? '',
                                         'StatusKey' => $r['statusKey'] ?? '',
                                         'CreatedAt' => $r['time'] ?? ''
                                     ];
                                 ?>
-                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-report='<?php echo htmlspecialchars(json_encode($reportExportData, JSON_UNESCAPED_UNICODE), ENT_QUOTES); ?>' data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
+                                <?php
+                                    $targetType = $r['targetType'] ?? 'post';
+                                    $hideActionText = $targetType === 'account' ? 'Khóa' : 'Ẩn';
+                                    $hideActionLabel = $targetType === 'account' ? 'Khóa tài khoản bị báo cáo' : 'Ẩn nội dung bị báo cáo';
+                                ?>
+                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-report-target-type="<?php echo htmlspecialchars($targetType, ENT_QUOTES); ?>" data-report='<?php echo htmlspecialchars(json_encode($reportExportData, JSON_UNESCAPED_UNICODE), ENT_QUOTES); ?>' data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="me-3">
@@ -87,7 +93,7 @@
                                             <div class="report-actions-group">
                                                 <button type="button" class="btn btn-outline-brown btn-sm btn-report-detail btn-icon-detail" data-report-id="<?php echo $r['id']; ?>" title="Xem chi tiết" aria-label="Xem chi tiết"><i class="bi bi-eye"></i></button>
                                                 <button type="button" class="btn btn-outline-secondary btn-sm btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="ignore">Bỏ qua</button>
-                                                <button type="button" class="btn btn-danger btn-sm btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="hide">Ẩn</button>
+                                                <button type="button" class="btn btn-danger btn-sm btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="hide" data-report-target-type="<?php echo htmlspecialchars($targetType, ENT_QUOTES); ?>" data-report-action-label="<?php echo htmlspecialchars($hideActionLabel, ENT_QUOTES); ?>"><?php echo htmlspecialchars($hideActionText); ?></button>
                                                 <button type="button" class="btn btn-warning btn-sm text-white btn-report-action" data-report-id="<?php echo $r['id']; ?>" data-report-action="warn">Cảnh cáo</button>
                                             </div>
                                         <?php else: ?>

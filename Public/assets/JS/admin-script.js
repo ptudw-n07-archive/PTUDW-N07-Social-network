@@ -1074,9 +1074,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function handleReportAction(reportId, action, triggerButton = null) {
         // Xử lý report theo từng action rồi cập nhật lại dòng report ngay trên UI.
+        const targetType = triggerButton ? (triggerButton.dataset.reportTargetType || '') : '';
+        const actionLabel = triggerButton ? (triggerButton.dataset.reportActionLabel || '') : '';
         const titleMap = {
             ignore: 'Bỏ qua báo cáo',
-            hide: 'Ẩn nội dung được báo cáo',
+            hide: actionLabel || (targetType === 'account' ? 'Khóa tài khoản bị báo cáo' : 'Ẩn nội dung được báo cáo'),
             warn: 'Cảnh cáo người dùng'
         };
 
