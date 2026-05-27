@@ -439,6 +439,15 @@ html {
     box-shadow: 0 8px 22px rgba(214, 144, 150, 0.18);
 }
 
+.sidebar-logout {
+    color: #9b5965;
+}
+
+.sidebar-logout:hover {
+    background-color: #f4e5e7;
+    color: #7c414b;
+}
+
 .more-menu-wrapper {
     position: fixed;
     left: 28px;
