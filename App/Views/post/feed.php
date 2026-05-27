@@ -24,7 +24,7 @@ require_once __DIR__ . '/partials/post-menu.php';
 
 /** @var \App\Controllers\PostController $postController */
 $postController = new \App\Controllers\PostController();
-$posts = $postController->index();
+$posts = $postController->getFeedPosts($currentUserId);
 $trendingHashtags = $postController->getTrendingHashtags(10);
 
 /** @var \App\Controllers\FollowController $followController */
@@ -58,6 +58,10 @@ function assetPath($path, $default = '') {
     return BASE_URL . $path;
 }
 
+function publicLocalPath($path) {
+    return __DIR__ . '/../../../' . ltrim((string) $path, '/');
+}
+
 function imagePath($path) {
     return assetPath($path, BASE_URL . "Public/assets/img/default-avatar.jpg");
 }
@@ -79,23 +83,20 @@ function postMediaPath($path) {
         return '';
     }
 
-    $src = assetPath($cleanPath);
-    if ($src === '') {
-        return '';
-    }
-
     if (str_starts_with($cleanPath, "Public/")) {
-        $localPath = __DIR__ . '/../../../' . $cleanPath;
-        return is_file($localPath) ? $src : '';
+        $localPath = publicLocalPath($cleanPath);
+        return is_file($localPath) ? app_url($cleanPath) : '';
     }
 
     if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
-        $localPath = __DIR__ . '/../../../Public/' . $cleanPath;
-        return is_file($localPath) ? $src : '';
+        $publicPath = 'Public/' . $cleanPath;
+        $localPath = publicLocalPath($publicPath);
+        return is_file($localPath) ? app_url($publicPath) : '';
     }
 
-    $localPath = __DIR__ . '/../../' . $cleanPath;
-    return is_file($localPath) ? $src : '';
+    $publicPath = 'Public/uploads/posts/' . basename($cleanPath);
+    $localPath = publicLocalPath($publicPath);
+    return is_file($localPath) ? app_url($publicPath) : '';
 }
 
 function postMediaType($path) {
@@ -156,6 +157,31 @@ function hashtagUrl($tag) {
     return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
 }
 
+function privacyLabel($privacy) {
+    return match ($privacy) {
+        'followers' => 'Người theo dõi',
+        'private' => 'Riêng tư',
+        default => 'Công khai'
+    };
+}
+
+function privacyIcon($privacy) {
+    return match ($privacy) {
+        'followers' => 'bi-people',
+        'private' => 'bi-lock',
+        default => 'bi-globe2'
+    };
+}
+
+function renderPrivacyBadge($privacy): string {
+    $privacy = in_array($privacy, ['public', 'followers', 'private'], true) ? $privacy : 'public';
+
+    return '<span class="post-privacy-badge post-privacy-' . htmlspecialchars($privacy, ENT_QUOTES, 'UTF-8') . '" data-privacy-badge>'
+        . '<i class="bi ' . htmlspecialchars(privacyIcon($privacy), ENT_QUOTES, 'UTF-8') . '"></i>'
+        . '<span>' . htmlspecialchars(privacyLabel($privacy), ENT_QUOTES, 'UTF-8') . '</span>'
+        . '</span>';
+}
+
 function renderPostContentWithHashtags($content) {
     $parts = preg_split('/(#[\p{L}\p{N}_]+)/u', (string) $content, -1, PREG_SPLIT_DELIM_CAPTURE);
     $html = '';
@@ -171,6 +197,61 @@ function renderPostContentWithHashtags($content) {
     }
 
     return $html;
+}
+
+function renderFeedComment(array $comment, array $post, int $currentUserId, bool $isReply = false): void {
+    $commentId = (int) ($comment['CommentID'] ?? 0);
+    $commentOwnerId = (int) ($comment['UserID'] ?? 0);
+    $postOwnerId = (int) ($post['UserID'] ?? 0);
+    $parentCommentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+    $canEdit = $commentOwnerId === $currentUserId;
+    $canDelete = $canEdit || $postOwnerId === $currentUserId;
+    $canReport = $commentOwnerId !== $currentUserId;
+    $displayName = !empty($comment['FullName']) ? $comment['FullName'] : '@' . ($comment['Username'] ?? '');
+    ?>
+    <div
+        class="comment-item<?= $isReply ? ' comment-reply' : '' ?>"
+        id="comment-<?= $commentId ?>"
+        data-comment-id="<?= $commentId ?>"
+        data-post-id="<?= (int) ($post['PostID'] ?? 0) ?>"
+        data-owner-id="<?= $commentOwnerId ?>"
+        data-parent-comment-id="<?= $parentCommentId ?>"
+        data-can-edit="<?= $canEdit ? '1' : '0' ?>"
+        data-can-delete="<?= $canDelete ? '1' : '0' ?>"
+        data-can-report="<?= $canReport ? '1' : '0' ?>"
+    >
+        <img
+            src="<?= htmlspecialchars(imagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+            class="comment-avatar"
+            alt="avatar"
+            onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
+        >
+        <div class="comment-body">
+            <div class="comment-bubble">
+                <div class="comment-meta">
+                    <strong class="comment-author"><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></strong>
+                    <span class="comment-time">• <?= htmlspecialchars(timeAgo($comment['CreatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
+                </div>
+                <div class="comment-content"><?= htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+            </div>
+            <div class="comment-actions">
+                <?php if (!$isReply): ?>
+                    <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                <?php endif; ?>
+                <?php if ($canEdit): ?>
+                    <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
+                <?php endif; ?>
+                <?php if ($canDelete): ?>
+                    <button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>
+                <?php endif; ?>
+                <?php if ($canReport): ?>
+                    <button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>
+                <?php endif; ?>
+            </div>
+            <div class="comment-inline-form"></div>
+        </div>
+    </div>
+    <?php
 }
 ?>
 
@@ -229,58 +310,31 @@ function renderPostContentWithHashtags($content) {
             <div class="col-lg-7 col-md-8">
                 <div class="feed-title text-center mb-4">Bảng tin</div>
 
-                <form id="postForm" class="bg-white p-3 p-md-4 mb-4 post-composer" method="POST" enctype="multipart/form-data">
-                    <?= \App\Services\CsrfService::hiddenField() ?>
-                    <div class="d-flex gap-3 composer-layout">
-                       <img
+                <div
+                    class="bg-white p-3 p-md-4 mb-4 post-composer feed-create-entry"
+                    role="link"
+                    tabindex="0"
+                    data-create-post-url="<?php echo BASE_URL; ?>App/Views/post/createpost.php"
+                    aria-label="Tạo bài viết mới"
+                >
+                    <div class="d-flex gap-3 composer-layout align-items-center">
+                        <img
                             src="<?= htmlspecialchars(imagePath($currentAvatar), ENT_QUOTES, 'UTF-8') ?>"
                             class="avatar composer-avatar"
                             alt="avatar"
                             onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
                         >
-                        <div class="flex-grow-1">
-                            <label for="feedComposerTextarea" class="visually-hidden">Bạn đang nghĩ gì?</label>
-                            <textarea 
-                                name="content"
-                                id="feedComposerTextarea"
-                                class="form-control composer-input" 
-                                rows="3"
-                                placeholder="Bạn đang nghĩ gì?"
-                            ></textarea>
-                            <div
-                                id="hashtagSuggestionBox"
-                                class="hashtag-suggestion-box"
-                                data-endpoint="<?php echo BASE_URL; ?>App/Controllers/SearchController.php?action=suggestHashtags"
-                                hidden
-                            ></div>
-
-                            <div class="composer-actions mt-3">
-                                <label for="postImages" class="custom-upload-btn">
-                                    <i class="bi bi-image"></i>
-                                    <span>Thêm ảnh</span>
-                                </label>
-
-                                <input 
-                                    type="file" 
-                                    name="images[]" 
-                                    id="postImages"
-                                    accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.mp4,.mov,.webm,image/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm"
-                                    multiple
-                                    hidden
-                                >
-
-                                <button type="button" class="btn btn-pink px-4 composer-submit-btn" onclick="createPost()">Đăng</button>
-                            </div>
-
-                            <div id="preview-container" class="preview-container mt-3"></div>
+                        <div class="feed-create-input flex-grow-1">
+                            <span>Bạn đang nghĩ gì?</span>
+                            <i class="bi bi-chevron-right"></i>
                         </div>
                     </div>
-                </form>
+                </div>
 
                 <div id="posts-list">
                     <?php if (!empty($posts)): ?>
                         <?php foreach ($posts as $post): ?>
-                            <?php $comments = $postController->getComments($post['PostID']); ?>
+                            <?php $comments = $post['Comments'] ?? []; ?>
                             <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
                             <div
                                 class="bg-white post-card mb-3"
@@ -305,6 +359,7 @@ function renderPostContentWithHashtags($content) {
                                                         <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username']) ?>
                                                     </a>
                                                     <span class="post-time">• <?= timeAgo($post['CreatedAt']) ?></span>
+                                                    <?= renderPrivacyBadge($post['Privacy'] ?? 'public') ?>
                                                 </div>
 
                                                 <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
@@ -374,16 +429,23 @@ function renderPostContentWithHashtags($content) {
                                                     </span>
                                                 </button>
 
-                                                <button type="button" class="no-post-nav">
+                                                <button
+                                                    type="button"
+                                                    class="no-post-nav repost-btn"
+                                                    onclick="repostPost(this)"
+                                                    data-post-id="<?= (int) $post['PostID'] ?>"
+                                                    title="Đăng lại bài viết"
+                                                >
                                                     <i class="bi bi-arrow-repeat"></i>
                                                 </button>
                                             </div>
                                             <div class="comment-box mt-3 d-none no-post-nav">
                                             <div class="comment-form d-flex gap-2">
-                                                <label for="feedCommentInput" class="visually-hidden">Viết bình luận</label>
+                                                <?php $commentInputId = 'feedCommentInput-' . (int) $post['PostID']; ?>
+                                                <label for="<?= htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8') ?>" class="visually-hidden">Viết bình luận</label>
                                                 <input 
                                                     type="text" 
-                                                    id="feedCommentInput"
+                                                    id="<?= htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8') ?>"
                                                     class="form-control comment-input" 
                                                     placeholder="Viết bình luận..."
                                                 >
@@ -399,28 +461,23 @@ function renderPostContentWithHashtags($content) {
                                             </div>
 
                                                 <div class="comment-list">
-    <?php if (!empty($comments)): ?>
-        <?php foreach ($comments as $comment): ?>
-            <div class="comment-item">
-                <img
-                    src="<?= htmlspecialchars(imagePath($comment['ProfilePictureUrl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-                    class="comment-avatar"
-                    alt="avatar"
-                    onerror="this.src='<?= BASE_URL ?>Public/assets/img/default-avatar.jpg';"
-                >
-                <div class="comment-bubble">
-                    <div class="comment-meta">
-                        <strong class="comment-author">
-                            <?= htmlspecialchars($comment['FullName'] ?: '@' . $comment['Username']) ?>
-                        </strong>
-                        <span class="comment-time">• <?= timeAgo($comment['CreatedAt'] ?? '') ?></span>
-                    </div>
-                    <div class="comment-content"><?= htmlspecialchars($comment['Content']) ?></div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-</div>
+                                                    <?php
+                                                        $commentsByParent = [];
+                                                        foreach ($comments as $comment) {
+                                                            $parentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+                                                            $commentsByParent[$parentId][] = $comment;
+                                                        }
+                                                    ?>
+                                                    <?php foreach ($commentsByParent[0] ?? [] as $comment): ?>
+                                                        <?php
+                                                            $commentId = (int) ($comment['CommentID'] ?? 0);
+                                                            renderFeedComment($comment, $post, (int) $currentUserId);
+                                                        ?>
+                                                        <?php foreach ($commentsByParent[$commentId] ?? [] as $reply): ?>
+                                                            <?php renderFeedComment($reply, $post, (int) $currentUserId, true); ?>
+                                                        <?php endforeach; ?>
+                                                    <?php endforeach; ?>
+                                                </div>
                                                 </div>
                                         </div>
                                     </div>
@@ -518,7 +575,29 @@ function renderPostContentWithHashtags($content) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260524-post-click-comment"></script>
+<div class="modal fade archive-comment-delete-modal" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteCommentModalLabel">Xóa bình luận?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                Bình luận này sẽ được ẩn khỏi bài viết. Bạn vẫn muốn tiếp tục?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn comment-delete-cancel-btn" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn comment-delete-confirm-btn" data-confirm-delete-comment>Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
+    window.FEED_CREATE_POST_URL = "<?php echo BASE_URL; ?>App/Views/post/createpost.php";
+</script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-feed-create-link"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>

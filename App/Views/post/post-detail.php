@@ -49,6 +49,10 @@ function detailImagePath($path) {
     return detailAssetPath($path, BASE_URL . "Public/assets/img/default-avatar.jpg");
 }
 
+function detailPublicLocalPath($path) {
+    return __DIR__ . '/../../../' . ltrim((string) $path, '/');
+}
+
 function detailPostMediaPath($path) {
     $path = trim((string) $path);
 
@@ -68,17 +72,19 @@ function detailPostMediaPath($path) {
     }
 
     if (str_starts_with($cleanPath, "Public/")) {
-        $localPath = __DIR__ . '/../../../' . $cleanPath;
-        return is_file($localPath) ? BASE_URL . $cleanPath : '';
+        $localPath = detailPublicLocalPath($cleanPath);
+        return is_file($localPath) ? app_url($cleanPath) : '';
     }
 
     if (str_starts_with($cleanPath, "uploads/") || str_starts_with($cleanPath, "assets/")) {
-        $localPath = __DIR__ . '/../../../Public/' . $cleanPath;
-        return is_file($localPath) ? BASE_URL . "Public/" . $cleanPath : '';
+        $publicPath = 'Public/' . $cleanPath;
+        $localPath = detailPublicLocalPath($publicPath);
+        return is_file($localPath) ? app_url($publicPath) : '';
     }
 
-    $localPath = __DIR__ . '/../../' . $cleanPath;
-    return is_file($localPath) ? BASE_URL . $cleanPath : '';
+    $publicPath = 'Public/uploads/posts/' . basename($cleanPath);
+    $localPath = detailPublicLocalPath($publicPath);
+    return is_file($localPath) ? app_url($publicPath) : '';
 }
 
 function detailPostMediaType($path) {
@@ -138,6 +144,31 @@ function detailProfileUrl($userId) {
 
 function detailHashtagUrl($tag) {
     return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
+}
+
+function detailPrivacyLabel($privacy) {
+    return match ($privacy) {
+        'followers' => 'Người theo dõi',
+        'private' => 'Riêng tư',
+        default => 'Công khai'
+    };
+}
+
+function detailPrivacyIcon($privacy) {
+    return match ($privacy) {
+        'followers' => 'bi-people',
+        'private' => 'bi-lock',
+        default => 'bi-globe2'
+    };
+}
+
+function detailRenderPrivacyBadge($privacy): string {
+    $privacy = in_array($privacy, ['public', 'followers', 'private'], true) ? $privacy : 'public';
+
+    return '<span class="post-privacy-badge post-privacy-' . htmlspecialchars($privacy, ENT_QUOTES, 'UTF-8') . '" data-privacy-badge>'
+        . '<i class="bi ' . htmlspecialchars(detailPrivacyIcon($privacy), ENT_QUOTES, 'UTF-8') . '"></i>'
+        . '<span>' . htmlspecialchars(detailPrivacyLabel($privacy), ENT_QUOTES, 'UTF-8') . '</span>'
+        . '</span>';
 }
 
 function renderDetailPostContent($content) {
@@ -237,6 +268,7 @@ function renderDetailPostContent($content) {
                                             <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                         </a>
                                         <span class="text-muted">• <?= htmlspecialchars(detailTimeAgo($post['CreatedAt']), ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?= detailRenderPrivacyBadge($post['Privacy'] ?? 'public') ?>
                                     </div>
 
                                     <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
@@ -285,7 +317,13 @@ function renderDetailPostContent($content) {
                                             <span class="comment-count"><?= (int) ($post['CommentCount'] ?? 0) ?></span>
                                         </button>
 
-                                        <button type="button">
+                                        <button
+                                            type="button"
+                                            class="repost-btn no-post-nav"
+                                            onclick="repostPost(this)"
+                                            data-post-id="<?= (int) $post['PostID'] ?>"
+                                            title="Đăng lại bài viết"
+                                        >
                                             <i class="bi bi-arrow-repeat"></i>
                                         </button>
 
@@ -348,7 +386,10 @@ function renderDetailPostContent($content) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-post-detail"></script>
+<script>
+    window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
+</script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-post-detail-csrf"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>

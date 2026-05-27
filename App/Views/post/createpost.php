@@ -129,8 +129,8 @@ function imagePath($path) {
                         ></textarea>
 
                         <label for="postImages" class="custom-upload-btn mb-3">
-                            <i class="bi bi-plus-square"></i>
-                            <span>+ Thêm ảnh/video</span>
+                            <i class="bi bi-image"></i>
+                            <span>Thêm ảnh</span>
                         </label>
 
                         <input 
