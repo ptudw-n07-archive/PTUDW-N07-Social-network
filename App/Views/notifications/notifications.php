@@ -102,7 +102,7 @@ function notificationMessage($notification) {
         'Comment' => 'đã bình luận về bài viết của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
         'ReplyComment',
         'CommentReply' => 'đã trả lời bình luận của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
-        'Follow' => 'đã bắt đầu theo dõi bạn',
+        'Follow' => 'đã theo dõi bạn',
         'ReportWarning' => 'Bài viết của bạn đã nhận cảnh báo báo cáo',
         'ContentHidden' => 'Nội dung của bạn đã bị ẩn',
         default => 'có hoạt động mới liên quan đến bạn'

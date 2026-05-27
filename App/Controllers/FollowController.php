@@ -68,7 +68,24 @@ class FollowController {
         $followerCount = $this->followModel->countFollowers((int) $followingId);
 
         if ($status === "followed") {
-            $this->notificationModel->createNotification(3, $followingId, $followerId);
+            $followTypeId = $this->notificationModel->getTypeIdByName('Follow');
+            $sender = $this->followModel->getUserById((int) $followerId);
+            $senderName = trim((string) ($sender['FullName'] ?? ''));
+
+            if ($senderName === '') {
+                $senderName = !empty($sender['Username']) ? '@' . $sender['Username'] : 'Người dùng';
+            }
+
+            if ($followTypeId) {
+                $this->notificationModel->createNotification(
+                    $followTypeId,
+                    (int) $followingId,
+                    (int) $followerId,
+                    null,
+                    null,
+                    $senderName . ' đã theo dõi bạn'
+                );
+            }
         }
 
         echo json_encode([

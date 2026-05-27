@@ -69,6 +69,20 @@ class FollowModel {
         return (int) $stmt->fetchColumn();
     }
 
+    public function getUserById($userId) {
+        $sql = "
+            SELECT UserID, Username, FullName
+            FROM users
+            WHERE UserID = :userId
+            LIMIT 1
+        ";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     public function getFollowingByUserId($userId) {
         $sql = "
             SELECT
