@@ -242,3 +242,106 @@ body {
     opacity: 1;
     transform: translateY(-2px); /* Nhích nhẹ lên trên cho sinh động */
 }
+
+.register-container {
+    max-width: 500px;
+    margin: 16px;
+    padding: 30px 38px 32px;
+}
+
+.register-container h2 {
+    font-size: clamp(1.9rem, 2.45vw, 2.15rem);
+    line-height: 1.08;
+    margin-bottom: 8px;
+    white-space: normal;
+    overflow-wrap: normal;
+}
+
+.register-container .subtitle {
+    margin-bottom: 20px;
+    opacity: 0.82;
+}
+
+.register-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+    text-align: left;
+}
+
+.register-grid .form-group {
+    margin-bottom: 0;
+}
+
+.register-grid .form-group label {
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+}
+
+.register-grid .form-group input {
+    min-height: 48px;
+    padding: 13px 16px;
+    border-radius: 14px;
+    font-size: 0.95rem;
+}
+
+.register-grid .full-width {
+    grid-column: span 2;
+}
+
+.register-container .btn-login {
+    min-height: 50px;
+    margin-top: 14px !important;
+    padding: 14px;
+    font-size: 1rem;
+}
+
+.register-container .divider {
+    margin: 18px 0 14px;
+    font-size: 0.76rem;
+}
+
+.register-container .extra-links {
+    margin-top: 0;
+    justify-content: center;
+}
+
+.register-container .extra-links p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.register-container .back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 18px;
+}
+
+@media (max-width: 520px) {
+    .register-container {
+        max-width: calc(100% - 24px);
+        margin: 12px;
+        padding: 26px 20px 28px;
+    }
+
+    .register-container h2 {
+        font-size: 1.82rem;
+        line-height: 1.14;
+    }
+
+    .register-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .register-grid .full-width {
+        grid-column: span 1;
+    }
+}
+
+@media (min-width: 521px) {
+    .register-container h2 {
+        white-space: nowrap;
+    }
+}

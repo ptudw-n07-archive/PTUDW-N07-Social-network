@@ -14,36 +14,9 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
     <title>Đăng ký thành viên | Social Network</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
-    <style>
-        .login-container {
-            max-width: 460px;
-            margin: 20px;
-        }
-        .register-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            text-align: left;
-        }
-        .full-width {
-            grid-column: span 2;
-        }
-        @media (max-width: 520px) {
-            .login-container {
-                margin: 12px;
-                padding: 28px 20px;
-            }
-            .register-grid {
-                grid-template-columns: 1fr;
-            }
-            .full-width {
-                grid-column: span 1;
-            }
-        }
-    </style>
 </head>
 <body>
-<div class="login-container">
+<div class="login-container register-container">
         <h2>Lưu giữ câu chuyện của bạn.</h2>
         <p class="subtitle">Tạo tài khoản để kết nối và chia sẻ ngay</p>
         
@@ -88,7 +61,7 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
                 </div>
             </div>
 
-            <button type="submit" class="btn-login" style="margin-top: 10px;">TẠO TÀI KHOẢN</button>
+            <button type="submit" class="btn-login">TẠO TÀI KHOẢN</button>
         </form>
 
         <div class="divider">
