@@ -69,56 +69,98 @@ function createPost() {
 }
 
 const postImagesInput = document.getElementById("postImages");
+const previewContainer = document.getElementById("preview-container");
+let selectedPostFiles = [];
 
 if (postImagesInput) {
     postImagesInput.addEventListener("change", function () {
-        const previewContainer = document.getElementById("preview-container");
-
-        if (!previewContainer) {
-            return;
-        }
-
-        previewContainer.innerHTML = "";
-
-        const files = this.files;
-
-        if (!files || files.length === 0) {
-            return;
-        }
-
-        Array.from(files).forEach(file => {
-            const mediaType = file.type.startsWith("video/") ? "video" : "image";
-
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                if (mediaType === "video") {
-                    const video = document.createElement("video");
-                    video.src = e.target.result;
-                    video.className = "preview-image";
-                    video.controls = true;
-                    previewContainer.appendChild(video);
-                    return;
-                }
-
-                const extension = getMediaExtension(file.name);
-                if (["heic", "heif"].includes(extension)) {
-                    const item = document.createElement("div");
-                    item.className = "preview-file";
-                    item.innerText = `${file.name}\nHEIC/HEIF sẽ được chuyển đổi sau khi đăng nếu server hỗ trợ.`;
-                    previewContainer.appendChild(item);
-                    return;
-                }
-
-                const img = document.createElement("img");
-                img.src = e.target.result;
-                img.className = "preview-image";
-                previewContainer.appendChild(img);
-            };
-
-            reader.readAsDataURL(file);
-        });
+        selectedPostFiles = Array.from(this.files || []);
+        renderSelectedPostPreviews();
     });
+}
+
+function renderSelectedPostPreviews() {
+    if (!previewContainer) {
+        return;
+    }
+
+    previewContainer.innerHTML = "";
+
+    if (selectedPostFiles.length === 0) {
+        return;
+    }
+
+    selectedPostFiles.forEach(function (file, index) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "preview-item";
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "preview-remove-btn";
+        removeButton.dataset.index = String(index);
+        removeButton.setAttribute("aria-label", "Xoa anh da chon");
+        removeButton.innerHTML = "&times;";
+        removeButton.addEventListener("click", function () {
+            removeSelectedPostFile(Number(this.dataset.index));
+        });
+
+        wrapper.appendChild(removeButton);
+
+        const extension = getMediaExtension(file.name);
+        if (["heic", "heif"].includes(extension)) {
+            const item = document.createElement("div");
+            item.className = "preview-file";
+            item.innerText = `${file.name}\nHEIC/HEIF se duoc chuyen doi sau khi dang neu server ho tro.`;
+            wrapper.appendChild(item);
+            previewContainer.appendChild(wrapper);
+            return;
+        }
+
+        const mediaType = file.type.startsWith("video/") ? "video" : "image";
+        previewContainer.appendChild(wrapper);
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            if (mediaType === "video") {
+                const video = document.createElement("video");
+                video.src = e.target.result;
+                video.className = "preview-video";
+                video.controls = true;
+                wrapper.appendChild(video);
+                return;
+            }
+
+            const img = document.createElement("img");
+            img.src = e.target.result;
+            img.className = "preview-image";
+            img.alt = file.name;
+            wrapper.appendChild(img);
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeSelectedPostFile(index) {
+    if (index < 0 || index >= selectedPostFiles.length) {
+        return;
+    }
+
+    selectedPostFiles.splice(index, 1);
+    syncSelectedFilesToInput();
+    renderSelectedPostPreviews();
+}
+
+function syncSelectedFilesToInput() {
+    if (!postImagesInput) {
+        return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    selectedPostFiles.forEach(function (file) {
+        dataTransfer.items.add(file);
+    });
+    postImagesInput.files = dataTransfer.files;
 }
 
 function getMediaExtension(path) {
