@@ -81,10 +81,17 @@ function notificationShortText($text, $limit = 90) {
 
 function notificationMessage($notification) {
     $comment = notificationShortText($notification['CommentContent'] ?? '', 70);
+    $storedMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
+
+    if ($storedMessage !== '' && str_contains($storedMessage, 'đã trả lời bình luận của bạn')) {
+        return 'đã trả lời bình luận của bạn';
+    }
 
     return match ((string) ($notification['TypeName'] ?? '')) {
         'Like' => 'đã thích bài viết của bạn',
         'Comment' => 'đã bình luận về bài viết của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
+        'ReplyComment',
+        'CommentReply' => 'đã trả lời bình luận của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
         'Follow' => 'đã bắt đầu theo dõi bạn',
         'ReportWarning' => 'Bài viết của bạn đã nhận cảnh báo báo cáo',
         'ContentHidden' => 'Nội dung của bạn đã bị ẩn',
@@ -224,7 +231,10 @@ function notificationMessage($notification) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260525-badge"></script>
+<script>
+    window.NOTIFICATION_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
+</script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/notifications.js?v=20260527-read-csrf"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
