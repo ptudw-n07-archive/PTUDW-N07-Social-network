@@ -187,7 +187,7 @@ class NotificationModel {
             LEFT JOIN posts p ON p.PostID = COALESCE(n.PostID, r.PostID, c.PostID)
             WHERE n.NotificationID = :notificationId
               AND n.ReceiverUserID = :userId
-              AND (n.NotificationTypeID IN (4, 5) OR nt.TypeName IN ('ReportWarning', 'ContentHidden'))
+              AND (n.NotificationTypeID IN (4, 5) OR nt.TypeName IN ('ReportWarning', 'ContentHidden', 'System'))
             LIMIT 1
         ";
 

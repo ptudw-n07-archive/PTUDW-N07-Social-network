@@ -82,12 +82,17 @@ function notificationShortText($text, $limit = 90) {
 function notificationMessage($notification) {
     $comment = notificationShortText($notification['CommentContent'] ?? '', 70);
     $storedMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
+    $typeName = (string) ($notification['TypeName'] ?? '');
+
+    if ($typeName === 'System') {
+        return $storedMessage !== '' ? $storedMessage : 'Bạn có một thông báo hệ thống mới.';
+    }
 
     if ($storedMessage !== '' && str_contains($storedMessage, 'đã trả lời bình luận của bạn')) {
         return 'đã trả lời bình luận của bạn';
     }
 
-    return match ((string) ($notification['TypeName'] ?? '')) {
+    return match ($typeName) {
         'Like' => 'đã thích bài viết của bạn',
         'Comment' => 'đã bình luận về bài viết của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
         'ReplyComment',
@@ -168,13 +173,17 @@ function notificationMessage($notification) {
                             <?php
                                 $isModerationNotification = in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
                                     || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
-                                $senderName = $isModerationNotification
-                                    ? 'Hệ thống'
-                                    : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng'));
+                                $isSystemNotification = (string) ($notification['TypeName'] ?? '') === 'System';
+                                $isDetailNotification = $isModerationNotification || $isSystemNotification;
+                                $senderName = $isSystemNotification
+                                    ? 'Tổng cục kiểm duyệt'
+                                    : ($isModerationNotification
+                                        ? 'Hệ thống'
+                                        : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng')));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
                                 $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
-                                $avatarUrl = $isModerationNotification ? $openUrl : $profileUrl;
+                                $avatarUrl = $isDetailNotification ? $openUrl : $profileUrl;
                             ?>
                             <div class="activity-item <?= $isUnread ? 'unread' : '' ?>" data-notification-id="<?= (int) $notification['NotificationID'] ?>">
                                 <a href="<?= htmlspecialchars($avatarUrl, ENT_QUOTES, 'UTF-8') ?>" class="activity-avatar-link">
