@@ -60,6 +60,38 @@ function appendFeedCsrfToken(formData) {
     }
 }
 
+function autoResizeCommentTextarea(textarea) {
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+}
+
+function bindCommentTextareaAutoResize(scope = document) {
+    scope.querySelectorAll("textarea.comment-input, textarea.comment-edit-input").forEach(function (textarea) {
+        if (textarea.dataset.autoResizeBound === "1") {
+            autoResizeCommentTextarea(textarea);
+            return;
+        }
+
+        textarea.dataset.autoResizeBound = "1";
+        textarea.addEventListener("input", function () {
+            autoResizeCommentTextarea(textarea);
+        });
+        autoResizeCommentTextarea(textarea);
+    });
+}
+
+function safeCommentSelectorValue(value) {
+    const stringValue = String(value || "");
+
+    if (window.CSS && typeof window.CSS.escape === "function") {
+        return window.CSS.escape(stringValue);
+    }
+
+    return stringValue.replace(/["\\]/g, "\\$&");
+}
+
 // =======================
 // LIKE BUTTON - AJAX THẬT
 // =======================
@@ -341,11 +373,11 @@ function addPostToUI(post) {
 
                     <div class="comment-box mt-3 d-none no-post-nav">
                         <div class="comment-form d-flex gap-2">
-                            <input
-                                type="text"
+                            <textarea
                                 class="form-control comment-input"
                                 placeholder="Viết bình luận..."
-                            >
+                                rows="1"
+                            ></textarea>
 
                             <button
                                 type="button"
@@ -366,6 +398,7 @@ function addPostToUI(post) {
 
     newPost.querySelector(".post-text").innerHTML = renderContentWithHashtags(post.Content || "");
     postsList.prepend(newPost);
+    bindCommentTextareaAutoResize(newPost);
 }
 
 function refreshTrendingHashtags() {
@@ -500,17 +533,13 @@ function sendComment(btn) {
         const comment = isPostDetail ? renderPostDetailComment(data.comment) : renderComment(data.comment);
 
         if (!isPostDetail && data.comment.parentCommentId) {
-            const parentComment = commentList.querySelector(`[data-comment-id="${data.comment.parentCommentId}"]`);
-            if (parentComment) {
-                parentComment.insertAdjacentElement("afterend", comment);
-            } else {
-                commentList.appendChild(comment);
-            }
+            insertReplyComment(commentList, comment, data.comment.parentCommentId);
         } else {
             commentList.appendChild(comment);
         }
 
         input.value = "";
+        autoResizeCommentTextarea(input);
         const inlineForm = btn.closest(".comment-inline-form");
         if (inlineForm) {
             inlineForm.innerHTML = "";
@@ -524,6 +553,28 @@ function sendComment(btn) {
         console.error(error);
         showPostToast("Có lỗi khi gửi bình luận.");
     });
+}
+
+function insertReplyComment(commentList, comment, rootCommentId) {
+    const rootId = String(rootCommentId || "");
+    const selectorRootId = safeCommentSelectorValue(rootId);
+    const threadedComments = Array.from(commentList.querySelectorAll(
+        `.comment-item[data-root-comment-id="${selectorRootId}"]`
+    ));
+    const lastThreadComment = threadedComments[threadedComments.length - 1];
+
+    if (lastThreadComment) {
+        lastThreadComment.insertAdjacentElement("afterend", comment);
+        return;
+    }
+
+    const parentComment = commentList.querySelector(`[data-comment-id="${selectorRootId}"]`);
+    if (parentComment) {
+        parentComment.insertAdjacentElement("afterend", comment);
+        return;
+    }
+
+    commentList.appendChild(comment);
 }
 
 function renderPostDetailComment(commentData) {
@@ -547,6 +598,7 @@ function renderComment(commentData) {
     const comment = document.createElement("div");
     const commentAvatar = normalizeImagePath(commentData.profilePictureUrl || "Public/assets/img/default-avatar.jpg");
     const isReply = Boolean(commentData.parentCommentId);
+    const rootCommentId = isReply ? commentData.parentCommentId : commentData.commentId;
 
     comment.className = `comment-item${isReply ? " comment-reply" : ""}`;
     comment.id = commentData.commentId ? `comment-${commentData.commentId}` : "";
@@ -554,6 +606,7 @@ function renderComment(commentData) {
     comment.dataset.postId = commentData.postId || "";
     comment.dataset.ownerId = commentData.userId || "";
     comment.dataset.parentCommentId = commentData.parentCommentId || "0";
+    comment.dataset.rootCommentId = rootCommentId || commentData.commentId || "";
     comment.dataset.canEdit = commentData.canEdit ? "1" : "0";
     comment.dataset.canDelete = commentData.canDelete ? "1" : "0";
     comment.dataset.canReport = commentData.canReport ? "1" : "0";
@@ -568,7 +621,7 @@ function renderComment(commentData) {
                 <div class="comment-content">${escapeHTML(commentData.content || "")}</div>
             </div>
             <div class="comment-actions">
-                ${!isReply ? '<button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>' : ''}
+                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
                 ${commentData.canEdit ? '<button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>' : ''}
                 ${commentData.canDelete ? '<button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>' : ''}
                 ${commentData.canReport ? '<button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>' : ''}
@@ -585,18 +638,19 @@ function showReplyForm(btn) {
     const postCard = btn.closest(".post-card");
     const formSlot = comment.querySelector(".comment-inline-form");
     const postId = comment.dataset.postId || (postCard ? postCard.dataset.postId : "");
-    const commentId = comment.dataset.commentId;
+    const parentCommentId = comment.dataset.rootCommentId || comment.dataset.commentId;
 
     formSlot.innerHTML = `
         <div class="comment-reply-form d-flex gap-2">
-            <input type="text" class="form-control comment-input" placeholder="Viết phản hồi...">
-            <button type="button" class="btn btn-pink comment-submit" onclick="sendComment(this)" data-post-id="${escapeHTML(postId)}" data-parent-comment-id="${escapeHTML(commentId)}">Gửi</button>
+            <textarea class="form-control comment-input" placeholder="Viết phản hồi..." rows="1"></textarea>
+            <button type="button" class="btn btn-pink comment-submit" onclick="sendComment(this)" data-post-id="${escapeHTML(postId)}" data-parent-comment-id="${escapeHTML(parentCommentId)}">Gửi</button>
             <button type="button" class="btn btn-light comment-cancel-btn">Hủy</button>
         </div>
     `;
     formSlot.querySelector(".comment-cancel-btn").onclick = function () {
         formSlot.innerHTML = "";
     };
+    bindCommentTextareaAutoResize(formSlot);
     formSlot.querySelector(".comment-input").focus();
 }
 
@@ -607,7 +661,7 @@ function showEditCommentForm(btn) {
 
     formSlot.innerHTML = `
         <div class="comment-edit-form d-flex gap-2">
-            <input type="text" class="form-control comment-edit-input" value="${escapeHTML(content)}">
+            <textarea class="form-control comment-edit-input" rows="1">${escapeHTML(content)}</textarea>
             <button type="button" class="btn btn-pink comment-submit" onclick="submitEditComment(this)">Lưu</button>
             <button type="button" class="btn btn-light comment-cancel-btn">Hủy</button>
         </div>
@@ -615,6 +669,7 @@ function showEditCommentForm(btn) {
     formSlot.querySelector(".comment-cancel-btn").onclick = function () {
         formSlot.innerHTML = "";
     };
+    bindCommentTextareaAutoResize(formSlot);
     formSlot.querySelector(".comment-edit-input").focus();
 }
 
@@ -1021,6 +1076,7 @@ document.addEventListener("DOMContentLoaded", function () {
 document.addEventListener("DOMContentLoaded", function () {
     initFeedCreateEntry();
     initCommentDeleteModal();
+    bindCommentTextareaAutoResize();
     initHashtagComposerSuggestions();
     initPostMenu();
 });

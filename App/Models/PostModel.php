@@ -269,22 +269,26 @@ public function createComment($userId, $postId, $content, $parentCommentId = nul
 
     if ($parentCommentId !== null) {
         $parentSql = "
-            SELECT 1
+            SELECT CommentID, ParentCommentID
             FROM comments
             WHERE CommentID = :parentCommentId
             AND PostID = :postId
             AND IsHidden = 0
-            AND ParentCommentID IS NULL
             LIMIT 1
         ";
         $parentStmt = $this->conn->prepare($parentSql);
         $parentStmt->bindParam(":parentCommentId", $parentCommentId, PDO::PARAM_INT);
         $parentStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
         $parentStmt->execute();
+        $parentComment = $parentStmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$parentStmt->fetchColumn()) {
+        if (!$parentComment) {
             return false;
         }
+
+        $parentCommentId = !empty($parentComment['ParentCommentID'])
+            ? (int) $parentComment['ParentCommentID']
+            : (int) $parentComment['CommentID'];
     }
 
     $sql = "INSERT INTO comments (PostID, UserID, Content, ParentCommentID, CreatedAt)

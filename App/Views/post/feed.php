@@ -204,6 +204,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
     $commentOwnerId = (int) ($comment['UserID'] ?? 0);
     $postOwnerId = (int) ($post['UserID'] ?? 0);
     $parentCommentId = !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : 0;
+    $rootCommentId = $isReply && $parentCommentId > 0 ? $parentCommentId : $commentId;
     $canEdit = $commentOwnerId === $currentUserId;
     $canDelete = $canEdit || $postOwnerId === $currentUserId;
     $canReport = $commentOwnerId !== $currentUserId;
@@ -216,6 +217,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
         data-post-id="<?= (int) ($post['PostID'] ?? 0) ?>"
         data-owner-id="<?= $commentOwnerId ?>"
         data-parent-comment-id="<?= $parentCommentId ?>"
+        data-root-comment-id="<?= $rootCommentId ?>"
         data-can-edit="<?= $canEdit ? '1' : '0' ?>"
         data-can-delete="<?= $canDelete ? '1' : '0' ?>"
         data-can-report="<?= $canReport ? '1' : '0' ?>"
@@ -235,9 +237,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                 <div class="comment-content"><?= htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
             </div>
             <div class="comment-actions">
-                <?php if (!$isReply): ?>
-                    <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
-                <?php endif; ?>
+                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
                 <?php if ($canEdit): ?>
                     <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
                 <?php endif; ?>
@@ -443,12 +443,12 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                                             <div class="comment-form d-flex gap-2">
                                                 <?php $commentInputId = 'feedCommentInput-' . (int) $post['PostID']; ?>
                                                 <label for="<?= htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8') ?>" class="visually-hidden">Viết bình luận</label>
-                                                <input 
-                                                    type="text" 
+                                                <textarea
                                                     id="<?= htmlspecialchars($commentInputId, ENT_QUOTES, 'UTF-8') ?>"
                                                     class="form-control comment-input" 
                                                     placeholder="Viết bình luận..."
-                                                >
+                                                    rows="1"
+                                                ></textarea>
 
                                                 <button 
                                                 type="button"
