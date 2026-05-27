@@ -216,6 +216,75 @@ function renderPostContentWithHashtags($content) {
     return $html;
 }
 
+function parseRepostContent($content): ?array {
+    if (!preg_match('/^Đăng lại từ\s+(@[^\s:]+):\s*(.*)$/su', (string) $content, $matches)) {
+        return null;
+    }
+
+    return [
+        'source' => trim($matches[1]),
+        'content' => ltrim((string) ($matches[2] ?? ''))
+    ];
+}
+
+function renderPostMediaList($images, string $wrapperClass = 'post-media-list'): string {
+    $imageItems = array_values(array_filter(array_map('trim', explode(',', (string) $images))));
+
+    if (empty($imageItems)) {
+        return '';
+    }
+
+    $html = '<div class="' . htmlspecialchars($wrapperClass, ENT_QUOTES, 'UTF-8') . '">';
+
+    foreach ($imageItems as $img) {
+        $postMediaSrc = postMediaPath($img);
+        if ($postMediaSrc === '') {
+            continue;
+        }
+
+        $postMediaType = postMediaType($img);
+
+        if ($postMediaType === 'video') {
+            $html .= '<video controls class="repost-embed-image no-post-nav">'
+                . '<source src="' . htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') . '" type="' . htmlspecialchars(postMediaMimeType($img), ENT_QUOTES, 'UTF-8') . '">'
+                . 'Trình duyệt không hỗ trợ video này.'
+                . '</video>';
+            continue;
+        }
+
+        if ($postMediaType === 'image') {
+            $html .= '<img src="' . htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') . '" class="repost-embed-image" alt="post image" onerror="this.style.display=\'none\';">';
+            continue;
+        }
+
+        $html .= '<a href="' . htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') . '" target="_blank" class="small d-block no-post-nav">Mở file ảnh</a>';
+    }
+
+    return $html . '</div>';
+}
+
+function renderRepostEmbed(array $post): string {
+    $repost = parseRepostContent($post['Content'] ?? '');
+
+    if (!$repost) {
+        return '';
+    }
+
+    $contentHtml = trim($repost['content']) !== ''
+        ? renderPostContentWithHashtags($repost['content'])
+        : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
+
+    return '<div class="repost-source-label"><i class="bi bi-arrow-repeat"></i><span>Đăng lại bài viết</span></div>'
+        . '<div class="repost-embed no-post-nav">'
+        . '<div class="repost-embed-header">'
+        . '<div class="repost-embed-author"><span class="repost-embed-avatar"><i class="bi bi-person"></i></span><span>' . htmlspecialchars($repost['source'], ENT_QUOTES, 'UTF-8') . '</span></div>'
+        . '<div class="repost-embed-meta">Bài viết gốc</div>'
+        . '</div>'
+        . '<div class="repost-embed-content post-text">' . $contentHtml . '</div>'
+        . renderPostMediaList($post['Images'] ?? '', 'repost-embed-media')
+        . '</div>';
+}
+
 function renderFeedComment(array $comment, array $post, int $currentUserId, bool $isReply = false): void {
     $commentId = (int) ($comment['CommentID'] ?? 0);
     $commentOwnerId = (int) ($comment['UserID'] ?? 0);
@@ -353,8 +422,9 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                         <?php foreach ($posts as $post): ?>
                             <?php $comments = $post['Comments'] ?? []; ?>
                             <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
+                            <?php $isRepost = parseRepostContent($post['Content'] ?? '') !== null; ?>
                             <div
-                                class="bg-white post-card mb-3"
+                                class="bg-white post-card mb-3<?= $isRepost ? ' repost-card' : '' ?>"
                                 id="post-<?= (int) $post['PostID'] ?>"
                                 <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
                             >
@@ -390,40 +460,13 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                                                 onclick="openPostDetail(this, event)"
                                                 onkeydown="handlePostClickableKeydown(this, event)"
                                             >
-                                                <p class="post-text">
-                                                    <?= renderPostContentWithHashtags($post['Content']) ?>
-                                                </p>
-
-                                                <?php if (!empty($post['Images'])): ?>
-                                                    <?php $images = explode(',', $post['Images']); ?>
-                                                    <?php foreach ($images as $img): ?>
-                                                        <?php $postMediaSrc = postMediaPath($img); ?>
-                                                        <?php if ($postMediaSrc !== ''): ?>
-                                                            <?php $postMediaType = postMediaType($img); ?>
-                                                            <?php if ($postMediaType === 'video'): ?>
-                                                                <video
-                                                                    controls
-                                                                    class="img-fluid rounded-4 mb-3 no-post-nav"
-                                                                    style="max-height: 450px; object-fit: cover;"
-                                                                >
-                                                                    <source src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(postMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
-                                                                    Trình duyệt không hỗ trợ video này.
-                                                                </video>
-                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3 no-post-nav">Mở file video</a>
-                                                            <?php elseif ($postMediaType === 'image'): ?>
-                                                                <img
-                                                                    src="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>"
-                                                                    class="img-fluid rounded-4 mb-3"
-                                                                    style="max-height: 450px; object-fit: cover;"
-                                                                    alt="post image"
-                                                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
-                                                                >
-                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small mb-3 no-post-nav" style="display:none;">Mở file ảnh</a>
-                                                            <?php else: ?>
-                                                                <a href="<?= htmlspecialchars($postMediaSrc, ENT_QUOTES, 'UTF-8') ?>" target="_blank" class="small d-block mb-3 no-post-nav">Mở file ảnh</a>
-                                                            <?php endif; ?>
-                                                        <?php endif; ?>
-                                                    <?php endforeach; ?>
+                                                <?php if ($isRepost): ?>
+                                                    <?= renderRepostEmbed($post) ?>
+                                                <?php else: ?>
+                                                    <p class="post-text">
+                                                        <?= renderPostContentWithHashtags($post['Content']) ?>
+                                                    </p>
+                                                    <?= renderPostMediaList($post['Images'] ?? '', 'post-media-list') ?>
                                                 <?php endif; ?>
                                             </div>
 
