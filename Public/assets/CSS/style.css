@@ -909,6 +909,7 @@ html {
     border-radius: 50%;
     background: #f4e5e7;
     color: #9f5e68;
+    object-fit: cover;
 }
 
 .repost-embed-meta {
@@ -1112,6 +1113,15 @@ html {
     color: #b76e79;
 }
 
+.feed-page .comment-delete-action {
+    color: #8b5f57;
+}
+
+.feed-page .comment-delete-action:hover {
+    color: #a86a72;
+    background: rgba(183, 110, 121, 0.08);
+}
+
 .feed-page .comment-inline-form {
     margin: 6px 0 8px;
 }
@@ -1207,16 +1217,16 @@ html {
 }
 
 .comment-delete-confirm-btn {
-    background: #c95f6d;
-    border: 1px solid #c95f6d;
-    color: #fff;
+    background: #f1d8d5;
+    border: 1px solid rgba(183, 110, 121, 0.24);
+    color: #6d4b43;
 }
 
 .comment-delete-confirm-btn:hover,
 .comment-delete-confirm-btn:disabled {
-    background: #b84f5e;
-    border-color: #b84f5e;
-    color: #fff;
+    background: #e8c6c2;
+    border-color: rgba(183, 110, 121, 0.34);
+    color: #4a3a35;
 }
 
 .hashtag-link {

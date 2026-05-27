@@ -74,7 +74,15 @@ let selectedPostFiles = [];
 
 if (postImagesInput) {
     postImagesInput.addEventListener("change", function () {
-        selectedPostFiles = Array.from(this.files || []);
+        const newFiles = Array.from(this.files || []);
+        selectedPostFiles = selectedPostFiles.concat(
+            newFiles.filter(function (file) {
+                return !selectedPostFiles.some(function (selectedFile) {
+                    return getFileSignature(selectedFile) === getFileSignature(file);
+                });
+            })
+        );
+        syncSelectedFilesToInput();
         renderSelectedPostPreviews();
     });
 }
@@ -161,6 +169,10 @@ function syncSelectedFilesToInput() {
         dataTransfer.items.add(file);
     });
     postImagesInput.files = dataTransfer.files;
+}
+
+function getFileSignature(file) {
+    return [file.name, file.size, file.lastModified].join(":");
 }
 
 function getMediaExtension(path) {

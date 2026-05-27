@@ -18,6 +18,7 @@ class PostModel {
         $sql = "
             SELECT 
                 p.PostID,
+                p.OriginalPostID,
                 p.Content,
                 p.CreatedAt,
                 COALESCE(p.Privacy, 'public') AS Privacy,
@@ -48,7 +49,7 @@ class PostModel {
         $this->bindViewerParams($stmt, $viewerId);
         $stmt->execute();
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $this->attachOriginalPostData($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     public function getPostsByUserId($userId, $viewerId = null, bool $includeReposts = true) {
@@ -207,6 +208,7 @@ class PostModel {
         $sql = "
             SELECT
                 p.PostID,
+                p.OriginalPostID,
                 p.Content,
                 p.CreatedAt,
                 COALESCE(p.Privacy, 'public') AS Privacy,
@@ -241,23 +243,30 @@ class PostModel {
 
         $stmt->execute();
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return false;
+        }
+
+        $posts = $this->attachOriginalPostData([$post]);
+        return $posts[0] ?? $post;
     }
 
     public function createPost($userId, $content) {
-    $sql = "INSERT INTO posts (UserID, Content, CreatedAt)
-            VALUES (:userId, :content, NOW())";
+        $sql = "INSERT INTO posts (UserID, Content, CreatedAt)
+                VALUES (:userId, :content, NOW())";
 
-    $stmt = $this->conn->prepare($sql);
-    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
-    $stmt->bindParam(":content", $content);
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindParam(":content", $content);
 
-    if ($stmt->execute()) {
-        return $this->conn->lastInsertId();
+        if ($stmt->execute()) {
+            return $this->conn->lastInsertId();
+        }
+
+        return false;
     }
-
-    return false;
-}
 
 public function addPostImage($postId, $imageUrl) {
     $sql = "INSERT INTO postimages (PostID, ImageUrl)
@@ -275,6 +284,22 @@ public function createRepost($currentUserId, $originalPostId) {
 
     if (!$originalPost) {
         return false;
+    }
+
+    $rootOriginalId = $this->resolveRootOriginalPostId((int) ($originalPost['OriginalPostID'] ?? 0) ?: (int) $originalPostId);
+    $rootOriginalPost = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
+
+    if ($rootOriginalPost) {
+        $originalPost = [
+            'PostID' => $rootOriginalPost['OriginalPostID'] ?? $rootOriginalId,
+            'UserID' => $rootOriginalPost['OriginalUserID'] ?? 0,
+            'Username' => $rootOriginalPost['OriginalUsername'] ?? '',
+            'FullName' => $rootOriginalPost['OriginalFullName'] ?? '',
+            'ProfilePictureUrl' => $rootOriginalPost['OriginalProfilePictureUrl'] ?? '',
+            'Content' => $rootOriginalPost['OriginalContent'] ?? '',
+            'Images' => $rootOriginalPost['OriginalImages'] ?? ''
+        ];
+        $originalPostId = (int) ($rootOriginalPost['OriginalPostID'] ?? $rootOriginalId);
     }
 
     if ((int) $originalPost['UserID'] === (int) $currentUserId) {
@@ -321,6 +346,82 @@ public function createRepost($currentUserId, $originalPostId) {
         error_log('[PostModel] createRepost failed: ' . $e->getMessage());
         return false;
     }
+}
+
+private function attachOriginalPostData(array $posts): array {
+    foreach ($posts as &$post) {
+        $originalPostId = (int) ($post['OriginalPostID'] ?? 0);
+
+        if ($originalPostId <= 0) {
+            continue;
+        }
+
+        $rootOriginalId = $this->resolveRootOriginalPostId($originalPostId);
+        $originalData = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
+
+        if (!$originalData) {
+            continue;
+        }
+
+        $post = array_merge($post, $originalData);
+    }
+    unset($post);
+
+    return $posts;
+}
+
+private function resolveRootOriginalPostId(int $postId): ?int {
+    $currentPostId = $postId;
+    $visitedPostIds = [];
+
+    while ($currentPostId > 0 && !isset($visitedPostIds[$currentPostId])) {
+        $visitedPostIds[$currentPostId] = true;
+
+        $stmt = $this->conn->prepare("SELECT PostID, OriginalPostID FROM posts WHERE PostID = :postId AND IsHidden = 0 LIMIT 1");
+        $stmt->bindValue(":postId", $currentPostId, PDO::PARAM_INT);
+        $stmt->execute();
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return null;
+        }
+
+        if (empty($post['OriginalPostID'])) {
+            return (int) $post['PostID'];
+        }
+
+        $currentPostId = (int) $post['OriginalPostID'];
+    }
+
+    return null;
+}
+
+private function getOriginalPostData(int $postId): ?array {
+    $sql = "
+        SELECT
+            p.PostID AS OriginalPostID,
+            p.Content AS OriginalContent,
+            p.CreatedAt AS OriginalCreatedAt,
+            u.UserID AS OriginalUserID,
+            u.Username AS OriginalUsername,
+            u.FullName AS OriginalFullName,
+            u.ProfilePictureUrl AS OriginalProfilePictureUrl,
+            GROUP_CONCAT(DISTINCT pi.ImageUrl) AS OriginalImages
+        FROM posts p
+        JOIN users u ON p.UserID = u.UserID
+        LEFT JOIN postimages pi ON p.PostID = pi.PostID
+        WHERE p.PostID = :postId
+        AND p.IsHidden = 0
+        GROUP BY p.PostID
+        LIMIT 1
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindValue(":postId", $postId, PDO::PARAM_INT);
+    $stmt->execute();
+    $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $post ?: null;
 }
 
 public function toggleLike($userId, $postId) {
@@ -376,6 +477,7 @@ public function createComment($userId, $postId, $content, $parentCommentId = nul
             WHERE CommentID = :parentCommentId
             AND PostID = :postId
             AND IsHidden = 0
+            AND ParentCommentID IS NULL
             LIMIT 1
         ";
         $parentStmt = $this->conn->prepare($parentSql);
@@ -388,9 +490,7 @@ public function createComment($userId, $postId, $content, $parentCommentId = nul
             return false;
         }
 
-        $parentCommentId = !empty($parentComment['ParentCommentID'])
-            ? (int) $parentComment['ParentCommentID']
-            : (int) $parentComment['CommentID'];
+        $parentCommentId = (int) $parentComment['CommentID'];
     }
 
     $sql = "INSERT INTO comments (PostID, UserID, Content, ParentCommentID, CreatedAt)

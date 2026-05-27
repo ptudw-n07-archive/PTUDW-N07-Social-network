@@ -328,6 +328,19 @@ class PostController {
 
         if ($parentCommentId) {
             $replyTarget = $this->postModel->getCommentById((int) $parentCommentId);
+
+            if (
+                !$replyTarget
+                || (int) ($replyTarget['PostID'] ?? 0) !== (int) $postId
+                || (int) ($replyTarget['IsHidden'] ?? 0) === 1
+                || !empty($replyTarget['ParentCommentID'])
+            ) {
+                echo json_encode([
+                    "success" => false,
+                    "message" => "Chỉ có thể trả lời bình luận gốc."
+                ], JSON_UNESCAPED_UNICODE);
+                return;
+            }
         }
 
         $commentId = $this->postModel->createComment($userId, $postId, $content, $parentCommentId);

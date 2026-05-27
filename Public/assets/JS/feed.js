@@ -288,9 +288,19 @@ function parseRepostContent(content) {
         return null;
     }
 
+    let source = match[1].trim();
+    let nestedContent = (match[2] || "").replace(/^\s+/, "");
+    let nestedMatch = nestedContent.match(/^Đăng lại từ\s+(@[^\s:]+):\s*([\s\S]*)$/u);
+
+    while (nestedMatch) {
+        source = nestedMatch[1].trim();
+        nestedContent = (nestedMatch[2] || "").replace(/^\s+/, "");
+        nestedMatch = nestedContent.match(/^Đăng lại từ\s+(@[^\s:]+):\s*([\s\S]*)$/u);
+    }
+
     return {
-        source: match[1].trim(),
-        content: (match[2] || "").replace(/^\s+/, "")
+        source: source,
+        content: nestedContent
     };
 }
 
@@ -370,15 +380,32 @@ function scrollPostMedia(button, direction) {
     });
 }
 
-function renderRepostEmbedHtml(content, images) {
-    const repost = parseRepostContent(content);
+function renderRepostEmbedHtml(post) {
+    const repost = parseRepostContent(post.Content || "");
 
-    if (!repost) {
+    if (!repost && !post.OriginalPostID) {
         return "";
     }
 
-    const body = repost.content.trim()
-        ? renderContentWithHashtags(repost.content)
+    const originalContent = String(post.OriginalContent || "").trim();
+    let displayContent = originalContent || (repost ? repost.content : "");
+    const nestedRepost = parseRepostContent(displayContent);
+    if (nestedRepost) {
+        displayContent = nestedRepost.content;
+    }
+
+    const sourceUsername = String(post.OriginalUsername || "").trim();
+    const sourceName = String(post.OriginalFullName || "").trim()
+        || (sourceUsername ? `@${sourceUsername}` : (repost ? repost.source : "@nguoi-dung"));
+    const sourceAvatar = normalizeImagePath(post.OriginalProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
+    const images = Array.isArray(post.OriginalImages)
+        ? post.OriginalImages
+        : (typeof post.OriginalImages === "string" && post.OriginalImages.trim() !== ""
+            ? post.OriginalImages.split(",").map(item => item.trim()).filter(Boolean)
+            : (Array.isArray(post.Images) ? post.Images : []));
+
+    const body = displayContent.trim()
+        ? renderContentWithHashtags(displayContent)
         : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
 
     return `
@@ -389,8 +416,8 @@ function renderRepostEmbedHtml(content, images) {
         <div class="repost-embed no-post-nav">
             <div class="repost-embed-header">
                 <div class="repost-embed-author">
-                    <span class="repost-embed-avatar"><i class="bi bi-person"></i></span>
-                    <span>${escapeHTML(repost.source)}</span>
+                    <img src="${escapeHTML(sourceAvatar)}" class="repost-embed-avatar" alt="avatar" onerror="this.src='${appUrl("Public/assets/img/default-avatar.jpg")}';">
+                    <span>${escapeHTML(sourceName)}</span>
                 </div>
                 <div class="repost-embed-meta">Bài viết gốc</div>
             </div>
@@ -412,9 +439,9 @@ function addPostToUI(post) {
     }
 
     const images = Array.isArray(post.Images) ? post.Images : [];
-    const repost = parseRepostContent(post.Content || "");
+    const repost = parseRepostContent(post.Content || "") || post.OriginalPostID;
     const postBodyHtml = repost
-        ? renderRepostEmbedHtml(post.Content || "", images)
+        ? renderRepostEmbedHtml(post)
         : `<p class="post-text"></p>${renderPostMediaHtml(images, "post-media-list")}`;
 
     const avatarSrc = normalizeImagePath(post.ProfilePictureUrl || "Public/assets/img/default-avatar.jpg");
@@ -609,6 +636,14 @@ function sendComment(btn) {
     const parentCommentId = btn.dataset.parentCommentId || "";
     const content = input.value.trim();
 
+    if (parentCommentId) {
+        const sourceComment = btn.closest(".comment-item");
+        if (!sourceComment || sourceComment.classList.contains("comment-reply") || sourceComment.dataset.parentCommentId !== "0") {
+            showPostToast("Chỉ có thể trả lời bình luận gốc.");
+            return;
+        }
+    }
+
     if (content === "") {
         showPostToast("Bạn chưa nhập bình luận.");
         return;
@@ -717,9 +752,9 @@ function renderComment(commentData) {
                 <div class="comment-content">${escapeHTML(commentData.content || "")}</div>
             </div>
             <div class="comment-actions">
-                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                ${!isReply ? '<button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>' : ''}
                 ${commentData.canEdit ? '<button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>' : ''}
-                ${commentData.canDelete ? '<button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>' : ''}
+                ${commentData.canDelete ? '<button type="button" class="comment-action-btn comment-delete-action" onclick="deleteComment(this)">Xóa</button>' : ''}
                 ${commentData.canReport ? '<button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>' : ''}
             </div>
             <div class="comment-inline-form"></div>
@@ -732,9 +767,15 @@ function renderComment(commentData) {
 function showReplyForm(btn) {
     const comment = btn.closest(".comment-item");
     const postCard = btn.closest(".post-card");
+
+    if (!comment || comment.classList.contains("comment-reply") || comment.dataset.parentCommentId !== "0") {
+        showPostToast("Chỉ có thể trả lời bình luận gốc.");
+        return;
+    }
+
     const formSlot = comment.querySelector(".comment-inline-form");
     const postId = comment.dataset.postId || (postCard ? postCard.dataset.postId : "");
-    const parentCommentId = comment.dataset.rootCommentId || comment.dataset.commentId;
+    const parentCommentId = comment.dataset.commentId;
 
     formSlot.innerHTML = `
         <div class="comment-reply-form d-flex gap-2">

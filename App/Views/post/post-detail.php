@@ -50,6 +50,10 @@ function detailAssetPath($path, $default = '') {
         return BASE_URL . "Public/" . $path;
     }
 
+    if (!str_contains($path, "/")) {
+        return BASE_URL . "Public/uploads/avatars/" . basename($path);
+    }
+
     return BASE_URL . $path;
 }
 
@@ -201,9 +205,17 @@ function detailParseRepostContent($content): ?array {
         return null;
     }
 
+    $source = trim($matches[1]);
+    $nestedContent = ltrim((string) ($matches[2] ?? ''));
+
+    while (preg_match('/^Đăng lại từ\s+(@[^\s:]+):\s*(.*)$/su', $nestedContent, $nestedMatches)) {
+        $source = trim($nestedMatches[1]);
+        $nestedContent = ltrim((string) ($nestedMatches[2] ?? ''));
+    }
+
     return [
-        'source' => trim($matches[1]),
-        'content' => ltrim((string) ($matches[2] ?? ''))
+        'source' => $source,
+        'content' => $nestedContent
     ];
 }
 
@@ -281,22 +293,38 @@ function detailRenderPostMediaList($images, string $wrapperClass = 'post-media-l
 function detailRenderRepostEmbed(array $post): string {
     $repost = detailParseRepostContent($post['Content'] ?? '');
 
-    if (!$repost) {
+    if (!$repost && empty($post['OriginalPostID'])) {
         return '';
     }
 
-    $contentHtml = trim($repost['content']) !== ''
-        ? renderDetailPostContent($repost['content'])
+    $originalContent = trim((string) ($post['OriginalContent'] ?? ''));
+    $fallbackContent = $repost['content'] ?? '';
+    $displayContent = $originalContent !== '' ? $originalContent : $fallbackContent;
+    $nestedRepost = detailParseRepostContent($displayContent);
+    if ($nestedRepost) {
+        $displayContent = $nestedRepost['content'];
+    }
+
+    $sourceName = trim((string) ($post['OriginalFullName'] ?? ''));
+    if ($sourceName === '') {
+        $sourceUsername = trim((string) ($post['OriginalUsername'] ?? ''));
+        $sourceName = $sourceUsername !== '' ? '@' . $sourceUsername : ($repost['source'] ?? '@nguoi-dung');
+    }
+
+    $sourceAvatar = detailImagePath($post['OriginalProfilePictureUrl'] ?? '');
+    $mediaList = !empty($post['OriginalImages']) ? $post['OriginalImages'] : ($post['Images'] ?? '');
+    $contentHtml = trim($displayContent) !== ''
+        ? renderDetailPostContent($displayContent)
         : '<span class="text-muted">Bài viết gốc không có nội dung văn bản.</span>';
 
     return '<div class="repost-source-label"><i class="bi bi-arrow-repeat"></i><span>Đăng lại bài viết</span></div>'
         . '<div class="repost-embed no-post-nav">'
         . '<div class="repost-embed-header">'
-        . '<div class="repost-embed-author"><span class="repost-embed-avatar"><i class="bi bi-person"></i></span><span>' . htmlspecialchars($repost['source'], ENT_QUOTES, 'UTF-8') . '</span></div>'
+        . '<div class="repost-embed-author"><img src="' . htmlspecialchars($sourceAvatar, ENT_QUOTES, 'UTF-8') . '" class="repost-embed-avatar" alt="avatar" onerror="this.src=\'' . BASE_URL . 'Public/assets/img/default-avatar.jpg\';"><span>' . htmlspecialchars($sourceName, ENT_QUOTES, 'UTF-8') . '</span></div>'
         . '<div class="repost-embed-meta">Bài viết gốc</div>'
         . '</div>'
         . '<div class="repost-embed-content post-text">' . $contentHtml . '</div>'
-        . detailRenderPostMediaList($post['Images'] ?? '', 'repost-embed-media')
+        . detailRenderPostMediaList($mediaList, 'repost-embed-media')
         . '</div>';
 }
 
@@ -338,12 +366,14 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
                 <div class="comment-content"><?= htmlspecialchars($comment['Content'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
             </div>
             <div class="comment-actions">
-                <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                <?php if (!$isReply): ?>
+                    <button type="button" class="comment-action-btn" onclick="showReplyForm(this)">Trả lời</button>
+                <?php endif; ?>
                 <?php if ($canEdit): ?>
                     <button type="button" class="comment-action-btn" onclick="showEditCommentForm(this)">Sửa</button>
                 <?php endif; ?>
                 <?php if ($canDelete): ?>
-                    <button type="button" class="comment-action-btn text-danger" onclick="deleteComment(this)">Xóa</button>
+                    <button type="button" class="comment-action-btn comment-delete-action" onclick="deleteComment(this)">Xóa</button>
                 <?php endif; ?>
                 <?php if ($canReport): ?>
                     <button type="button" class="comment-action-btn" onclick="showReportCommentForm(this)">Báo cáo</button>
@@ -416,7 +446,7 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
                         Không tìm thấy bài viết.
                     </div>
                 <?php else: ?>
-                    <?php $isRepost = detailParseRepostContent($post['Content'] ?? '') !== null; ?>
+                    <?php $isRepost = detailParseRepostContent($post['Content'] ?? '') !== null || !empty($post['OriginalPostID']); ?>
                     <article class="bg-white post-card post-detail-card mb-3<?= $isRepost ? ' repost-card' : '' ?>" id="post-<?= (int) $post['PostID'] ?>" <?= archivePostCardAttributes($post, (int) $currentUserId) ?>>
                         <div class="p-3 p-md-4">
                             <div class="d-flex gap-3">
