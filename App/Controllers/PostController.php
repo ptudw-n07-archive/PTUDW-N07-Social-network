@@ -260,6 +260,31 @@ class PostController {
             return;
         }
 
+        $receiverUserId = $this->postModel->getOriginalPostOwnerId((int) $postId);
+        if ($receiverUserId && (int) $receiverUserId !== $userId) {
+            $repostTypeId = $this->notificationModel->getTypeIdByName('Repost')
+                ?: $this->notificationModel->getTypeIdByName('Share')
+                ?: $this->notificationModel->getTypeIdByName('Comment');
+
+            if ($repostTypeId) {
+                $sender = $this->postModel->getUserById($userId);
+                $senderName = trim((string) ($sender['FullName'] ?? ''));
+                if ($senderName === '') {
+                    $senderName = !empty($sender['Username']) ? '@' . $sender['Username'] : 'Người dùng';
+                }
+
+                $message = $senderName . ' đã đăng lại bài viết của bạn';
+                $this->notificationModel->createNotification(
+                    $repostTypeId,
+                    $receiverUserId,
+                    $userId,
+                    (int) $newPostId,
+                    null,
+                    $message
+                );
+            }
+        }
+
         $post = $this->postModel->getPostById((int) $newPostId, $userId);
         if ($post && isset($post['Images']) && !is_array($post['Images'])) {
             $post['Images'] = array_values(array_filter(array_map('trim', explode(',', (string) $post['Images']))));

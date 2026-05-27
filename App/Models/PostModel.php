@@ -419,6 +419,34 @@ public function getPostOwnerId($postId) {
     $ownerId = $stmt->fetchColumn();
     return $ownerId ? (int) $ownerId : null;
 }
+
+public function getOriginalPostOwnerId($postId) {
+    $currentPostId = (int) $postId;
+    $visitedPostIds = [];
+
+    while ($currentPostId > 0 && !isset($visitedPostIds[$currentPostId])) {
+        $visitedPostIds[$currentPostId] = true;
+
+        $sql = "SELECT UserID, OriginalPostID FROM posts WHERE PostID = :postId LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(":postId", $currentPostId, PDO::PARAM_INT);
+        $stmt->execute();
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return null;
+        }
+
+        if (empty($post['OriginalPostID'])) {
+            return (int) $post['UserID'];
+        }
+
+        $currentPostId = (int) $post['OriginalPostID'];
+    }
+
+    return null;
+}
+
 public function getCommentsByPostId($postId) {
     $sql = "
         SELECT 
