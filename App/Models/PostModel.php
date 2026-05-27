@@ -34,7 +34,7 @@ class PostModel {
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
             $viewerLikeJoin
-            LEFT JOIN comments c ON p.PostID = c.PostID
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
             WHERE p.IsHidden = 0
             AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
@@ -74,7 +74,7 @@ class PostModel {
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
             $viewerLikeJoin
-            LEFT JOIN comments c ON p.PostID = c.PostID
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
             WHERE p.UserID = :userId
             AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
@@ -127,7 +127,7 @@ class PostModel {
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
             $viewerLikeJoin
-            LEFT JOIN comments c ON p.PostID = c.PostID
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
             WHERE p.PostID = :postId
             AND p.IsHidden = 0
             AND " . $this->visibilitySql($viewerId) . "
@@ -174,6 +174,53 @@ public function addPostImage($postId, $imageUrl) {
     return $stmt->execute();
 }
 
+public function createRepost($currentUserId, $originalPostId) {
+    $originalPost = $this->getPostById($originalPostId, $currentUserId);
+
+    if (!$originalPost) {
+        return false;
+    }
+
+    if ((int) $originalPost['UserID'] === (int) $currentUserId) {
+        return false;
+    }
+
+    $sourceUsername = trim((string) ($originalPost['Username'] ?? ''));
+    $sourceName = $sourceUsername !== '' ? '@' . $sourceUsername : 'người dùng';
+    $sourceContent = trim((string) ($originalPost['Content'] ?? ''));
+    $repostContent = "Đăng lại từ {$sourceName}:";
+
+    if ($sourceContent !== '') {
+        $repostContent .= "\n\n" . $sourceContent;
+    }
+
+    try {
+        $this->conn->beginTransaction();
+
+        $postId = $this->createPost($currentUserId, $repostContent);
+        if (!$postId) {
+            $this->conn->rollBack();
+            return false;
+        }
+
+        $imageUrls = array_values(array_filter(array_map('trim', explode(',', (string) ($originalPost['Images'] ?? '')))));
+
+        foreach ($imageUrls as $imageUrl) {
+            $this->addPostImage($postId, $imageUrl);
+        }
+
+        $this->conn->commit();
+        return (int) $postId;
+    } catch (\Throwable $e) {
+        if ($this->conn->inTransaction()) {
+            $this->conn->rollBack();
+        }
+
+        error_log('[PostModel] createRepost failed: ' . $e->getMessage());
+        return false;
+    }
+}
+
 public function toggleLike($userId, $postId) {
     $checkSql = "SELECT * FROM likes 
                  WHERE UserID = :userId AND PostID = :postId";
@@ -217,14 +264,37 @@ public function countLikes($postId) {
     return $row['total'];
 }
 
-public function createComment($userId, $postId, $content) {
-    $sql = "INSERT INTO comments (PostID, UserID, Content, CreatedAt)
-            VALUES (:postId, :userId, :content, NOW())";
+public function createComment($userId, $postId, $content, $parentCommentId = null) {
+    $parentCommentId = $parentCommentId ? (int) $parentCommentId : null;
+
+    if ($parentCommentId !== null) {
+        $parentSql = "
+            SELECT 1
+            FROM comments
+            WHERE CommentID = :parentCommentId
+            AND PostID = :postId
+            AND IsHidden = 0
+            AND ParentCommentID IS NULL
+            LIMIT 1
+        ";
+        $parentStmt = $this->conn->prepare($parentSql);
+        $parentStmt->bindParam(":parentCommentId", $parentCommentId, PDO::PARAM_INT);
+        $parentStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $parentStmt->execute();
+
+        if (!$parentStmt->fetchColumn()) {
+            return false;
+        }
+    }
+
+    $sql = "INSERT INTO comments (PostID, UserID, Content, ParentCommentID, CreatedAt)
+            VALUES (:postId, :userId, :content, :parentCommentId, NOW())";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
     $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
     $stmt->bindParam(":content", $content);
+    $stmt->bindValue(":parentCommentId", $parentCommentId, $parentCommentId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
 
     if ($stmt->execute()) {
         return $this->conn->lastInsertId();
@@ -247,15 +317,18 @@ public function getCommentsByPostId($postId) {
     $sql = "
         SELECT 
             c.CommentID,
+            c.PostID,
+            c.UserID,
             c.Content,
             c.CreatedAt,
-            u.UserID,
+            c.ParentCommentID,
             u.Username,
             u.FullName,
             u.ProfilePictureUrl
         FROM comments c
         JOIN users u ON c.UserID = u.UserID
         WHERE c.PostID = :postId
+        AND c.IsHidden = 0
         ORDER BY c.CreatedAt ASC
     ";
 
@@ -264,6 +337,155 @@ public function getCommentsByPostId($postId) {
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function getCommentsByPostIds(array $postIds): array {
+    $postIds = array_values(array_unique(array_filter(array_map('intval', $postIds))));
+
+    if (empty($postIds)) {
+        return [];
+    }
+
+    $placeholders = [];
+    foreach ($postIds as $index => $postId) {
+        $placeholders[] = ":postId{$index}";
+    }
+
+    $sql = "
+        SELECT 
+            c.CommentID,
+            c.PostID,
+            c.UserID,
+            c.Content,
+            c.CreatedAt,
+            c.ParentCommentID,
+            u.Username,
+            u.FullName,
+            u.ProfilePictureUrl
+        FROM comments c
+        JOIN users u ON c.UserID = u.UserID
+        WHERE c.PostID IN (" . implode(',', $placeholders) . ")
+        AND c.IsHidden = 0
+        ORDER BY c.CreatedAt ASC
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+
+    foreach ($postIds as $index => $postId) {
+        $stmt->bindValue(":postId{$index}", $postId, PDO::PARAM_INT);
+    }
+
+    $stmt->execute();
+    $commentsByPostId = [];
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $comment) {
+        $commentsByPostId[(int) $comment['PostID']][] = $comment;
+    }
+
+    return $commentsByPostId;
+}
+
+public function getCommentById($commentId) {
+    $sql = "
+        SELECT 
+            c.CommentID,
+            c.PostID,
+            c.UserID,
+            c.Content,
+            c.CreatedAt,
+            c.ParentCommentID,
+            c.IsHidden,
+            p.UserID AS PostOwnerID,
+            u.Username,
+            u.FullName,
+            u.ProfilePictureUrl
+        FROM comments c
+        JOIN posts p ON p.PostID = c.PostID
+        JOIN users u ON u.UserID = c.UserID
+        WHERE c.CommentID = :commentId
+        LIMIT 1
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+public function updateComment($commentId, $userId, $content): bool {
+    $sql = "
+        UPDATE comments
+        SET Content = :content
+        WHERE CommentID = :commentId
+        AND UserID = :userId
+        AND IsHidden = 0
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":content", $content);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->rowCount() > 0;
+}
+
+public function hideComment($commentId, $currentUserId): bool {
+    $comment = $this->getCommentById($commentId);
+
+    if (!$comment || (int) ($comment['IsHidden'] ?? 0) === 1) {
+        return false;
+    }
+
+    $isCommentOwner = (int) $comment['UserID'] === (int) $currentUserId;
+    $isPostOwner = (int) $comment['PostOwnerID'] === (int) $currentUserId;
+
+    if (!$isCommentOwner && !$isPostOwner) {
+        return false;
+    }
+
+    $sql = "UPDATE comments SET IsHidden = 1 WHERE CommentID = :commentId OR ParentCommentID = :commentId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->rowCount() > 0;
+}
+
+public function createCommentReport($reporterUserId, $commentId, string $reason, string $details = ''): bool {
+    $comment = $this->getCommentById($commentId);
+
+    if (!$comment || (int) ($comment['IsHidden'] ?? 0) === 1) {
+        return false;
+    }
+
+    if ((int) $comment['UserID'] === (int) $reporterUserId) {
+        return false;
+    }
+
+    if ($details === '') {
+        $details = $reason;
+    }
+
+    $sql = "
+        INSERT INTO reports
+            (ReporterUserID, ReportedUserID, PostID, CommentID, Reason, Details, CreatedAt, Status, AdminNote, ResolvedAt)
+        VALUES
+            (:reporterUserId, :reportedUserId, :postId, :commentId, :reason, :details, NOW(), 'Pending', NULL, NULL)
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $reportedUserId = (int) $comment['UserID'];
+    $postId = (int) $comment['PostID'];
+    $stmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":reportedUserId", $reportedUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->bindParam(":reason", $reason);
+    $stmt->bindParam(":details", $details);
+
+    return $stmt->execute();
 }
 
 public function syncPostHashtags($postId, array $hashtagNames) {
@@ -376,7 +598,7 @@ public function getPostsByHashtag($tag, $viewerId = null) {
         JOIN hashtags h ON ph.HashtagID = h.HashtagID
         LEFT JOIN postimages pi ON p.PostID = pi.PostID
         LEFT JOIN likes l ON p.PostID = l.PostID
-        LEFT JOIN comments c ON p.PostID = c.PostID
+        LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
         WHERE h.HashtagName = :tag
         AND p.IsHidden = 0
         AND " . $this->visibilitySql($viewerId) . "

@@ -29,6 +29,20 @@ class PostController {
         return $this->postModel->getAllPosts($_SESSION['user_id'] ?? null);
     }
 
+    public function getFeedPosts($viewerId = null): array {
+        $viewerId = $viewerId ?? ($_SESSION['user_id'] ?? null);
+        $posts = $this->postModel->getAllPosts($viewerId);
+        $commentsByPostId = $this->postModel->getCommentsByPostIds(array_column($posts, 'PostID'));
+
+        foreach ($posts as &$post) {
+            $postId = (int) ($post['PostID'] ?? 0);
+            $post['Comments'] = $commentsByPostId[$postId] ?? [];
+        }
+        unset($post);
+
+        return $posts;
+    }
+
     public function create() {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -107,7 +121,7 @@ class PostController {
         $savedImages = [];
 
         if ($postId && !empty($validImages)) {
-            $uploadDir = app_uploads_root('posts/');
+            $uploadDir = app_path('Public/uploads/posts/');
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
@@ -149,7 +163,8 @@ class PostController {
                     "Images" => $savedImages,
                     "Hashtags" => $hashtags,
                     "LikeCount" => 0,
-                    "CommentCount" => 0
+                    "CommentCount" => 0,
+                    "Privacy" => "public"
                 ],
                 "uploadErrors" => $uploadErrors
             ]);
@@ -176,8 +191,6 @@ class PostController {
             ]);
             return;
         }
-
-        $postId = $_POST['postId'] ?? null;
 
         if (!$postId) {
             echo json_encode([
@@ -208,6 +221,44 @@ class PostController {
         ], JSON_UNESCAPED_UNICODE);
     }
 
+    public function repost() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $postId = filter_var($_POST['postId'] ?? $_POST['post_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if (!$userId) {
+            $this->json(false, "Bạn chưa đăng nhập.");
+            return;
+        }
+
+        if (!$postId) {
+            $this->json(false, "Thiếu thông tin bài viết.");
+            return;
+        }
+
+        $newPostId = $this->postModel->createRepost($userId, (int) $postId);
+
+        if (!$newPostId) {
+            $this->json(false, "Không thể đăng lại bài viết này.");
+            return;
+        }
+
+        $post = $this->postModel->getPostById((int) $newPostId, $userId);
+        if ($post && isset($post['Images']) && !is_array($post['Images'])) {
+            $post['Images'] = array_values(array_filter(array_map('trim', explode(',', (string) $post['Images']))));
+        }
+
+        $this->json(true, "Đã đăng lại bài viết.", [
+            "post" => $post
+        ]);
+    }
+
     public function comment() {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -219,6 +270,8 @@ class PostController {
         $userId = $_SESSION['user_id'] ?? null;
         $postId = filter_var($_POST['postId'] ?? $_POST['post_id'] ?? $_GET['post_id'] ?? null, FILTER_VALIDATE_INT);
         $content = trim($_POST['content'] ?? $_POST['comment'] ?? '');
+        $parentCommentId = filter_var($_POST['parentCommentId'] ?? $_POST['parent_comment_id'] ?? null, FILTER_VALIDATE_INT);
+        $parentCommentId = $parentCommentId ?: null;
 
         if (!$userId) {
             echo json_encode([
@@ -228,9 +281,6 @@ class PostController {
             return;
         }
 
-        $postId = $_POST['postId'] ?? null;
-        $content = trim($_POST['content'] ?? '');
-
         if (!$postId || $content === '') {
             echo json_encode([
                 "success" => false,
@@ -239,7 +289,7 @@ class PostController {
             return;
         }
 
-        $commentId = $this->postModel->createComment($userId, $postId, $content);
+        $commentId = $this->postModel->createComment($userId, $postId, $content, $parentCommentId);
 
         if ($commentId) {
             $receiverUserId = $this->postModel->getPostOwnerId($postId);
@@ -251,18 +301,81 @@ class PostController {
 
         echo json_encode([
             "success" => (bool) $commentId,
-            "comment" => [
-                "commentId" => $commentId,
-                "content" => $content,
-                "fullName" => !empty($_SESSION['user_name'])
-                    ? $_SESSION['user_name']
-                    : (!empty($_SESSION['username']) ? '@' . $_SESSION['username'] : 'Bạn')
-            ]
-        ]);
+            "comment" => $this->formatCommentForResponse($this->postModel->getCommentById((int) $commentId), (int) $userId)
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     public function getComments($postId) {
         return $this->postModel->getCommentsByPostId($postId);
+    }
+
+    public function updateComment() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $commentId = filter_var($_POST['commentId'] ?? $_POST['comment_id'] ?? null, FILTER_VALIDATE_INT);
+        $content = trim($_POST['content'] ?? '');
+
+        if (!$userId || !$commentId || $content === '') {
+            $this->json(false, "Thiếu nội dung bình luận.");
+            return;
+        }
+
+        $success = $this->postModel->updateComment((int) $commentId, $userId, $content);
+        $comment = $success ? $this->postModel->getCommentById((int) $commentId) : null;
+
+        $this->json($success, $success ? "Đã cập nhật bình luận." : "Bạn không có quyền sửa bình luận này.", [
+            "comment" => $this->formatCommentForResponse($comment, $userId)
+        ]);
+    }
+
+    public function deleteComment() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        $commentId = filter_var($_POST['commentId'] ?? $_POST['comment_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if (!$userId || !$commentId) {
+            $this->json(false, "Thiếu thông tin bình luận.");
+            return;
+        }
+
+        $success = $this->postModel->hideComment((int) $commentId, $userId);
+        $this->json($success, $success ? "Đã xóa bình luận." : "Bạn không có quyền xóa bình luận này.", [
+            "commentId" => (int) $commentId
+        ]);
+    }
+
+    public function reportComment() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        $reporterId = (int) ($_SESSION['user_id'] ?? 0);
+        $commentId = filter_var($_POST['commentId'] ?? $_POST['comment_id'] ?? null, FILTER_VALIDATE_INT);
+        $reason = trim($_POST['reason'] ?? '');
+        $details = trim($_POST['details'] ?? '');
+
+        if (!$reporterId || !$commentId || $reason === '') {
+            $this->json(false, "Thiếu thông tin báo cáo.");
+            return;
+        }
+
+        $success = $this->postModel->createCommentReport($reporterId, (int) $commentId, $reason, $details);
+        $this->json($success, $success ? "Đã gửi báo cáo bình luận." : "Không thể báo cáo bình luận này.");
     }
 
     public function detail($postId, $viewerId = null) {
@@ -380,7 +493,7 @@ class PostController {
 
             $savedImages = [];
             if (!empty($validImages)) {
-                $uploadDir = app_uploads_root('posts/');
+                $uploadDir = app_path('Public/uploads/posts/');
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0777, true);
                 }
@@ -637,6 +750,32 @@ class PostController {
         return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
     }
 
+    private function formatCommentForResponse($comment, int $currentUserId): array {
+        if (!$comment) {
+            return [];
+        }
+
+        $ownerId = (int) ($comment['UserID'] ?? 0);
+        $postOwnerId = (int) ($comment['PostOwnerID'] ?? 0);
+
+        return [
+            "commentId" => (int) ($comment['CommentID'] ?? 0),
+            "postId" => (int) ($comment['PostID'] ?? 0),
+            "userId" => $ownerId,
+            "parentCommentId" => !empty($comment['ParentCommentID']) ? (int) $comment['ParentCommentID'] : null,
+            "content" => (string) ($comment['Content'] ?? ''),
+            "createdAt" => (string) ($comment['CreatedAt'] ?? ''),
+            "username" => (string) ($comment['Username'] ?? ''),
+            "fullName" => !empty($comment['FullName'])
+                ? (string) $comment['FullName']
+                : (!empty($comment['Username']) ? '@' . $comment['Username'] : 'Bạn'),
+            "profilePictureUrl" => $comment['ProfilePictureUrl'] ?? 'Public/assets/img/default-avatar.jpg',
+            "canEdit" => $ownerId === $currentUserId,
+            "canDelete" => $ownerId === $currentUserId || $postOwnerId === $currentUserId,
+            "canReport" => $ownerId !== $currentUserId
+        ];
+    }
+
     private function json(bool $success, string $message, array $extra = []): void {
         if (ob_get_length()) {
             ob_clean();
@@ -672,8 +811,16 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
         $controller->create();
     } elseif ($_GET['action'] === 'like') {
         $controller->like();
+    } elseif ($_GET['action'] === 'repost') {
+        $controller->repost();
     } elseif ($_GET['action'] === 'comment') {
         $controller->comment();
+    } elseif ($_GET['action'] === 'updateComment') {
+        $controller->updateComment();
+    } elseif ($_GET['action'] === 'deleteComment') {
+        $controller->deleteComment();
+    } elseif ($_GET['action'] === 'reportComment') {
+        $controller->reportComment();
     } elseif ($_GET['action'] === 'trendingHashtags') {
         $controller->trendingHashtags();
     } elseif ($_GET['action'] === 'updatePost') {
