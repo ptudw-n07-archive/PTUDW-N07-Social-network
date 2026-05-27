@@ -379,6 +379,138 @@
     color: #b76e79 !important;
 }
 
+.profile-page .profile-post-actions .feed-like-btn.liked {
+    color: #d64045 !important;
+}
+
+.profile-page .comment-box {
+    margin-top: 10px !important;
+    padding: 10px;
+    border: 1px solid rgba(121, 91, 74, 0.12);
+    border-radius: 16px;
+    background: #fff8f5;
+}
+
+.profile-page .comment-form,
+.profile-page .comment-reply-form,
+.profile-page .comment-edit-form {
+    align-items: flex-end;
+    gap: 8px !important;
+}
+
+.profile-page .comment-input,
+.profile-page .comment-edit-input {
+    min-height: 38px;
+    max-height: 160px;
+    border-radius: 18px;
+    border-color: rgba(121, 91, 74, 0.16);
+    padding: 9px 13px;
+    background: #fffdfb;
+    color: #3b312d;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    resize: none;
+    overflow-y: auto;
+    box-shadow: none;
+}
+
+.profile-page .comment-input:focus,
+.profile-page .comment-edit-input:focus {
+    border-color: rgba(183, 110, 121, 0.38);
+    box-shadow: 0 0 0 0.16rem rgba(183, 110, 121, 0.12);
+}
+
+.profile-page .comment-submit {
+    min-width: 52px;
+    min-height: 38px;
+    border-radius: 999px;
+    padding: 7px 13px;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.profile-page .comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 9px;
+}
+
+.profile-page .comment-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #4a3a35;
+    font-size: 0.9rem;
+    line-height: 1.42;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.profile-page .comment-reply {
+    margin-left: 38px;
+}
+
+.profile-page .comment-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    object-fit: cover;
+    border: 1px solid rgba(121, 91, 74, 0.12);
+}
+
+.profile-page .comment-body {
+    min-width: 0;
+    flex: 1;
+}
+
+.profile-page .comment-bubble {
+    display: inline-block;
+    max-width: 100%;
+    padding: 8px 10px;
+    border-radius: 14px;
+    background: #fffdfb;
+    border: 1px solid rgba(121, 91, 74, 0.1);
+}
+
+.profile-page .comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.profile-page .comment-author {
+    color: #2f2420;
+    font-size: 0.86rem;
+}
+
+.profile-page .comment-time {
+    color: #927b74;
+    font-size: 0.75rem;
+}
+
+.profile-page .comment-actions {
+    display: flex;
+    gap: 10px;
+    margin: 3px 0 0 4px;
+}
+
+.profile-page .comment-action-btn {
+    color: #8a736c;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.profile-page .comment-action-btn:hover {
+    color: #b76e79;
+}
+
 .profile-page .profile-empty-state {
     border: 1px solid rgba(121, 91, 74, 0.14);
     border-radius: 24px;
@@ -421,6 +553,8 @@
     display: block;
     position: relative;
     overflow: hidden;
+    width: 100%;
+    padding: 0;
     aspect-ratio: 1 / 1;
     border: 1px solid rgba(121, 91, 74, 0.14);
     border-radius: 18px;
@@ -439,6 +573,57 @@
     height: 100%;
     display: block;
     object-fit: cover;
+}
+
+.profile-page .profile-photo-modal .modal-content {
+    border: 0;
+    border-radius: 24px;
+    overflow: hidden;
+    background: #fffaf7;
+}
+
+.profile-page .profile-photo-modal .modal-body {
+    position: relative;
+    min-height: min(70vh, 680px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1f1a18;
+    padding: 18px 64px;
+}
+
+.profile-page #profilePhotoModalImage {
+    max-width: 100%;
+    max-height: 72vh;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.profile-page .profile-photo-nav {
+    position: absolute;
+    top: 50%;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 250, 247, 0.9);
+    color: #2f2420;
+    transform: translateY(-50%);
+}
+
+.profile-page .profile-photo-nav:hover {
+    background: #fff;
+}
+
+.profile-page .profile-photo-prev {
+    left: 16px;
+}
+
+.profile-page .profile-photo-next {
+    right: 16px;
 }
 
 /* TITLE */

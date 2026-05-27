@@ -51,13 +51,15 @@ class PostModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getPostsByUserId($userId, $viewerId = null) {
+    public function getPostsByUserId($userId, $viewerId = null, bool $includeReposts = true) {
         $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
         $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+        $repostFilter = $includeReposts ? "" : "AND p.OriginalPostID IS NULL AND p.Content NOT LIKE :repostPattern";
 
         $sql = "
             SELECT
                 p.PostID,
+                p.OriginalPostID,
                 p.Content,
                 p.CreatedAt,
                 COALESCE(p.Privacy, 'public') AS Privacy,
@@ -76,6 +78,8 @@ class PostModel {
             $viewerLikeJoin
             LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
             WHERE p.UserID = :userId
+            AND p.IsHidden = 0
+            $repostFilter
             AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             ORDER BY p.CreatedAt DESC
@@ -89,16 +93,93 @@ class PostModel {
             $this->bindViewerParams($stmt, $viewerId);
         }
 
+        if (!$includeReposts) {
+            $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
+        }
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getRepostsByUserId($userId, $viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON COALESCE(op.PostID, rp.PostID) = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+        $sql = "
+            SELECT
+                COALESCE(op.PostID, rp.PostID) AS PostID,
+                rp.PostID AS RepostID,
+                rp.OriginalPostID,
+                COALESCE(op.Content, rp.Content) AS Content,
+                COALESCE(op.CreatedAt, rp.CreatedAt) AS CreatedAt,
+                rp.CreatedAt AS RepostedAt,
+                COALESCE(op.Privacy, rp.Privacy, 'public') AS Privacy,
+                COALESCE(ou.UserID, ru.UserID) AS UserID,
+                COALESCE(ou.Username, ru.Username) AS Username,
+                COALESCE(ou.FullName, ru.FullName) AS FullName,
+                COALESCE(ou.ProfilePictureUrl, ru.ProfilePictureUrl) AS ProfilePictureUrl,
+                GROUP_CONCAT(DISTINCT COALESCE(opi.ImageUrl, rpi.ImageUrl)) AS Images,
+                $viewerLikeSelect
+                COUNT(DISTINCT l.UserID) AS LikeCount,
+                COUNT(DISTINCT c.CommentID) AS CommentCount
+            FROM posts rp
+            JOIN users ru ON rp.UserID = ru.UserID
+            LEFT JOIN posts op ON rp.OriginalPostID = op.PostID AND op.IsHidden = 0
+            LEFT JOIN users ou ON op.UserID = ou.UserID
+            LEFT JOIN postimages rpi ON rp.PostID = rpi.PostID
+            LEFT JOIN postimages opi ON op.PostID = opi.PostID
+            LEFT JOIN likes l ON COALESCE(op.PostID, rp.PostID) = l.PostID
+            $viewerLikeJoin
+            LEFT JOIN comments c ON COALESCE(op.PostID, rp.PostID) = c.PostID AND c.IsHidden = 0
+            WHERE rp.UserID = :userId
+            AND rp.IsHidden = 0
+            AND (rp.OriginalPostID IS NOT NULL OR rp.Content LIKE :repostPattern)
+            AND (
+                op.PostID IS NULL
+                OR COALESCE(op.Privacy, 'public') = 'public'
+                OR op.UserID = :privacyViewerId
+                OR (
+                    op.Privacy = 'followers'
+                    AND EXISTS (
+                        SELECT 1 FROM follows f
+                        WHERE f.FollowerID = :followViewerId
+                        AND f.FollowedID = op.UserID
+                    )
+                )
+            )
+            GROUP BY rp.PostID, op.PostID
+            ORDER BY rp.CreatedAt DESC
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
+        $stmt->bindValue(":privacyViewerId", (int) ($viewerId ?: 0), PDO::PARAM_INT);
+        $stmt->bindValue(":followViewerId", (int) ($viewerId ?: 0), PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+        }
+
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function countPostsByUserId($userId) {
-        $sql = "SELECT COUNT(*) AS total FROM posts WHERE UserID = :userId";
+        $sql = "
+            SELECT COUNT(*) AS total
+            FROM posts
+            WHERE UserID = :userId
+            AND IsHidden = 0
+            AND OriginalPostID IS NULL
+            AND Content NOT LIKE :repostPattern
+        ";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
         $stmt->execute();
 
         return (int) $stmt->fetchColumn();
@@ -217,6 +298,12 @@ public function createRepost($currentUserId, $originalPostId) {
             $this->conn->rollBack();
             return false;
         }
+
+        $linkSql = "UPDATE posts SET OriginalPostID = :originalPostId WHERE PostID = :postId";
+        $linkStmt = $this->conn->prepare($linkSql);
+        $linkStmt->bindParam(":originalPostId", $originalPostId, PDO::PARAM_INT);
+        $linkStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $linkStmt->execute();
 
         $imageUrls = array_values(array_filter(array_map('trim', explode(',', (string) ($originalPost['Images'] ?? '')))));
 
@@ -875,6 +962,11 @@ private function bindViewerParams($stmt, $viewerId = null): void {
 }
 
 private function ensurePostInteractionSchema(): void {
+    try {
+        $this->conn->exec("ALTER TABLE posts ADD COLUMN OriginalPostID INT NULL DEFAULT NULL");
+    } catch (\Throwable $e) {
+    }
+
     try {
         $this->conn->exec("ALTER TABLE posts ADD COLUMN Privacy VARCHAR(20) NOT NULL DEFAULT 'public'");
     } catch (\Throwable $e) {

@@ -49,11 +49,29 @@ class ProfileController {
         }
 
         $isOwnProfile = (int) $profileUserId === (int) $currentUserId;
-        $posts = $this->postModel->getPostsByUserId($profileUserId, $currentUserId);
+        $posts = $this->postModel->getPostsByUserId($profileUserId, $currentUserId, false);
+        $reposts = $this->postModel->getRepostsByUserId($profileUserId, $currentUserId);
+        $commentsByPostId = $this->postModel->getCommentsByPostIds(array_merge(
+            array_column($posts, 'PostID'),
+            array_column($reposts, 'PostID')
+        ));
+
+        foreach ($posts as &$post) {
+            $postId = (int) ($post['PostID'] ?? 0);
+            $post['Comments'] = $commentsByPostId[$postId] ?? [];
+        }
+        unset($post);
+
+        foreach ($reposts as &$repost) {
+            $postId = (int) ($repost['PostID'] ?? 0);
+            $repost['Comments'] = $commentsByPostId[$postId] ?? [];
+        }
+        unset($repost);
 
         return [
             'profile' => $profile,
             'posts' => $posts,
+            'reposts' => $reposts,
             'currentUserId' => $currentUserId,
             'profileUserId' => (int) $profileUserId,
             'isOwnProfile' => $isOwnProfile,
@@ -234,6 +252,7 @@ class ProfileController {
         return [
             'profile' => null,
             'posts' => [],
+            'reposts' => [],
             'currentUserId' => $currentUserId,
             'profileUserId' => $profileUserId,
             'isOwnProfile' => false,
