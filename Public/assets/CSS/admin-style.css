@@ -492,6 +492,7 @@
 .statistics-panel-wide .rank-main strong {
     white-space: normal;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
@@ -846,6 +847,7 @@
     color: #46332c;
     font-size: 0.9rem;
     line-height: 1.35;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
 }
 
@@ -854,6 +856,7 @@
     font-size: 0.8rem;
     line-height: 1.45;
     margin-top: 0.18rem;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
 }
 
@@ -1235,6 +1238,7 @@
     max-width: 100%;
     overflow: hidden;
     white-space: normal;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     word-break: break-word;
@@ -1246,6 +1250,7 @@
     max-width: 100%;
     overflow: hidden;
     white-space: normal;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     word-break: break-word;
@@ -1600,6 +1605,7 @@
     line-height: 1.4;
     white-space: normal;
     word-break: break-word;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
@@ -1966,6 +1972,7 @@
     overflow: hidden;
     color: #5b433e;
     line-height: 1.45;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     word-break: break-word;
@@ -2114,6 +2121,7 @@
     line-height: 1.42;
     white-space: normal;
     word-break: break-word;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
@@ -2233,8 +2241,9 @@
     border: 1px solid rgba(217, 140, 163, 0.24);
     border-radius: 12px;
     background: rgba(232, 180, 195, 0.1);
+    flex: 0 1 260px;
     max-width: 100%;
-    min-width: min(100%, 260px);
+    min-width: 0;
 }
 
 .notification-receiver-chip .btn {
@@ -2991,8 +3000,13 @@
     display: flex;
     flex-direction: column;
     max-height: calc(100vh - 4rem);
-    max-height: calc(100dvh - 4rem);
     overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+    .admin-bootstrap-modal {
+        max-height: calc(100dvh - 4rem);
+    }
 }
 
 .admin-bootstrap-modal .modal-header,
@@ -3128,7 +3142,6 @@
 
     .admin-bootstrap-modal {
         max-height: calc(100vh - 3rem);
-        max-height: calc(100dvh - 3rem);
     }
 
     .admin-bootstrap-modal .modal-body,
@@ -3136,7 +3149,19 @@
     #contentDetailModal .modal-body,
     #overviewDetailModal .modal-body {
         max-height: calc(100vh - 9rem);
-        max-height: calc(100dvh - 9rem);
+    }
+
+    @supports (height: 100dvh) {
+        .admin-bootstrap-modal {
+            max-height: calc(100dvh - 3rem);
+        }
+
+        .admin-bootstrap-modal .modal-body,
+        #reportDetailModal .modal-body,
+        #contentDetailModal .modal-body,
+        #overviewDetailModal .modal-body {
+            max-height: calc(100dvh - 9rem);
+        }
     }
 
     .content-filter,
@@ -3161,7 +3186,6 @@
 
     .admin-bootstrap-modal {
         max-height: calc(100vh - 1rem);
-        max-height: calc(100dvh - 1rem);
     }
 
     .admin-bootstrap-modal .modal-body,
@@ -3169,7 +3193,19 @@
     #contentDetailModal .modal-body,
     #overviewDetailModal .modal-body {
         max-height: calc(100vh - 8rem);
-        max-height: calc(100dvh - 8rem);
+    }
+
+    @supports (height: 100dvh) {
+        .admin-bootstrap-modal {
+            max-height: calc(100dvh - 1rem);
+        }
+
+        .admin-bootstrap-modal .modal-body,
+        #reportDetailModal .modal-body,
+        #contentDetailModal .modal-body,
+        #overviewDetailModal .modal-body {
+            max-height: calc(100dvh - 8rem);
+        }
     }
 
     .report-content-box {
