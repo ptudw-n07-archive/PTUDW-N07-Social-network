@@ -138,7 +138,7 @@ class NotificationController {
             exit();
         }
 
-        if ($this->isModerationNotification($notification)) {
+        if ($this->isDetailNotification($notification)) {
             header('Location: ' . app_url('App/Controllers/NotificationController.php?action=detail&id=' . urlencode((string) $notificationId)));
             exit();
         }
@@ -197,9 +197,9 @@ class NotificationController {
         require __DIR__ . '/../Views/notifications/detail.php';
     }
 
-    private function isModerationNotification($notification) {
+    private function isDetailNotification($notification) {
         return in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
-            || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
+            || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden', 'System'], true);
     }
 
     private function acknowledgeBadge($userId, $notifications) {

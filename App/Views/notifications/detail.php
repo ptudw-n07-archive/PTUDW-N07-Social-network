@@ -16,20 +16,31 @@ if (!isset($notification) || !is_array($notification)) {
 /** @var array $notification Detail row loaded from the notifications table by NotificationController. */
 $isContentHidden = (int) ($notification['NotificationTypeID'] ?? 0) === 5
     || (string) ($notification['TypeName'] ?? '') === 'ContentHidden';
-$title = $isContentHidden ? 'Nội dung của bạn đã bị ẩn' : 'Cảnh báo bài viết';
-$description = $isContentHidden
-    ? 'Bài viết này không còn hiển thị công khai do vi phạm tiêu chuẩn cộng đồng hoặc đã được quản trị viên xử lý.'
-    : 'Bài viết của bạn đã nhận cảnh báo do bị báo cáo.';
+$isSystemNotification = (string) ($notification['TypeName'] ?? '') === 'System';
+$systemMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
+if ($isSystemNotification && $systemMessage === '') {
+    $systemMessage = 'Bạn có một thông báo hệ thống mới.';
+}
+$title = $isSystemNotification
+    ? 'Thông báo hệ thống'
+    : ($isContentHidden ? 'Nội dung của bạn đã bị ẩn' : 'Cảnh báo bài viết');
+$description = $isSystemNotification
+    ? 'Thông báo từ Tổng cục kiểm duyệt.'
+    : ($isContentHidden
+        ? 'Bài viết này không còn hiển thị công khai do vi phạm tiêu chuẩn cộng đồng hoặc đã được quản trị viên xử lý.'
+        : 'Bài viết của bạn đã nhận cảnh báo do bị báo cáo.');
 $postId = (int) ($notification['RelatedPostID'] ?? 0);
 $commentId = (int) ($notification['RelatedCommentID'] ?? 0);
 $hasPost = $postId > 0 && ($notification['PostIsHidden'] ?? null) !== null;
 $hasComment = $commentId > 0;
 $isPostHidden = $hasPost && (int) $notification['PostIsHidden'] === 1;
-$status = $isContentHidden
+$status = $isSystemNotification
+    ? 'Đã gửi đến bạn vào ' . date('d/m/Y H:i', strtotime((string) $notification['CreatedAt']))
+    : ($isContentHidden
     ? 'Đã bị ẩn'
     : ($hasPost
         ? ($isPostHidden ? 'Bài viết này đã bị ẩn.' : 'Bài viết hiện vẫn đang hiển thị.')
-        : ($hasComment ? 'Bình luận liên quan đã được xử lý.' : 'Không tìm thấy nội dung liên quan đến cảnh báo này.'));
+        : ($hasComment ? 'Bình luận liên quan đã được xử lý.' : 'Không tìm thấy nội dung liên quan đến cảnh báo này.')));
 
 function moderationDetailAssetPath($path) {
     $path = trim((string) $path);
@@ -116,19 +127,19 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
             <div class="col-lg-7 col-md-10 mx-auto">
                 <article class="notification-detail-card bg-white">
                     <div class="notification-detail-icon <?= $isContentHidden ? 'hidden' : '' ?>">
-                        <i class="bi <?= $isContentHidden ? 'bi-eye-slash' : 'bi-exclamation-triangle' ?>"></i>
+                        <i class="bi <?= $isSystemNotification ? 'bi-megaphone' : ($isContentHidden ? 'bi-eye-slash' : 'bi-exclamation-triangle') ?>"></i>
                     </div>
 
                     <h1 class="notification-detail-title"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
                     <p class="notification-detail-description"><?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?></p>
 
-                    <?php if (trim((string) ($notification['NotificationMessage'] ?? '')) !== ''): ?>
+                    <?php if ($isSystemNotification || trim((string) ($notification['NotificationMessage'] ?? '')) !== ''): ?>
                         <div class="notification-detail-message">
-                            <?= nl2br(htmlspecialchars((string) $notification['NotificationMessage'], ENT_QUOTES, 'UTF-8')) ?>
+                            <?= nl2br(htmlspecialchars($isSystemNotification ? $systemMessage : (string) $notification['NotificationMessage'], ENT_QUOTES, 'UTF-8')) ?>
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!empty($notification['ReportID'])): ?>
+                    <?php if (!$isSystemNotification && !empty($notification['ReportID'])): ?>
                         <div class="notification-detail-message">
                             <div class="notification-post-preview-heading">Thông tin báo cáo</div>
                             <div class="mb-2"><strong>Lý do báo cáo:</strong> <?= htmlspecialchars((string) ($notification['ReportReason'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></div>
@@ -149,7 +160,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                         </div>
                     <?php endif; ?>
 
-                    <?php if ($hasPost): ?>
+                    <?php if (!$isSystemNotification && $hasPost): ?>
                         <div class="notification-post-preview">
                             <div class="notification-post-preview-heading">Bài viết liên quan</div>
                             <p><?= htmlspecialchars(moderationDetailShortText($notification['PostContent'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
@@ -166,7 +177,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                         </div>
                     <?php endif; ?>
 
-                    <?php if ($hasComment): ?>
+                    <?php if (!$isSystemNotification && $hasComment): ?>
                         <div class="notification-post-preview">
                             <div class="notification-post-preview-heading">Bình luận liên quan</div>
                             <p><?= htmlspecialchars(moderationDetailShortText($notification['CommentContent'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
@@ -180,7 +191,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                     <?php endif; ?>
 
                     <div class="notification-detail-status <?= ($isContentHidden || $isPostHidden) ? 'hidden' : '' ?>">
-                        <i class="bi <?= ($isContentHidden || $isPostHidden) ? 'bi-eye-slash' : ($hasPost ? 'bi-check-circle' : 'bi-info-circle') ?>"></i>
+                        <i class="bi <?= $isSystemNotification ? 'bi-clock' : (($isContentHidden || $isPostHidden) ? 'bi-eye-slash' : ($hasPost ? 'bi-check-circle' : 'bi-info-circle')) ?>"></i>
                         <span><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></span>
                     </div>
 
@@ -189,7 +200,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                             <i class="bi bi-arrow-left"></i> Quay lại thông báo
                         </a>
 
-                        <?php if (!$isContentHidden && $hasPost && !$isPostHidden): ?>
+                        <?php if (!$isSystemNotification && !$isContentHidden && $hasPost && !$isPostHidden): ?>
                             <a href="<?php echo BASE_URL; ?>App/Views/post/post-detail.php?id=<?= urlencode((string) $postId) ?>" class="btn btn-pink notification-detail-view-post">
                                 Xem bài viết
                             </a>
