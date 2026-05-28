@@ -265,8 +265,12 @@ class ProfileController {
         }
 
         $uploadDir = app_uploads_root('avatars/');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
+        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+            throw new Exception("Không thể tạo thư mục lưu avatar trên server.");
+        }
+
+        if (!is_writable($uploadDir)) {
+            throw new Exception("Thư mục lưu avatar không có quyền ghi.");
         }
 
         $fileName = uniqid('avatar_', true) . '.' . $extension;
