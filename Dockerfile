@@ -6,9 +6,8 @@ RUN apt-get update \
     && docker-php-ext-install pdo pdo_mysql gd \
     && rm -rf /var/lib/apt/lists/*
 
-RUN a2dismod mpm_event || true
-RUN a2dismod mpm_worker || true
-RUN a2enmod mpm_prefork rewrite headers
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+    && a2enmod mpm_prefork rewrite headers
 
 WORKDIR /var/www/html
 
