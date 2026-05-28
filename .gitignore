@@ -6,3 +6,5 @@ Public/uploads
 .opencode/
 vendor/
 storage/logs/*.log
+*.sql
+*.sql
