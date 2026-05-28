@@ -6,6 +6,13 @@ RUN apt-get update \
     && docker-php-ext-install pdo pdo_mysql gd \
     && rm -rf /var/lib/apt/lists/*
 
+RUN printf '%s\n' \
+    'upload_max_filesize=15M' \
+    'post_max_size=50M' \
+    'max_file_uploads=10' \
+    'memory_limit=256M' \
+    > /usr/local/etc/php/conf.d/uploads.ini
+
 RUN rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
 RUN a2enmod mpm_prefork rewrite headers
 

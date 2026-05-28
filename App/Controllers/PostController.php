@@ -57,112 +57,86 @@ class PostController {
     public function create() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if ($this->requestExceedsPostMaxSize()) {
+            $this->json(false, "Dung lượng ảnh vượt quá giới hạn upload. Vui lòng chọn ít ảnh hơn hoặc ảnh nhỏ hơn 15MB mỗi file.");
+            return;
+        }
+
         if (!\App\Services\CsrfService::validateRequest()) {
-            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            $this->json(false, "Yêu cầu không hợp lệ.");
             return;
         }
 
-        $userId = $_SESSION['user_id'] ?? null;
-        if (!$userId) {
-            echo json_encode(["success" => false, "message" => "Bạn chưa đăng nhập."]);
-            return;
-        }
-
-        $content = trim($_POST['content'] ?? '');
-        $validImages = [];
-        $uploadErrors = [];
-
-        if (!empty($_FILES['images']['name'][0])) {
-            $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'mp4', 'mov', 'webm'];
-            $allowedMimeTypes = [
-                'image/jpeg',
-                'image/png',
-                'image/webp',
-                'image/gif',
-                'image/heic',
-                'image/heif',
-                'image/heic-sequence',
-                'image/heif-sequence',
-                'video/mp4',
-                'video/quicktime',
-                'video/webm',
-                'application/octet-stream'
-            ];
-            $finfo = new \finfo(FILEINFO_MIME_TYPE);
-
-            foreach ($_FILES['images']['name'] as $key => $name) {
-                if ($_FILES['images']['error'][$key] === UPLOAD_ERR_NO_FILE) {
-                    continue;
-                }
-
-                if ($_FILES['images']['error'][$key] !== UPLOAD_ERR_OK) {
-                    $uploadErrors[] = "Upload ảnh thất bại.";
-                    continue;
-                }
-
-                $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-                if (!in_array($extension, $allowedExtensions, true)) {
-                    $uploadErrors[] = "Chỉ cho phép jpg, jpeg, png, webp, gif, heic, heif, mp4, mov hoặc webm.";
-                    continue;
-                }
-
-                $mimeType = $finfo->file($_FILES['images']['tmp_name'][$key]);
-                if (!in_array($mimeType, $allowedMimeTypes, true)) {
-                    $uploadErrors[] = "File upload không đúng định dạng ảnh/video.";
-                    continue;
-                }
-
-                $validImages[] = [
-                    'tmp_name' => $_FILES['images']['tmp_name'][$key],
-                    'extension' => $extension
-                ];
-            }
-        }
-
-        if ($content === '' && empty($validImages)) {
-            echo json_encode(["success" => false, "message" => "Nội dung không được để trống."]);
-            return;
-        }
-
-        // 1. Tạo bài viết trong Database lấy ra PostID mới nhất
-        $postId = $this->postModel->createPost($userId, $content);
-        $hashtags = $this->extractHashtags($content);
-        
-        // Mảng dùng để lưu các đường dẫn ảnh gửi về cho Front-end render tại chỗ
-        $savedImages = [];
-
-        if ($postId && !empty($validImages)) {
-            $uploadDir = app_path('Public/uploads/posts/');
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0777, true);
+        try {
+            $userId = $_SESSION['user_id'] ?? null;
+            if (!$userId) {
+                $this->json(false, "Bạn chưa đăng nhập.");
+                return;
             }
 
-            foreach ($validImages as $image) {
-                $saveResult = $this->saveUploadedPostMedia($image['tmp_name'], $image['extension'], $uploadDir);
+            $content = trim($_POST['content'] ?? '');
+            $validImages = [];
+            $uploadErrors = [];
 
-                if (!$saveResult['success']) {
-                    $uploadErrors[] = $saveResult['message'];
-                    continue;
-                }
-
-                $dbPath = 'Public/uploads/posts/' . $saveResult['fileName'];
-                $this->postModel->addPostImage($postId, $dbPath);
-                $savedImages[] = $dbPath;
-
-                if (!empty($saveResult['message'])) {
-                    $uploadErrors[] = $saveResult['message'];
+            if (!empty($_FILES['images']['name'][0])) {
+                foreach ($_FILES['images']['name'] as $key => $name) {
+                    $validation = $this->validateUploadedPostMedia('images', (int) $key);
+                    if ($validation['success']) {
+                        $validImages[] = $validation;
+                    } elseif (!empty($validation['message'])) {
+                        $uploadErrors[] = $validation['message'];
+                    }
                 }
             }
-        }
 
-        if ($postId && !empty($hashtags)) {
-            $this->postModel->syncPostHashtags($postId, $hashtags);
-        }
+            if (!empty($uploadErrors) && empty($validImages)) {
+                $this->json(false, $uploadErrors[0]);
+                return;
+            }
 
-        if ($postId) {
-            // 🎯 PHẢN HỒI JSON CHUẨN AJAX: Gửi toàn bộ thông tin bài viết mới tạo về cho JavaScript vẽ giao diện
-            echo json_encode([
-                "success" => true,
+            if ($content === '' && empty($validImages)) {
+                $this->json(false, "Nội dung không được để trống.");
+                return;
+            }
+
+            $uploadDir = !empty($validImages) ? $this->preparePostUploadDir() : null;
+            $postId = $this->postModel->createPost($userId, $content);
+            $hashtags = $this->extractHashtags($content);
+            $savedImages = [];
+
+            if (!$postId) {
+                $this->json(false, "Không thể tạo bài viết.");
+                return;
+            }
+
+            if (!empty($validImages) && $uploadDir !== null) {
+                foreach ($validImages as $image) {
+                    $saveResult = $this->saveUploadedPostMedia($image['tmp_name'], $image['extension'], $uploadDir);
+
+                    if (!$saveResult['success']) {
+                        $uploadErrors[] = $saveResult['message'];
+                        continue;
+                    }
+
+                    $dbPath = 'Public/uploads/posts/' . $saveResult['fileName'];
+                    if (!$this->postModel->addPostImage($postId, $dbPath)) {
+                        $uploadErrors[] = "Không thể lưu thông tin ảnh vào database.";
+                        continue;
+                    }
+
+                    $savedImages[] = $dbPath;
+
+                    if (!empty($saveResult['message'])) {
+                        $uploadErrors[] = $saveResult['message'];
+                    }
+                }
+            }
+
+            if ($postId && !empty($hashtags)) {
+                $this->postModel->syncPostHashtags($postId, $hashtags);
+            }
+
+            $this->json(true, "Đăng bài thành công.", [
                 "post" => [
                     "PostID" => $postId,
                     "Content" => $content,
@@ -179,8 +153,9 @@ class PostController {
                 ],
                 "uploadErrors" => $uploadErrors
             ]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Không thể tạo bài viết."]);
+        } catch (\Throwable $e) {
+            error_log('[PostCreate] ' . $e->getMessage());
+            $this->json(false, "Không thể đăng bài. Vui lòng thử lại.");
         }
     }
 
@@ -619,10 +594,7 @@ class PostController {
 
             $savedImages = [];
             if (!empty($validImages)) {
-                $uploadDir = app_path('Public/uploads/posts/');
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0777, true);
-                }
+                $uploadDir = $this->preparePostUploadDir();
 
                 foreach ($validImages as $image) {
                     $saveResult = $this->saveUploadedPostMedia($image['tmp_name'], $image['extension'], $uploadDir);
@@ -807,6 +779,81 @@ class PostController {
         return array_values($hashtags);
     }
 
+    private function validateUploadedPostMedia(string $field, int $key): array {
+        $error = (int) ($_FILES[$field]['error'][$key] ?? UPLOAD_ERR_NO_FILE);
+        if ($error === UPLOAD_ERR_NO_FILE) {
+            return ['success' => false, 'message' => ''];
+        }
+
+        if ($error !== UPLOAD_ERR_OK) {
+            return ['success' => false, 'message' => $this->uploadErrorMessage($error)];
+        }
+
+        $name = (string) ($_FILES[$field]['name'][$key] ?? '');
+        $tmpName = (string) ($_FILES[$field]['tmp_name'][$key] ?? '');
+        $size = (int) ($_FILES[$field]['size'][$key] ?? 0);
+        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $maxBytes = 15 * 1024 * 1024;
+
+        if ($size <= 0 || !is_uploaded_file($tmpName)) {
+            return ['success' => false, 'message' => 'File upload không hợp lệ.'];
+        }
+
+        if ($size > $maxBytes) {
+            return ['success' => false, 'message' => 'Mỗi ảnh/video không được vượt quá 15MB.'];
+        }
+
+        if (in_array($extension, ['heic', 'heif'], true) && !$this->canConvertHeic()) {
+            return ['success' => false, 'message' => 'Ảnh HEIC/HEIF chưa được hỗ trợ. Vui lòng chọn JPG, PNG hoặc WebP.'];
+        }
+
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $videoExtensions = ['mp4', 'mov', 'webm'];
+        $heicExtensions = ['heic', 'heif'];
+        $allowedExtensions = array_merge($imageExtensions, $videoExtensions, $heicExtensions);
+
+        if (!in_array($extension, $allowedExtensions, true)) {
+            return ['success' => false, 'message' => 'Chỉ cho phép jpg, jpeg, png, webp, gif, heic, heif, mp4, mov hoặc webm.'];
+        }
+
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = $finfo->file($tmpName) ?: '';
+        $imageMimeTypes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif'];
+        $videoMimeTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+        $heicMimeTypes = ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];
+
+        if (in_array($extension, $imageExtensions, true)) {
+            if (!in_array($mimeType, $imageMimeTypes, true) || @getimagesize($tmpName) === false) {
+                return ['success' => false, 'message' => 'File upload không đúng định dạng ảnh hợp lệ.'];
+            }
+        } elseif (in_array($extension, $videoExtensions, true)) {
+            if (!in_array($mimeType, $videoMimeTypes, true)) {
+                return ['success' => false, 'message' => 'File upload không đúng định dạng video hợp lệ.'];
+            }
+        } elseif (!in_array($mimeType, $heicMimeTypes, true)) {
+            return ['success' => false, 'message' => 'File HEIC/HEIF không đúng định dạng hợp lệ.'];
+        }
+
+        return [
+            'success' => true,
+            'tmp_name' => $tmpName,
+            'extension' => $extension
+        ];
+    }
+
+    private function preparePostUploadDir(): string {
+        $uploadDir = app_uploads_root('posts/');
+        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+            throw new \RuntimeException('Không thể tạo thư mục lưu ảnh bài viết.');
+        }
+
+        if (!is_writable($uploadDir)) {
+            throw new \RuntimeException('Thư mục lưu ảnh bài viết không có quyền ghi.');
+        }
+
+        return rtrim($uploadDir, '/') . '/';
+    }
+
     private function saveUploadedPostMedia(string $tmpName, string $extension, string $uploadDir): array {
         $extension = strtolower($extension);
 
@@ -901,6 +948,44 @@ class PostController {
         }
 
         return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
+    }
+
+    private function uploadErrorMessage(int $error): string {
+        return match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'File upload vượt quá giới hạn dung lượng server.',
+            UPLOAD_ERR_PARTIAL => 'File upload chưa hoàn tất. Vui lòng thử lại.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server thiếu thư mục tạm để upload.',
+            UPLOAD_ERR_CANT_WRITE => 'Server không thể ghi file upload.',
+            UPLOAD_ERR_EXTENSION => 'Upload bị chặn bởi extension PHP.',
+            default => 'Upload ảnh thất bại.'
+        };
+    }
+
+    private function requestExceedsPostMaxSize(): bool {
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        if ($contentLength <= 0) {
+            return false;
+        }
+
+        $postMaxSize = $this->sizeToBytes((string) ini_get('post_max_size'));
+        return $postMaxSize > 0 && $contentLength > $postMaxSize;
+    }
+
+    private function sizeToBytes(string $value): int {
+        $value = trim($value);
+        if ($value === '') {
+            return 0;
+        }
+
+        $unit = strtolower(substr($value, -1));
+        $number = (float) $value;
+
+        return match ($unit) {
+            'g' => (int) ($number * 1024 * 1024 * 1024),
+            'm' => (int) ($number * 1024 * 1024),
+            'k' => (int) ($number * 1024),
+            default => (int) $number
+        };
     }
 
     private function formatCommentForResponse($comment, int $currentUserId): array {
