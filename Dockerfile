@@ -1,10 +1,18 @@
 FROM php:8.3-apache
 
-RUN docker-php-ext-install pdo pdo_mysql
-
-RUN a2enmod rewrite headers
+RUN apt-get update \
+    && apt-get install -y unzip git \
+    && docker-php-ext-install pdo pdo_mysql \
+    && a2enmod rewrite headers \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
+
+COPY composer.json composer.lock ./
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 COPY . /var/www/html
 
@@ -20,12 +28,10 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
 
         RewriteEngine On
 
-        # Serve existing files/directories directly
         RewriteCond %{REQUEST_FILENAME} -f [OR]
         RewriteCond %{REQUEST_FILENAME} -d
         RewriteRule ^ - [L]
 
-        # Clean URL router
         RewriteRule ^ Public/index.php [L]
     </Directory>
 
