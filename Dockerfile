@@ -4,23 +4,24 @@ RUN apt-get update \
     && apt-get install -y unzip git libpng-dev libjpeg-dev libfreetype6-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql gd \
-    && a2enmod rewrite headers \
+    && a2dismod mpm_event mpm_worker || true \
+    && a2enmod mpm_prefork rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
-
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 COPY . /var/www/html
 
 RUN chown -R www-data:www-data /var/www/html
 
+RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf
+
 RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
-<VirtualHost *:${PORT}>
+<VirtualHost *:8080>
     DocumentRoot /var/www/html
 
     <Directory /var/www/html>
@@ -44,18 +45,6 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
 </VirtualHost>
 APACHE
 
-RUN cat > /usr/local/bin/start-apache-railway.sh <<'SH'
-#!/bin/sh
-set -e
+EXPOSE 8080
 
-: "${PORT:=8080}"
-
-sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf
-sed -i "s/\${PORT}/${PORT}/g" /etc/apache2/sites-available/000-default.conf
-
-apache2-foreground
-SH
-
-RUN chmod +x /usr/local/bin/start-apache-railway.sh
-
-CMD ["start-apache-railway.sh"]
+CMD ["apache2-foreground"]
