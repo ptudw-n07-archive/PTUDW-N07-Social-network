@@ -61,13 +61,7 @@ function createPost() {
         method: "POST",
         body: formData
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error("Không thể kết nối tới server.");
-        }
-
-        return response.json();
-    })
+    .then(parseCreatePostResponse)
     .then(data => {
         if (!data.success) {
             showToast(data.message || "Không thể đăng bài.");
@@ -83,7 +77,26 @@ function createPost() {
     })
     .catch(error => {
         console.error(error);
-        showToast("Có lỗi xảy ra trong quá trình đăng bài.");
+        showToast(error.message || "Có lỗi xảy ra trong quá trình đăng bài.");
+    });
+}
+
+function parseCreatePostResponse(response) {
+    return response.text().then(function (text) {
+        let data = null;
+
+        try {
+            data = text ? JSON.parse(text) : null;
+        } catch (error) {
+            console.error("Non-JSON create post response:", text);
+            throw new Error("Server trả về phản hồi không hợp lệ.");
+        }
+
+        if (!response.ok) {
+            throw new Error((data && data.message) || "Không thể kết nối tới server.");
+        }
+
+        return data || { success: false, message: "Server không trả dữ liệu." };
     });
 }
 
