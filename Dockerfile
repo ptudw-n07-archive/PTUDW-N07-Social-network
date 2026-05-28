@@ -22,12 +22,15 @@ RUN chown -R www-data:www-data /var/www/html
 RUN printf '%s\n' \
     '<VirtualHost *:__PORT__>' \
     '    DocumentRoot /var/www/html' \
+    '    DirectoryIndex Public/index.php index.php index.html' \
     '' \
     '    <Directory /var/www/html>' \
+    '        Options -Indexes +FollowSymLinks' \
     '        AllowOverride All' \
     '        Require all granted' \
     '' \
     '        RewriteEngine On' \
+    '        RewriteRule ^$ Public/index.php [L]' \
     '' \
     '        RewriteCond %{REQUEST_FILENAME} -f [OR]' \
     '        RewriteCond %{REQUEST_FILENAME} -d' \
