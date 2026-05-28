@@ -4,9 +4,12 @@ RUN apt-get update \
     && apt-get install -y unzip git libpng-dev libjpeg-dev libfreetype6-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install pdo pdo_mysql gd \
-    && a2dismod mpm_event mpm_worker || true \
-    && a2enmod mpm_prefork rewrite headers \
     && rm -rf /var/lib/apt/lists/*
+
+RUN a2dismod mpm_event || true
+RUN a2dismod mpm_worker || true
+RUN a2dismod mpm_prefork || true
+RUN a2enmod mpm_prefork rewrite headers
 
 WORKDIR /var/www/html
 
