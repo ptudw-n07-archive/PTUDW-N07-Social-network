@@ -6,8 +6,8 @@ RUN apt-get update \
     && docker-php-ext-install pdo pdo_mysql gd \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
-    && a2enmod mpm_prefork rewrite headers
+RUN rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
+RUN a2enmod mpm_prefork rewrite headers
 
 WORKDIR /var/www/html
 
@@ -19,42 +19,42 @@ COPY . /var/www/html
 
 RUN chown -R www-data:www-data /var/www/html
 
-RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
-<VirtualHost *:${PORT}>
-    DocumentRoot /var/www/html
+RUN printf '%s\n' \
+    '<VirtualHost *:${PORT}>' \
+    '    DocumentRoot /var/www/html' \
+    '' \
+    '    <Directory /var/www/html>' \
+    '        AllowOverride All' \
+    '        Require all granted' \
+    '' \
+    '        RewriteEngine On' \
+    '' \
+    '        RewriteCond %{REQUEST_FILENAME} -f [OR]' \
+    '        RewriteCond %{REQUEST_FILENAME} -d' \
+    '        RewriteRule ^ - [L]' \
+    '' \
+    '        RewriteRule ^ Public/index.php [L]' \
+    '    </Directory>' \
+    '' \
+    '    <IfModule mod_headers.c>' \
+    '        <FilesMatch "\.(css|js|jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf)$">' \
+    '            Header set Cache-Control "public, max-age=604800"' \
+    '        </FilesMatch>' \
+    '    </IfModule>' \
+    '</VirtualHost>' \
+    > /etc/apache2/sites-available/000-default.conf
 
-    <Directory /var/www/html>
-        AllowOverride All
-        Require all granted
-
-        RewriteEngine On
-
-        RewriteCond %{REQUEST_FILENAME} -f [OR]
-        RewriteCond %{REQUEST_FILENAME} -d
-        RewriteRule ^ - [L]
-
-        RewriteRule ^ Public/index.php [L]
-    </Directory>
-
-    <IfModule mod_headers.c>
-        <FilesMatch "\.(css|js|jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf)$">
-            Header set Cache-Control "public, max-age=604800"
-        </FilesMatch>
-    </IfModule>
-</VirtualHost>
-APACHE
-
-RUN cat > /usr/local/bin/railway-apache-start <<'SH'
-#!/bin/sh
-set -e
-
-: "${PORT:=8080}"
-
-sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf
-sed -i "s/\${PORT}/${PORT}/g" /etc/apache2/sites-available/000-default.conf
-
-apache2-foreground
-SH
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    '' \
+    ': "${PORT:=8080}"' \
+    '' \
+    'sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf' \
+    'sed -i "s/\${PORT}/${PORT}/g" /etc/apache2/sites-available/000-default.conf' \
+    '' \
+    'apache2-foreground' \
+    > /usr/local/bin/railway-apache-start
 
 RUN chmod +x /usr/local/bin/railway-apache-start
 
