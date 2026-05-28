@@ -17,7 +17,7 @@ const APP_BASE_URL = (function () {
 let pendingCommentDelete = null;
 let commentDeleteModalInstance = null;
 let feedUpdatesPollingInFlight = false;
-const FEED_UPDATES_POLL_INTERVAL = 10000;
+const FEED_UPDATES_POLL_INTERVAL = 30000;
 
 function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
@@ -240,7 +240,11 @@ function initPostUpdatesPolling() {
     }
 
     window.__archivePostUpdatesPollingStarted = true;
-    window.setInterval(pollPostUpdates, FEED_UPDATES_POLL_INTERVAL);
+    window.setInterval(function () {
+        if (!document.hidden) {
+            pollPostUpdates();
+        }
+    }, FEED_UPDATES_POLL_INTERVAL);
 }
 
 function openPostDetail(element, event) {
