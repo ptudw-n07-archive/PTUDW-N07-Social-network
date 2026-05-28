@@ -42,6 +42,10 @@ function createPost() {
         return;
     }
 
+    if (window.syncArchiveContentEditors) {
+        window.syncArchiveContentEditors(form);
+    }
+
     const formData = new FormData(form);
     const content = formData.get("content") ? formData.get("content").trim() : "";
 

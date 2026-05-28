@@ -138,14 +138,17 @@ function imagePath($path) {
 
                     <form id="postForm" method="POST" enctype="multipart/form-data">
                         <?= \App\Services\CsrfService::hiddenField() ?>
-                        <label for="composerTextarea" class="visually-hidden">Nội dung bài viết</label>
-                        <textarea 
-                            name="content"
-                            id="composerTextarea"
-                            class="form-control composer-input mb-3" 
-                            rows="7"
-                            placeholder="Viết vài dòng cho hôm nay..."
-                        ></textarea>
+                        <label for="composerEditor" class="visually-hidden">Nội dung bài viết</label>
+                        <textarea name="content" id="composerTextarea" hidden></textarea>
+                        <div
+                            id="composerEditor"
+                            class="form-control composer-input post-content-editor mb-3"
+                            contenteditable="true"
+                            role="textbox"
+                            aria-multiline="true"
+                            data-content-target="composerTextarea"
+                            data-placeholder="Viết vài dòng cho hôm nay..."
+                        ></div>
 
                         <label for="postImages" class="custom-upload-btn mb-3">
                             <i class="bi bi-image"></i>
@@ -200,7 +203,8 @@ function imagePath($path) {
 <script>
     window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
 </script>
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/hashtag-suggestions.js?v=20260528-contenteditable"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js?v=20260528-contenteditable"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>

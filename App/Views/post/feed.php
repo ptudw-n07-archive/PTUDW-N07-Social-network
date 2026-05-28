@@ -409,7 +409,8 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
     window.FEED_CREATE_POST_URL = "<?php echo BASE_URL; ?>App/Views/post/createpost.php";
 </script>
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-feed-create-link"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/hashtag-suggestions.js?v=20260528-contenteditable"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260528-contenteditable"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>

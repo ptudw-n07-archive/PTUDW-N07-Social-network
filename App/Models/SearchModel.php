@@ -85,8 +85,9 @@ class SearchModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function suggestHashtags(string $keyword, int $limit = 10): array {
-        $keywordLike = '%' . $keyword . '%';
+    public function suggestHashtags(string $keyword, int $limit = 8): array {
+        $keywordPrefix = $keyword . '%';
+        $keywordContains = '%' . $keyword . '%';
 
         $sql = "
             SELECT 
@@ -94,21 +95,30 @@ class SearchModel {
                 HashtagName,
                 UsageCount
             FROM hashtags
-            WHERE HashtagName LIKE :keyword
-            ORDER BY UsageCount DESC, HashtagName ASC
+            WHERE (IsHidden = 0 OR IsHidden IS NULL)
+              AND (
+                  HashtagName LIKE :keywordPrefix
+                  OR HashtagName LIKE :keywordContains
+              )
+            ORDER BY
+                CASE WHEN HashtagName LIKE :keywordPrefixOrder THEN 0 ELSE 1 END,
+                UsageCount DESC,
+                HashtagName ASC
             LIMIT :limit
         ";
 
         $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':keyword', $keywordLike);
+        $stmt->bindValue(':keywordPrefix', $keywordPrefix);
+        $stmt->bindValue(':keywordContains', $keywordContains);
+        $stmt->bindValue(':keywordPrefixOrder', $keywordPrefix);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
 
         return array_map(function ($row) {
             return [
-                'hashtag_id' => (int) ($row['HashtagID'] ?? 0),
-                'name' => $row['HashtagName'] ?? '',
-                'usage_count' => (int) ($row['UsageCount'] ?? 0)
+                'HashtagID' => (int) ($row['HashtagID'] ?? 0),
+                'HashtagName' => $row['HashtagName'] ?? '',
+                'UsageCount' => (int) ($row['UsageCount'] ?? 0)
             ];
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
