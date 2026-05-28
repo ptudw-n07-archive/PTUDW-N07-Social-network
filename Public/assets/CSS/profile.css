@@ -437,8 +437,9 @@
     color: #b76e79 !important;
 }
 
-.profile-page .profile-post-actions .feed-like-btn.liked {
-    color: #d64045 !important;
+.profile-page .profile-post-actions .feed-like-btn.liked,
+.profile-page .profile-post-actions .feed-like-btn.liked i {
+    color: var(--archive-like-color, #ff0000) !important;
 }
 
 .profile-page .comment-box {

@@ -851,13 +851,15 @@ public function getPostsByHashtag($tag, $viewerId = null) {
             u.ProfilePictureUrl,
             GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
             COUNT(DISTINCT l.UserID) AS LikeCount,
-            COUNT(DISTINCT c.CommentID) AS CommentCount
+            COUNT(DISTINCT c.CommentID) AS CommentCount,
+            MAX(CASE WHEN viewerLike.UserID IS NULL THEN 0 ELSE 1 END) AS IsLiked
         FROM posts p
         JOIN users u ON p.UserID = u.UserID
         JOIN posthashtags ph ON p.PostID = ph.PostID
         JOIN hashtags h ON ph.HashtagID = h.HashtagID
         LEFT JOIN postimages pi ON p.PostID = pi.PostID
         LEFT JOIN likes l ON p.PostID = l.PostID
+        LEFT JOIN likes viewerLike ON viewerLike.PostID = p.PostID AND viewerLike.UserID = :viewerLikeUserId
         LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
         WHERE h.HashtagName = :tag
         AND p.IsHidden = 0
@@ -868,6 +870,7 @@ public function getPostsByHashtag($tag, $viewerId = null) {
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":tag", $tag);
+    $stmt->bindValue(":viewerLikeUserId", $viewerId ? (int) $viewerId : 0, PDO::PARAM_INT);
     $this->bindViewerParams($stmt, $viewerId);
     $stmt->execute();
 

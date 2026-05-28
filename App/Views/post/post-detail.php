@@ -166,7 +166,13 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
                                     <?php endif; ?>
 
                                     <div class="post-actions d-flex gap-4">
-                                        <button onclick="toggleLike(this)" data-post-id="<?= (int) $post['PostID'] ?>" class="<?= (int) ($post['IsLiked'] ?? 0) ? 'liked' : '' ?>" style="<?= (int) ($post['IsLiked'] ?? 0) ? 'color:red;' : '' ?>">
+                                        <button
+                                            type="button"
+                                            onclick="toggleLike(this)"
+                                            data-post-id="<?= (int) $post['PostID'] ?>"
+                                            class="feed-like-btn no-post-nav <?= (int) ($post['IsLiked'] ?? 0) ? 'liked' : '' ?>"
+                                            aria-pressed="<?= (int) ($post['IsLiked'] ?? 0) ? 'true' : 'false' ?>"
+                                        >
                                             <i class="bi <?= (int) ($post['IsLiked'] ?? 0) ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
                                             <span class="like-count" data-like-count><?= (int) ($post['LikeCount'] ?? 0) ?></span>
                                         </button>

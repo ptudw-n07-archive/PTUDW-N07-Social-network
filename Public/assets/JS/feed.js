@@ -159,7 +159,6 @@ function setPostLikeState(card, isLiked) {
         icon.classList.add("bi-heart-fill");
         likeButton.classList.add("liked");
         likeButton.setAttribute("aria-pressed", "true");
-        likeButton.style.color = "red";
         return;
     }
 
@@ -167,7 +166,6 @@ function setPostLikeState(card, isLiked) {
     icon.classList.add("bi-heart");
     likeButton.classList.remove("liked");
     likeButton.setAttribute("aria-pressed", "false");
-    likeButton.style.color = "";
 }
 
 function applyPostUpdate(update) {

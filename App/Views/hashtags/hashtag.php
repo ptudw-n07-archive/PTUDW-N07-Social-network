@@ -204,6 +204,7 @@ function renderHashtagPostContent($content) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($posts as $post): ?>
+                        <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
                         <div
                             class="bg-white post-card mb-3 hashtag-post-card"
                             id="post-<?= (int) $post['PostID'] ?>"
@@ -260,19 +261,35 @@ function renderHashtagPostContent($content) {
                                         <?php endif; ?>
 
                                         <div class="post-actions d-flex gap-4">
-                                            <span>
-                                                <i class="bi bi-heart"></i>
-                                                <?= (int) ($post['LikeCount'] ?? 0) ?>
-                                            </span>
+                                            <button
+                                                type="button"
+                                                class="feed-like-btn no-post-nav <?= $isLiked ? 'liked' : '' ?>"
+                                                onclick="toggleLike(this)"
+                                                data-post-id="<?= (int) $post['PostID'] ?>"
+                                                aria-pressed="<?= $isLiked ? 'true' : 'false' ?>"
+                                            >
+                                                <i class="bi <?= $isLiked ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
+                                                <span class="like-count" data-like-count><?= (int) ($post['LikeCount'] ?? 0) ?></span>
+                                            </button>
 
-                                            <span>
+                                            <button
+                                                type="button"
+                                                class="no-post-nav"
+                                                onclick="window.location.href='<?= BASE_URL ?>App/Views/post/post-detail.php?id=<?= (int) $post['PostID'] ?>#comments'"
+                                            >
                                                 <i class="bi bi-chat"></i>
-                                                <?= (int) ($post['CommentCount'] ?? 0) ?>
-                                            </span>
+                                                <span class="comment-count" data-comment-count><?= (int) ($post['CommentCount'] ?? 0) ?></span>
+                                            </button>
 
-                                            <span>
+                                            <button
+                                                type="button"
+                                                class="no-post-nav repost-btn"
+                                                onclick="repostPost(this)"
+                                                data-post-id="<?= (int) $post['PostID'] ?>"
+                                                title="Đăng lại bài viết"
+                                            >
                                                 <i class="bi bi-arrow-repeat"></i>
-                                            </span>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -285,11 +302,12 @@ function renderHashtagPostContent($content) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260522-post-menu"></script>
 <script>
+window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
+window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
 document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
     function openPost(event) {
-        if (event.target.closest("a, button, video")) {
+        if (event.target.closest("a, button, input, textarea, select, label, video, .no-post-nav, .post-menu")) {
             return;
         }
 
@@ -310,6 +328,7 @@ document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
     });
 });
 </script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260528-hashtag-actions"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>

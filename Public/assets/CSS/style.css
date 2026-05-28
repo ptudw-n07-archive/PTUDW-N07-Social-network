@@ -962,7 +962,7 @@ html {
 .feed-page .post-actions button,
 .feed-page .post-actions a,
 .feed-page .post-actions span {
-    color: #7c6660;
+    color: var(--archive-action-muted);
     font-weight: 600;
 }
 
@@ -974,20 +974,12 @@ html {
 
 .feed-page .post-actions button:hover,
 .feed-page .post-actions a:hover {
-    color: #b76e79;
+    color: var(--archive-like-hover);
 }
 
 .feed-page .post-actions .repost-btn:disabled {
     cursor: wait;
     opacity: 0.58;
-}
-
-.feed-page .post-actions .feed-like-btn.liked {
-    color: #d64045;
-}
-
-.feed-page .post-actions .feed-like-btn.liked:hover {
-    color: #c92a2a;
 }
 
 .feed-page .comment-box {
@@ -1258,6 +1250,9 @@ html {
     --archive-hashtag-hover: #8d3f55;
     --archive-hashtag-soft: #fdecef;
     --archive-hashtag-border: rgba(184, 92, 114, 0.22);
+    --archive-like-color: #ff0000;
+    --archive-like-hover: #e60023;
+    --archive-action-muted: #7c6660;
 }
 
 .hashtag-link,
@@ -1483,6 +1478,24 @@ html {
     gap: 6px;
     font-size: 15px;
     transition: 0.2s;
+}
+
+.feed-like-btn.liked,
+.feed-like-btn.liked i,
+.post-actions .feed-like-btn.liked,
+.post-actions .feed-like-btn.liked i,
+button.liked[onclick*="toggleLike"],
+button.liked[onclick*="toggleLike"] i {
+    color: var(--archive-like-color) !important;
+}
+
+.feed-like-btn.liked:hover,
+.feed-like-btn.liked:hover i,
+.post-actions .feed-like-btn.liked:hover,
+.post-actions .feed-like-btn.liked:hover i,
+button.liked[onclick*="toggleLike"]:hover,
+button.liked[onclick*="toggleLike"]:hover i {
+    color: var(--archive-like-hover) !important;
 }
 
 .post-actions a:hover {
