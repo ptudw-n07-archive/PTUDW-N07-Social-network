@@ -20,7 +20,7 @@ COPY . /var/www/html
 RUN chown -R www-data:www-data /var/www/html
 
 RUN printf '%s\n' \
-    '<VirtualHost *:${PORT}>' \
+    '<VirtualHost *:__PORT__>' \
     '    DocumentRoot /var/www/html' \
     '' \
     '    <Directory /var/www/html>' \
@@ -50,8 +50,17 @@ RUN printf '%s\n' \
     '' \
     ': "${PORT:=8080}"' \
     '' \
-    'sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf' \
-    'sed -i "s/\${PORT}/${PORT}/g" /etc/apache2/sites-available/000-default.conf' \
+    'rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf' \
+    'ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load' \
+    'if [ -f /etc/apache2/mods-available/mpm_prefork.conf ]; then' \
+    '    ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf' \
+    'fi' \
+    '' \
+    'sed -i "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf' \
+    'sed -i "s/__PORT__/${PORT}/g" /etc/apache2/sites-available/000-default.conf' \
+    '' \
+    'ls -la /etc/apache2/mods-enabled/mpm_* || true' \
+    'apache2ctl -M 2>/dev/null | grep mpm || true' \
     '' \
     'apache2-foreground' \
     > /usr/local/bin/railway-apache-start
