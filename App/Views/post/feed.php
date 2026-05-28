@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../../Config/Database.php';
 
 // 2. CHẶN LỖI: Nếu chưa đăng nhập, bắt buộc đá về trang login ngay lập tức
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -122,9 +122,9 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/search/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo app_url('search'); ?>" class="header-search-btn"><i class="bi bi-search"></i></a>
                     <a href="#" class="header-star-btn"><i class="bi bi-star"></i></a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -151,7 +151,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                     class="bg-white p-3 p-md-4 mb-4 post-composer feed-create-entry"
                     role="link"
                     tabindex="0"
-                    data-create-post-url="<?php echo BASE_URL; ?>App/Views/post/createpost.php"
+                    data-create-post-url="<?php echo app_url('create-post'); ?>"
                     aria-label="Tạo bài viết mới"
                 >
                     <div class="d-flex gap-3 composer-layout align-items-center">
@@ -409,7 +409,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
 <script>
     window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
-    window.FEED_CREATE_POST_URL = "<?php echo BASE_URL; ?>App/Views/post/createpost.php";
+    window.FEED_CREATE_POST_URL = "<?php echo app_url('create-post'); ?>";
 </script>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/hashtag-suggestions.js?v=20260528-contenteditable"></script>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260528-contenteditable"></script>

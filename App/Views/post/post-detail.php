@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -88,7 +88,7 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -99,8 +99,8 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/search/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('search'); ?>" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -119,7 +119,7 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
 
             <div class="col-lg-7 col-md-10 mx-auto">
                 <div class="post-detail-topbar">
-                    <button type="button" class="post-detail-back" onclick="history.length > 1 ? history.back() : window.location.href='<?php echo BASE_URL; ?>App/Views/post/feed.php';" aria-label="Quay lại">
+                    <button type="button" class="post-detail-back" onclick="history.length > 1 ? history.back() : window.location.href='<?php echo app_url('feed'); ?>';" aria-label="Quay lại">
                         <i class="bi bi-arrow-left"></i>
                     </button>
                     <div class="feed-title mb-0">Bài viết</div>

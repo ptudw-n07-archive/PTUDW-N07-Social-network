@@ -158,11 +158,11 @@ function profileMaskEmail($email): string {
 }
 
 function profileUrl($userId) {
-    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
+    return app_url("profile?id=" . urlencode((string) $userId));
 }
 
 function profileHashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
+    return app_url("hashtag?tag=" . urlencode((string) $tag));
 }
 
 function renderProfilePostContentWithHashtags($content) {
@@ -347,7 +347,7 @@ foreach ($posts as $post) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -358,11 +358,11 @@ foreach ($posts as $post) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Trang chủ">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Trang chủ">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn" title="Hồ sơ">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn" title="Hồ sơ">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>

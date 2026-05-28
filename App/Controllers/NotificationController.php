@@ -24,7 +24,7 @@ class NotificationController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 
@@ -122,19 +122,19 @@ class NotificationController {
         $notificationId = $_GET['id'] ?? null;
 
         if (!$userId) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 
         if (!$notificationId) {
-            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            header('Location: ' . app_url('notifications'));
             exit();
         }
 
         $notification = $this->notificationModel->getNotificationByUser($notificationId, $userId);
 
         if (!$notification) {
-            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            header('Location: ' . app_url('notifications'));
             exit();
         }
 
@@ -147,11 +147,11 @@ class NotificationController {
 
         if (!empty($notification['PostID'])) {
             if ((int) ($notification['PostIsHidden'] ?? 0) === 1) {
-                header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+                header('Location: ' . app_url('notifications'));
                 exit();
             }
 
-            $url = app_url('App/Views/post/post-detail.php?id=' . urlencode((string) $notification['PostID']));
+            $url = app_url('post-detail?id=' . urlencode((string) $notification['PostID']));
 
             if (!empty($notification['CommentID'])) {
                 $url .= "&comment_id=" . urlencode((string) $notification['CommentID']) . "#comment-" . urlencode((string) $notification['CommentID']);
@@ -162,11 +162,11 @@ class NotificationController {
         }
 
         if (!empty($notification['SenderUserID'])) {
-            header('Location: ' . app_url('App/Views/profile/profile.php?id=' . urlencode((string) $notification['SenderUserID'])));
+            header('Location: ' . app_url('profile?id=' . urlencode((string) $notification['SenderUserID'])));
             exit();
         }
 
-        header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+        header('Location: ' . app_url('notifications'));
         exit();
     }
 
@@ -175,19 +175,19 @@ class NotificationController {
         $notificationId = $_GET['id'] ?? null;
 
         if (!$userId) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 
         if (!$notificationId) {
-            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            header('Location: ' . app_url('notifications'));
             exit();
         }
 
         $notification = $this->notificationModel->getModerationNotificationDetailByUser($notificationId, $userId);
 
         if (!$notification) {
-            header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+            header('Location: ' . app_url('notifications'));
             exit();
         }
 

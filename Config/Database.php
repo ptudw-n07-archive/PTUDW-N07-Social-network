@@ -71,9 +71,62 @@ if (!function_exists('app_base_url')) {
     }
 }
 
+if (!function_exists('app_route_path')) {
+    function app_route_path(string $path = ''): string {
+        $path = ltrim($path, '/');
+
+        if ($path === '') {
+            return '';
+        }
+
+        $fragment = '';
+        $fragmentPosition = strpos($path, '#');
+        if ($fragmentPosition !== false) {
+            $fragment = substr($path, $fragmentPosition);
+            $path = substr($path, 0, $fragmentPosition);
+        }
+
+        $query = '';
+        $queryPosition = strpos($path, '?');
+        if ($queryPosition !== false) {
+            $query = substr($path, $queryPosition);
+            $path = substr($path, 0, $queryPosition);
+        }
+
+        $routes = [
+            'Public/index.php' => '',
+            'Public/home.php' => 'home',
+            'App/Views/auth/login.php' => 'login',
+            'App/Views/auth/register.php' => 'register',
+            'App/Views/auth/forgot-password.php' => 'forgot-password',
+            'App/Views/auth/forgotpassword.php' => 'forgot-password',
+            'App/Views/auth/reset-password.php' => 'reset-password',
+            'App/Views/auth/account_locked.php' => 'account-locked',
+            'App/Views/post/feed.php' => 'feed',
+            'App/Views/post/createpost.php' => 'create-post',
+            'App/Views/post/post-detail.php' => 'post-detail',
+            'App/Views/profile/profile.php' => 'profile',
+            'App/Views/notifications/notifications.php' => 'notifications',
+            'App/Views/notifications/detail.php' => 'notification-detail',
+            'App/Views/search/search.php' => 'search',
+            'App/Views/hashtags/hashtag.php' => 'hashtag',
+            'App/Views/admin/dashboard.php' => 'admin',
+            'App/Views/admin/index.php' => 'admin',
+            'App/Views/admin/profile.php' => 'admin/profile',
+            'App/Views/admin/admin-profile.php' => 'admin/profile',
+        ];
+
+        if (array_key_exists($path, $routes)) {
+            return $routes[$path] . $query . $fragment;
+        }
+
+        return $path . $query . $fragment;
+    }
+}
+
 if (!function_exists('app_url')) {
     function app_url(string $path = ''): string {
-        return app_base_url() . ltrim($path, '/');
+        return app_base_url() . app_route_path($path);
     }
 }
 

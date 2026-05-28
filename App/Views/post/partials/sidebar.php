@@ -21,7 +21,7 @@ function sidebarActiveClass($page, $activePage) {
     </div>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/post/feed.php"
+        href="<?php echo app_url('feed'); ?>"
         class="sidebar-icon<?= sidebarActiveClass('home', $activePage) ?>"
         title="Trang chủ"
     >
@@ -29,7 +29,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/search/search.php"
+        href="<?php echo app_url('search'); ?>"
         class="sidebar-icon<?= sidebarActiveClass('search', $activePage) ?>"
         title="Tìm kiếm"
     >
@@ -37,7 +37,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/post/createpost.php"
+        href="<?php echo app_url('create-post'); ?>"
         class="sidebar-icon<?= sidebarActiveClass('create', $activePage) ?>"
         title="Đăng bài"
     >
@@ -45,7 +45,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/notifications/notifications.php"
+        href="<?php echo app_url('notifications'); ?>"
         class="sidebar-icon sidebar-icon-with-badge<?= sidebarActiveClass('notifications', $activePage) ?>"
         title="Thông báo"
     >
@@ -56,7 +56,7 @@ function sidebarActiveClass($page, $activePage) {
     </a>
 
     <a
-        href="<?php echo BASE_URL; ?>App/Views/profile/profile.php"
+        href="<?php echo app_url('profile'); ?>"
         class="sidebar-icon<?= sidebarActiveClass('profile', $activePage) ?>"
         title="Hồ sơ"
     >

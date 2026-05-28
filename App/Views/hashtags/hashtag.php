@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -118,11 +118,11 @@ function hashtagTimeAgo($datetime) {
 }
 
 function hashtagProfileUrl($userId) {
-    return BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $userId);
+    return app_url("profile?id=" . urlencode((string) $userId));
 }
 
 function hashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtags/hashtag.php?tag=" . urlencode((string) $tag);
+    return app_url("hashtag?tag=" . urlencode((string) $tag));
 }
 
 function renderHashtagPostContent($content) {
@@ -162,7 +162,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -173,10 +173,10 @@ function renderHashtagPostContent($content) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Bảng tin">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Bảng tin">
                         <i class="bi bi-house-door"></i>
                     </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -210,7 +210,7 @@ function renderHashtagPostContent($content) {
                             id="post-<?= (int) $post['PostID'] ?>"
                             role="link"
                             tabindex="0"
-                            data-detail-url="<?= BASE_URL ?>App/Views/post/post-detail.php?id=<?= (int) $post['PostID'] ?>"
+                            data-detail-url="<?= app_url('post-detail') ?>?id=<?= (int) $post['PostID'] ?>"
                             <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
                         >
                             <div class="p-3">
@@ -275,7 +275,7 @@ function renderHashtagPostContent($content) {
                                             <button
                                                 type="button"
                                                 class="no-post-nav"
-                                                onclick="window.location.href='<?= BASE_URL ?>App/Views/post/post-detail.php?id=<?= (int) $post['PostID'] ?>#comments'"
+                                                onclick="window.location.href='<?= app_url('post-detail') ?>?id=<?= (int) $post['PostID'] ?>#comments'"
                                             >
                                                 <i class="bi bi-chat"></i>
                                                 <span class="comment-count" data-comment-count><?= (int) ($post['CommentCount'] ?? 0) ?></span>

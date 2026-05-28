@@ -7,12 +7,12 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
 if (!isset($admin) || !is_array($admin)) {
-    header('Location: ' . app_url('App/Views/admin/profile.php'));
+    header('Location: ' . app_url('admin/profile'));
     exit();
 }
 
@@ -40,14 +40,14 @@ $adminStatus = (int)($admin['IsActive'] ?? 0) === 1 ? 'Hoạt động' : 'Bị k
         <div class="container-fluid px-4 px-lg-5">
             <div class="row align-items-center py-3">
                 <div class="col-4 d-flex align-items-center">
-                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php#overview" class="brand-logo text-decoration-none">ARCHIVE</a>
+                    <a href="<?php echo app_url('admin'); ?>#overview" class="brand-logo text-decoration-none">ARCHIVE</a>
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-person-badge"></i></div>
                     <div class="header-clock d-none d-lg-inline-flex ms-2"><i class="bi bi-clock"></i><span data-admin-clock>--:--:-- · --/--/----</span></div>
                 </div>
                 <div class="col-4 d-flex justify-content-end align-items-center gap-2">
-                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php" class="btn btn-outline-brown btn-sm"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
+                    <a href="<?php echo app_url('admin'); ?>" class="btn btn-outline-brown btn-sm"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
                     <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>

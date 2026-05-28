@@ -79,7 +79,7 @@ function createPost() {
         }
 
         sessionStorage.setItem("post_success", "Đăng bài thành công!");
-        window.location.href = appUrl("App/Views/post/feed.php");
+        window.location.href = appUrl("feed");
     })
     .catch(error => {
         console.error(error);

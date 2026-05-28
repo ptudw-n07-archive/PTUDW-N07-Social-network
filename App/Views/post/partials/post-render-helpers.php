@@ -146,19 +146,19 @@ if (!function_exists('archiveTimeAgo')) {
 
 if (!function_exists('archiveProfileUrl')) {
     function archiveProfileUrl($userId): string {
-        return BASE_URL . 'App/Views/profile/profile.php?id=' . urlencode((string) $userId);
+        return app_url('profile?id=' . urlencode((string) $userId));
     }
 }
 
 if (!function_exists('archivePostDetailUrl')) {
     function archivePostDetailUrl($postId): string {
-        return BASE_URL . 'App/Views/post/post-detail.php?id=' . urlencode((string) $postId);
+        return app_url('post-detail?id=' . urlencode((string) $postId));
     }
 }
 
 if (!function_exists('archiveHashtagUrl')) {
     function archiveHashtagUrl($tag): string {
-        return BASE_URL . 'App/Views/hashtags/hashtag.php?tag=' . urlencode((string) $tag);
+        return app_url('hashtag?tag=' . urlencode((string) $tag));
     }
 }
 

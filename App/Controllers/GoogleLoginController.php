@@ -42,7 +42,7 @@ final class GoogleLoginController
             $_SESSION['error'] = $this->isMissingEnvError($e->getMessage())
                 ? $e->getMessage()
                 : 'Không thể đăng nhập bằng Google lúc này. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
     }
 
@@ -138,16 +138,16 @@ final class GoogleLoginController
         }
 
         if (isset($user['IsActive']) && (int) $user['IsActive'] === 0) {
-            $this->redirect('App/Views/auth/account_locked.php');
+            $this->redirect('account-locked');
         }
 
         $this->startUserSession($user);
 
         if (($user['RoleName'] ?? '') === 'Admin') {
-            $this->redirect('App/Views/admin/dashboard.php');
+            $this->redirect('admin');
         }
 
-        $this->redirect('App/Views/post/feed.php');
+        $this->redirect('feed');
     }
 
     private function startUserSession(array $user): void

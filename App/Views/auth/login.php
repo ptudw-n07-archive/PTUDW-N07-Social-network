@@ -60,18 +60,18 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
         <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
             
             <div style="text-align: left; flex: 1;">
-                <a href="<?php echo BASE_URL; ?>App/Views/auth/forgot-password.php" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
+                <a href="<?php echo app_url('forgot-password'); ?>" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
             </div>
 
             <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
-                <a href="<?php echo BASE_URL; ?>Public/index.php" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+                <a href="<?php echo app_url(''); ?>" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
                     <i class="fa-solid fa-house"></i>
                 </a>
             </div>
 
             <div style="text-align: right; flex: 1; line-height: 1.5;">
                 <span style="color: #666;">Chưa có tài khoản?</span><br>
-                <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
+                <a href="<?php echo app_url('register'); ?>" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
             </div>
 
         </div> </div> </body>

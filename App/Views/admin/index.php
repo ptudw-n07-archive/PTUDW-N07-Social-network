@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -17,7 +17,7 @@ if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
 /** @var array $roles */
 /** @var int|null $currentAdminId */
 /** @var array|null $currentAdmin */
-$adminProfileUrl = BASE_URL . 'App/Views/admin/profile.php';
+$adminProfileUrl = app_url('admin/profile');
 $adminAvatarUrl = admin_image_url($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
 ?>
 
@@ -39,7 +39,7 @@ $adminAvatarUrl = admin_image_url($currentAdmin['ProfilePictureUrl'] ?? ($_SESSI
         <div class="container-fluid px-4 px-lg-5">
             <div class="row align-items-center py-3">
                 <div class="col-4 d-flex align-items-center">
-                    <a href="<?php echo BASE_URL; ?>App/Views/admin/dashboard.php#overview" class="brand-logo text-decoration-none admin-dashboard-logo">ARCHIVE</a>
+                    <a href="<?php echo app_url('admin'); ?>#overview" class="brand-logo text-decoration-none admin-dashboard-logo">ARCHIVE</a>
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-stars"></i></div>

@@ -45,12 +45,12 @@ class AuthController
 
     public function register(): void {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if (!CsrfService::validateRequest()) {
             $_SESSION['error'] = 'Phiên làm việc không hợp lệ. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         $name = trim($_POST['fullname'] ?? $_POST['name'] ?? '');
@@ -61,37 +61,37 @@ class AuthController
 
         if ($name === '' || $username === '' || $email === '' || $password === '') {
             $_SESSION['error'] = 'Vui lòng nhập đầy đủ tất cả các trường.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if (!UserModel::isValidUsername($username)) {
             $_SESSION['error'] = 'Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm. Không dùng dấu, khoảng trắng hoặc chữ hoa.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Email không hợp lệ.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if (!UserModel::isValidUsername($username)) {
             $_SESSION['error'] = 'Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if ($password !== $confirmPassword) {
             $_SESSION['error'] = 'Mật khẩu xác nhận không trùng khớp.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if ($this->userModel->usernameExists($username)) {
             $_SESSION['error'] = 'Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if ($this->userModel->emailExists($email)) {
             $_SESSION['error'] = 'Email đã được sử dụng. Vui lòng dùng email khác.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         $verificationToken = $this->createSecureToken();
@@ -120,7 +120,7 @@ class AuthController
             $this->conn->commit();
 
             $_SESSION['success'] = 'Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         } catch (PDOException $e) {
             $this->rollBackIfNeeded();
             $this->handleRegisterDatabaseError($e, $username, $email);
@@ -128,7 +128,7 @@ class AuthController
             $this->rollBackIfNeeded();
             error_log('[AuthRegister] Verification email failed for email_hash=' . hash('sha256', $email) . ': ' . $e->getMessage());
             $_SESSION['error'] = 'Không thể gửi email kích hoạt lúc này. Vui lòng thử lại sau.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
     }
 
@@ -138,14 +138,14 @@ class AuthController
 
         if ($token === '') {
             $_SESSION['error'] = 'Liên kết kích hoạt không hợp lệ.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         $user = $this->userModel->findByVerificationTokenHash($this->hashToken($token));
 
         if (!$user) {
             $_SESSION['error'] = 'Liên kết kích hoạt không hợp lệ hoặc đã được sử dụng.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         $userId = (int) $user['UserID'];
@@ -153,27 +153,27 @@ class AuthController
         if (!empty($user['verification_expires_at']) && strtotime($user['verification_expires_at']) < time()) {
             $this->userModel->clearVerificationToken($userId);
             $_SESSION['error'] = 'Liên kết kích hoạt đã hết hạn. Vui lòng đăng ký lại hoặc liên hệ quản trị viên.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         if (!$this->userModel->markEmailVerified($userId)) {
             $_SESSION['error'] = 'Không thể kích hoạt tài khoản lúc này. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         $_SESSION['success'] = 'Kích hoạt tài khoản thành công! Bạn có thể đăng nhập ngay.';
-        $this->redirect('App/Views/auth/login.php');
+        $this->redirect('login');
     }
 
     public function loginProcess(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         if (!CsrfService::validateRequest()) {
             $_SESSION['error'] = 'Phiên làm việc không hợp lệ. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         $rawLoginInput = trim($_POST['username'] ?? '');
@@ -181,7 +181,7 @@ class AuthController
 
         if ($rawLoginInput === '' || $password === '') {
             $_SESSION['error'] = 'Vui lòng điền đầy đủ tài khoản và mật khẩu.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         $loginInput = filter_var($rawLoginInput, FILTER_VALIDATE_EMAIL)
@@ -192,16 +192,16 @@ class AuthController
 
         if (!$user) {
             $_SESSION['error'] = 'Tài khoản hoặc mật khẩu không chính xác.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         if (isset($user['IsActive']) && (int) $user['IsActive'] === 0) {
-            $this->redirect('App/Views/auth/account_locked.php');
+            $this->redirect('account-locked');
         }
 
         if (isset($user['is_verified']) && (int) $user['is_verified'] !== 1) {
             $_SESSION['error'] = 'Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để kích hoạt tài khoản.';
-            $this->redirect('App/Views/auth/login.php');
+            $this->redirect('login');
         }
 
         CsrfService::regenerate();
@@ -213,10 +213,10 @@ class AuthController
         $_SESSION['role_id'] = $user['RoleID'];
 
         if ($user['RoleName'] === 'Admin') {
-            $this->redirect('App/Views/admin/dashboard.php');
+            $this->redirect('admin');
         }
 
-        $this->redirect('App/Views/post/feed.php');
+        $this->redirect('feed');
     }
 
     public function sendResetOtpProcess(): void
@@ -232,19 +232,19 @@ class AuthController
     public function forgotPassword(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         if (!CsrfService::validateRequest()) {
             $_SESSION['error'] = 'Phiên làm việc không hợp lệ. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         $email = trim($_POST['email'] ?? '');
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['error'] = 'Vui lòng nhập email hợp lệ.';
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         $user = $this->userModel->findByEmail($email);
@@ -269,7 +269,7 @@ class AuthController
         }
 
         $_SESSION['success'] = 'Nếu email tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn khôi phục mật khẩu.';
-        $this->redirect('App/Views/auth/forgot-password.php');
+        $this->redirect('forgot-password');
     }
 
     public function showResetPasswordForm(): void
@@ -279,7 +279,7 @@ class AuthController
 
         if (!$record) {
             $_SESSION['error'] = 'Liên kết đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.';
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         $resetToken = $token;
@@ -307,7 +307,7 @@ class AuthController
 
         if (!$record) {
             $_SESSION['error'] = 'Liên kết đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.';
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         if (strlen($newPassword) < 6) {
@@ -325,7 +325,7 @@ class AuthController
         if (!$user || (int) $user['UserID'] !== (int) $record['user_id']) {
             $this->passwordResetTokenModel->markUsed((int) $record['id']);
             $_SESSION['error'] = 'Liên kết đặt lại mật khẩu không hợp lệ.';
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         $currentHash = $user['PasswordHash'] ?? $user['Password'] ?? '';
@@ -342,7 +342,7 @@ class AuthController
 
         $this->passwordResetTokenModel->markUsed((int) $record['id']);
         $_SESSION['success'] = 'Đổi mật khẩu thành công! Hãy đăng nhập bằng mật khẩu mới.';
-        $this->redirect('App/Views/auth/login.php');
+        $this->redirect('login');
     }
 
     public function logout(): void
@@ -369,7 +369,7 @@ class AuthController
         }
 
         session_destroy();
-        $this->redirect('App/Views/auth/login.php');
+        $this->redirect('login');
     }
 
     private function getValidResetRecord(string $token): ?array
@@ -411,7 +411,7 @@ class AuthController
     private function redirectToResetForm(string $token): void
     {
         if ($token === '') {
-            $this->redirect('App/Views/auth/forgot-password.php');
+            $this->redirect('forgot-password');
         }
 
         $this->redirect('App/Controllers/AuthController.php?action=reset_password&token=' . urlencode($token));
@@ -429,7 +429,7 @@ class AuthController
         if ($e->getCode() !== '23000') {
             error_log('[AuthRegister] Database error: ' . $e->getMessage());
             $_SESSION['error'] = 'Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.';
-            $this->redirect('App/Views/auth/register.php');
+            $this->redirect('register');
         }
 
         if ($this->userModel->usernameExists($username)) {
@@ -440,7 +440,7 @@ class AuthController
             $_SESSION['error'] = 'Không thể đăng ký tài khoản lúc này. Vui lòng thử lại.';
         }
 
-        $this->redirect('App/Views/auth/register.php');
+        $this->redirect('register');
     }
 }
 

@@ -43,9 +43,9 @@ if (session_status() === PHP_SESSION_NONE) {
         </form>
 
         <div class="extra-links" style="justify-content:center;gap:15px;">
-            <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php">Quay lại Đăng nhập</a>
+            <a href="<?php echo app_url('login'); ?>">Quay lại Đăng nhập</a>
             <span style="color:#ccc;">|</span>
-            <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php">Đăng ký tài khoản</a>
+            <a href="<?php echo app_url('register'); ?>">Đăng ký tài khoản</a>
         </div>
     </div>
 </body>

@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -130,7 +130,7 @@ function notificationMessage($notification) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -141,8 +141,8 @@ function notificationMessage($notification) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/search/search.php" class="header-search-btn"><i class="bi bi-search"></i></a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('search'); ?>" class="header-search-btn"><i class="bi bi-search"></i></a>
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -186,7 +186,7 @@ function notificationMessage($notification) {
                                     : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng'));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
-                                $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
+                                $profileUrl = app_url("profile?id=" . urlencode((string) $notification['SenderUserID']));
                                 $avatarUrl = $isDetailNotification ? $openUrl : $profileUrl;
                             ?>
                             <div class="activity-item <?= $isUnread ? 'unread' : '' ?>" data-notification-id="<?= (int) $notification['NotificationID'] ?>">

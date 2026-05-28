@@ -46,7 +46,7 @@ $resetToken = $resetToken ?? ($_GET['token'] ?? '');
         </form>
 
         <div class="extra-links" style="justify-content:center;">
-            <a href="<?php echo BASE_URL; ?>App/Views/auth/login.php">Quay lại Đăng nhập</a>
+            <a href="<?php echo app_url('login'); ?>">Quay lại Đăng nhập</a>
         </div>
     </div>
 </body>

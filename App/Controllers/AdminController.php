@@ -225,7 +225,7 @@ class AdminController {
 
     public function index() {
         if (!$this->isAdmin()) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 
@@ -266,14 +266,14 @@ class AdminController {
 
     public function profile(): void {
         if (!$this->isAdmin()) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 
         $currentAdminId = $this->currentAdminId();
         $admin = $this->adminProfileModel->getAdminProfileById($currentAdminId);
         if (!$admin) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 

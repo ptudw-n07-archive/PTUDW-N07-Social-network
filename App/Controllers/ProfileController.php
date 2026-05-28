@@ -218,7 +218,7 @@ class ProfileController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            header('Location: ' . app_url('App/Views/auth/login.php'));
+            header('Location: ' . app_url('login'));
             exit();
         }
 

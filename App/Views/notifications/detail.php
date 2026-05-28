@@ -7,7 +7,7 @@ if (!isset($notification) || !is_array($notification)) {
     if ($notificationId > 0) {
         header('Location: ' . app_url('App/Controllers/NotificationController.php?action=detail&id=' . urlencode((string) $notificationId)));
     } else {
-        header('Location: ' . app_url('App/Views/notifications/notifications.php'));
+        header('Location: ' . app_url('notifications'));
     }
 
     exit();
@@ -120,13 +120,13 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
             <div class="col-4 d-flex justify-content-center">
                 <div class="header-badge"><i class="bi bi-heart"></i></div>
             </div>
             <div class="col-4 d-flex justify-content-end">
-                <a href="<?php echo BASE_URL; ?>App/Views/notifications/notifications.php" class="header-search-btn" title="Thông báo">
+                <a href="<?php echo app_url('notifications'); ?>" class="header-search-btn" title="Thông báo">
                     <i class="bi bi-arrow-left"></i>
                 </a>
             </div>
@@ -225,12 +225,12 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                     </div>
 
                     <div class="notification-detail-actions">
-                        <a href="<?php echo BASE_URL; ?>App/Views/notifications/notifications.php" class="notification-detail-back">
+                        <a href="<?php echo app_url('notifications'); ?>" class="notification-detail-back">
                             <i class="bi bi-arrow-left"></i> Quay lại thông báo
                         </a>
 
                         <?php if ($isReportWarning && $hasPost && !$isPostHidden): ?>
-                            <a href="<?php echo BASE_URL; ?>App/Views/post/post-detail.php?id=<?= urlencode((string) $postId) ?>" class="btn btn-pink notification-detail-view-post">
+                            <a href="<?php echo app_url('post-detail'); ?>?id=<?= urlencode((string) $postId) ?>" class="btn btn-pink notification-detail-view-post">
                                 Xem bài viết
                             </a>
                         <?php endif; ?>

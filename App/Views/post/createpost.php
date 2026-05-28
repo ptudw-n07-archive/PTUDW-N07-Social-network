@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../../Config/Database.php';
 require_once __DIR__ . '/../../Controllers/PostController.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ' . app_url('App/Views/auth/login.php'));
+    header('Location: ' . app_url('login'));
     exit();
 }
 
@@ -79,7 +79,7 @@ function imagePath($path) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="brand-logo text-decoration-none">
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">
                     ARCHIVE
                 </a>
             </div>
@@ -92,11 +92,11 @@ function imagePath($path) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/post/feed.php" class="header-search-btn" title="Về bảng tin">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Về bảng tin">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -168,7 +168,7 @@ function imagePath($path) {
 
                         <div class="d-flex justify-content-between align-items-center">
                             <a 
-                                href="<?php echo BASE_URL; ?>App/Views/post/feed.php" 
+                                href="<?php echo app_url('feed'); ?>" 
                                 class="btn btn-light px-4"
                             >
                                 Hủy
