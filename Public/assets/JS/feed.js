@@ -1702,7 +1702,15 @@ function openEditPostModal(card) {
     const images = safeJsonParse(card.dataset.postImages, []);
     openBaseModal("Chỉnh sửa bài viết", `
         <form id="editPostForm" class="post-edit-form">
-            <textarea id="editPostContent" class="form-control post-edit-textarea" name="content" rows="8" maxlength="5000"></textarea>
+            <textarea id="editPostContent" name="content" hidden></textarea>
+            <div
+                id="editPostEditor"
+                class="form-control post-edit-textarea post-content-editor"
+                contenteditable="true"
+                role="textbox"
+                aria-multiline="true"
+                data-content-target="editPostContent"
+            ></div>
             <div class="post-edit-images">
                 ${images.map(image => `
                     <label class="post-edit-image-item">
@@ -1727,10 +1735,19 @@ function openEditPostModal(card) {
     const layer = document.getElementById("postActionModalLayer");
     const form = layer.querySelector("#editPostForm");
     const textarea = layer.querySelector("#editPostContent");
-    textarea.value = normalizeRawPostContent(card.dataset.postContent || "");
+    const editor = layer.querySelector("#editPostEditor");
+    const postContent = normalizeRawPostContent(card.dataset.postContent || "");
+    textarea.value = postContent;
+    editor.textContent = postContent;
+    if (window.initArchiveHashtagSuggestions) {
+        window.initArchiveHashtagSuggestions(layer);
+    }
     layer.querySelector(".post-action-secondary").onclick = closePostActionModal;
     form.onsubmit = function (event) {
         event.preventDefault();
+        if (window.syncArchiveContentEditors) {
+            window.syncArchiveContentEditors(form);
+        }
         const formData = new FormData(form);
         const removeImages = Array.from(form.querySelectorAll("input[name='removeImage']:checked")).map(input => input.value);
         formData.append("postId", card.dataset.postId);
@@ -1819,6 +1836,11 @@ function showPostError(error) {
 }
 
 function initHashtagComposerSuggestions() {
+    if (window.initArchiveHashtagSuggestions) {
+        window.initArchiveHashtagSuggestions(document);
+        return;
+    }
+
     const form = document.getElementById("postForm");
     const textarea = form ? form.querySelector("textarea[name='content']") : null;
     const box = document.getElementById("hashtagSuggestionBox");
@@ -1945,8 +1967,8 @@ function initHashtagComposerSuggestions() {
             button.type = "button";
             button.className = "hashtag-suggestion-item" + (index === activeIndex ? " active" : "");
             button.innerHTML = `
-                <span>#${escapeHTML(item.name)}</span>
-                <small>${item.isNew ? "Tạo hashtag mới" : item.usageCount + " bài viết"}</small>
+                <span class="hashtag-suggestion-name">#${escapeHTML(item.name)}</span>
+                <span class="hashtag-suggestion-meta">${item.isNew ? "Tạo hashtag mới" : item.usageCount + " bài viết"}</span>
             `;
 
             button.addEventListener("mousedown", function (event) {

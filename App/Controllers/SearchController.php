@@ -67,16 +67,18 @@ class SearchController {
 
         try {
             $this->requireLoginJson();
-            $keyword = $this->normalizeHashtagKeyword($_GET['keyword'] ?? $_POST['keyword'] ?? '');
+            $keyword = $this->normalizeHashtagKeyword($_GET['q'] ?? $_POST['q'] ?? $_GET['keyword'] ?? $_POST['keyword'] ?? '');
 
             if ($keyword === '') {
-                echo json_encode([], JSON_UNESCAPED_UNICODE);
+                $this->json(true, "OK", ['hashtags' => []]);
                 return;
             }
 
-            echo json_encode($this->searchModel->suggestHashtags($keyword, 10), JSON_UNESCAPED_UNICODE);
+            $this->json(true, "OK", [
+                'hashtags' => $this->searchModel->suggestHashtags($keyword, 8)
+            ]);
         } catch (Exception $e) {
-            echo json_encode([], JSON_UNESCAPED_UNICODE);
+            $this->json(false, $e->getMessage(), ['hashtags' => []]);
         }
     }
 

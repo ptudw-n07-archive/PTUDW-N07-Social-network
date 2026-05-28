@@ -269,7 +269,8 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
     window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
 </script>
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260527-comment-focus"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/hashtag-suggestions.js?v=20260528-contenteditable"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260528-contenteditable"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
