@@ -78,6 +78,7 @@ class NotificationModel {
                 n.CommentID,
                 n.Message AS NotificationMessage,
                 c.Content AS CommentContent,
+                c.ParentCommentID,
                 p.Content AS PostContent,
                 (
                     SELECT MIN(pi.ImageUrl)
@@ -112,10 +113,12 @@ class NotificationModel {
                 n.PostID,
                 n.CommentID,
                 n.Message AS NotificationMessage,
+                c.ParentCommentID,
                 p.IsHidden AS PostIsHidden
             FROM notifications n
             JOIN notificationtypes nt ON nt.NotificationTypeID = n.NotificationTypeID
             LEFT JOIN posts p ON p.PostID = n.PostID
+            LEFT JOIN comments c ON c.CommentID = n.CommentID
             WHERE n.NotificationID = :notificationId AND n.ReceiverUserID = :userId
             LIMIT 1
         ";
@@ -187,7 +190,14 @@ class NotificationModel {
             LEFT JOIN posts p ON p.PostID = COALESCE(n.PostID, r.PostID, c.PostID)
             WHERE n.NotificationID = :notificationId
               AND n.ReceiverUserID = :userId
-              AND (n.NotificationTypeID IN (4, 5) OR nt.TypeName IN ('ReportWarning', 'ContentHidden', 'System'))
+              AND nt.TypeName IN (
+                  'ReportWarning',
+                  'ContentHidden',
+                  'AccountLocked',
+                  'AccountUnlocked',
+                  'RoleChanged',
+                  'System'
+              )
             LIMIT 1
         ";
 

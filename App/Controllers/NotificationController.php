@@ -198,8 +198,14 @@ class NotificationController {
     }
 
     private function isDetailNotification($notification) {
-        return in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
-            || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden', 'System'], true);
+        return in_array((string) ($notification['TypeName'] ?? ''), [
+            'ReportWarning',
+            'ContentHidden',
+            'AccountLocked',
+            'AccountUnlocked',
+            'RoleChanged',
+            'System'
+        ], true);
     }
 
     private function acknowledgeBadge($userId, $notifications) {

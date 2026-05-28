@@ -14,27 +14,44 @@ if (!isset($notification) || !is_array($notification)) {
 }
 
 /** @var array $notification Detail row loaded from the notifications table by NotificationController. */
-$isContentHidden = (int) ($notification['NotificationTypeID'] ?? 0) === 5
-    || (string) ($notification['TypeName'] ?? '') === 'ContentHidden';
-$isSystemNotification = (string) ($notification['TypeName'] ?? '') === 'System';
-$systemMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
-if ($isSystemNotification && $systemMessage === '') {
-    $systemMessage = 'Bạn có một thông báo hệ thống mới.';
-}
-$title = $isSystemNotification
-    ? 'Thông báo hệ thống'
-    : ($isContentHidden ? 'Nội dung của bạn đã bị ẩn' : 'Cảnh báo bài viết');
-$description = $isSystemNotification
-    ? 'Thông báo từ Tổng cục kiểm duyệt.'
-    : ($isContentHidden
-        ? 'Bài viết này không còn hiển thị công khai do vi phạm tiêu chuẩn cộng đồng hoặc đã được quản trị viên xử lý.'
-        : 'Bài viết của bạn đã nhận cảnh báo do bị báo cáo.');
+$typeName = (string) ($notification['TypeName'] ?? '');
+$isContentHidden = $typeName === 'ContentHidden';
+$isReportWarning = $typeName === 'ReportWarning';
+$systemAdminSenderName = 'Tổng Cục Kiểm Duyệt';
+$titleMap = [
+    'System' => 'Thông báo hệ thống',
+    'AccountLocked' => 'Tài khoản của bạn đã bị khóa',
+    'AccountUnlocked' => 'Tài khoản của bạn đã được mở khóa',
+    'ReportWarning' => 'Cảnh báo bài viết',
+    'ContentHidden' => 'Nội dung của bạn đã bị ẩn',
+    'RoleChanged' => 'Cập nhật vai trò tài khoản'
+];
+$fallbackMessageMap = [
+    'System' => 'Bạn có một thông báo hệ thống mới',
+    'AccountLocked' => 'Tài khoản của bạn đã bị khóa',
+    'AccountUnlocked' => 'Tài khoản của bạn đã được mở khóa',
+    'ReportWarning' => 'Bài viết của bạn đã nhận cảnh báo báo cáo',
+    'ContentHidden' => 'Nội dung của bạn đã bị ẩn',
+    'RoleChanged' => 'Vai trò tài khoản của bạn đã được cập nhật'
+];
+$descriptionMap = [
+    'System' => 'Thông báo từ Tổng Cục Kiểm Duyệt.',
+    'AccountLocked' => 'Tài khoản của bạn đã được quản trị viên kiểm duyệt và cập nhật trạng thái.',
+    'AccountUnlocked' => 'Tài khoản của bạn đã được quản trị viên kiểm duyệt và cập nhật trạng thái.',
+    'ReportWarning' => 'Bài viết của bạn đã nhận cảnh báo do bị báo cáo.',
+    'ContentHidden' => 'Nội dung này không còn hiển thị công khai do vi phạm tiêu chuẩn cộng đồng hoặc đã được quản trị viên xử lý.',
+    'RoleChanged' => 'Vai trò tài khoản của bạn đã được quản trị viên cập nhật.'
+];
+$storedMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
+$detailMessage = $storedMessage !== '' ? $storedMessage : ($fallbackMessageMap[$typeName] ?? 'Bạn có một thông báo mới');
+$title = $titleMap[$typeName] ?? 'Thông báo';
+$description = $descriptionMap[$typeName] ?? 'Thông báo từ Tổng Cục Kiểm Duyệt.';
 $postId = (int) ($notification['RelatedPostID'] ?? 0);
 $commentId = (int) ($notification['RelatedCommentID'] ?? 0);
 $hasPost = $postId > 0 && ($notification['PostIsHidden'] ?? null) !== null;
 $hasComment = $commentId > 0;
 $isPostHidden = $hasPost && (int) $notification['PostIsHidden'] === 1;
-$status = $isSystemNotification
+$status = !in_array($typeName, ['ReportWarning', 'ContentHidden'], true)
     ? 'Đã gửi đến bạn vào ' . date('d/m/Y H:i', strtotime((string) $notification['CreatedAt']))
     : ($isContentHidden
     ? 'Đã bị ẩn'
@@ -127,19 +144,31 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
             <div class="col-lg-7 col-md-10 mx-auto">
                 <article class="notification-detail-card bg-white">
                     <div class="notification-detail-icon <?= $isContentHidden ? 'hidden' : '' ?>">
-                        <i class="bi <?= $isSystemNotification ? 'bi-megaphone' : ($isContentHidden ? 'bi-eye-slash' : 'bi-exclamation-triangle') ?>"></i>
+                        <i class="bi <?=
+                            match ($typeName) {
+                                'System' => 'bi-megaphone',
+                                'AccountLocked' => 'bi-lock',
+                                'AccountUnlocked' => 'bi-unlock',
+                                'RoleChanged' => 'bi-person-gear',
+                                'ContentHidden' => 'bi-eye-slash',
+                                default => 'bi-exclamation-triangle'
+                            }
+                        ?>"></i>
                     </div>
 
                     <h1 class="notification-detail-title"><?= htmlspecialchars($title, ENT_QUOTES, 'UTF-8') ?></h1>
                     <p class="notification-detail-description"><?= htmlspecialchars($description, ENT_QUOTES, 'UTF-8') ?></p>
 
-                    <?php if ($isSystemNotification || trim((string) ($notification['NotificationMessage'] ?? '')) !== ''): ?>
-                        <div class="notification-detail-message">
-                            <?= nl2br(htmlspecialchars($isSystemNotification ? $systemMessage : (string) $notification['NotificationMessage'], ENT_QUOTES, 'UTF-8')) ?>
-                        </div>
-                    <?php endif; ?>
+                    <div class="notification-detail-message">
+                        <?= nl2br(htmlspecialchars($detailMessage, ENT_QUOTES, 'UTF-8')) ?>
+                    </div>
 
-                    <?php if (!$isSystemNotification && !empty($notification['ReportID'])): ?>
+                    <div class="notification-detail-message">
+                        <div class="mb-2"><strong>Người gửi:</strong> <?= htmlspecialchars($systemAdminSenderName, ENT_QUOTES, 'UTF-8') ?></div>
+                        <div><strong>Thời gian gửi:</strong> <?= htmlspecialchars(date('d/m/Y H:i', strtotime((string) $notification['CreatedAt'])), ENT_QUOTES, 'UTF-8') ?></div>
+                    </div>
+
+                    <?php if (in_array($typeName, ['ReportWarning', 'ContentHidden'], true) && !empty($notification['ReportID'])): ?>
                         <div class="notification-detail-message">
                             <div class="notification-post-preview-heading">Thông tin báo cáo</div>
                             <div class="mb-2"><strong>Lý do báo cáo:</strong> <?= htmlspecialchars((string) ($notification['ReportReason'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></div>
@@ -160,7 +189,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!$isSystemNotification && $hasPost): ?>
+                    <?php if (in_array($typeName, ['ReportWarning', 'ContentHidden'], true) && $hasPost): ?>
                         <div class="notification-post-preview">
                             <div class="notification-post-preview-heading">Bài viết liên quan</div>
                             <p><?= htmlspecialchars(moderationDetailShortText($notification['PostContent'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
@@ -177,7 +206,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                         </div>
                     <?php endif; ?>
 
-                    <?php if (!$isSystemNotification && $hasComment): ?>
+                    <?php if (in_array($typeName, ['ReportWarning', 'ContentHidden'], true) && $hasComment): ?>
                         <div class="notification-post-preview">
                             <div class="notification-post-preview-heading">Bình luận liên quan</div>
                             <p><?= htmlspecialchars(moderationDetailShortText($notification['CommentContent'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
@@ -191,7 +220,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                     <?php endif; ?>
 
                     <div class="notification-detail-status <?= ($isContentHidden || $isPostHidden) ? 'hidden' : '' ?>">
-                        <i class="bi <?= $isSystemNotification ? 'bi-clock' : (($isContentHidden || $isPostHidden) ? 'bi-eye-slash' : ($hasPost ? 'bi-check-circle' : 'bi-info-circle')) ?>"></i>
+                        <i class="bi <?= !in_array($typeName, ['ReportWarning', 'ContentHidden'], true) ? 'bi-clock' : (($isContentHidden || $isPostHidden) ? 'bi-eye-slash' : ($hasPost ? 'bi-check-circle' : 'bi-info-circle')) ?>"></i>
                         <span><?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?></span>
                     </div>
 
@@ -200,7 +229,7 @@ $thumbnail = moderationDetailAssetPath($notification['PostThumbnail'] ?? '');
                             <i class="bi bi-arrow-left"></i> Quay lại thông báo
                         </a>
 
-                        <?php if (!$isSystemNotification && !$isContentHidden && $hasPost && !$isPostHidden): ?>
+                        <?php if ($isReportWarning && $hasPost && !$isPostHidden): ?>
                             <a href="<?php echo BASE_URL; ?>App/Views/post/post-detail.php?id=<?= urlencode((string) $postId) ?>" class="btn btn-pink notification-detail-view-post">
                                 Xem bài viết
                             </a>

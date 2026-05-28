@@ -84,28 +84,30 @@ function notificationMessage($notification) {
     $storedMessage = trim((string) ($notification['NotificationMessage'] ?? ''));
     $typeName = (string) ($notification['TypeName'] ?? '');
 
-    if ($typeName === 'System') {
-        return $storedMessage !== '' ? $storedMessage : 'Bạn có một thông báo hệ thống mới.';
+    if ($storedMessage !== '') {
+        return $storedMessage;
     }
 
-    if (in_array($typeName, ['Repost', 'Share'], true)
-        || ($storedMessage !== '' && str_contains($storedMessage, 'đã đăng lại bài viết của bạn'))) {
-        return 'đã đăng lại bài viết của bạn';
-    }
-
-    if ($storedMessage !== '' && str_contains($storedMessage, 'đã trả lời bình luận của bạn')) {
-        return 'đã trả lời bình luận của bạn';
-    }
+    $isReplyComment = in_array($typeName, ['ReplyComment', 'CommentReply'], true)
+        || ($typeName === 'Comment' && !empty($notification['ParentCommentID']));
 
     return match ($typeName) {
         'Like' => 'đã thích bài viết của bạn',
-        'Comment' => 'đã bình luận về bài viết của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
+        'Comment' => $isReplyComment
+            ? 'đã trả lời bình luận của bạn' . ($comment !== '' ? ': "' . $comment . '"' : '')
+            : 'đã bình luận về bài viết của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
         'ReplyComment',
         'CommentReply' => 'đã trả lời bình luận của bạn' . ($comment !== '' ? ': "' . $comment . '"' : ''),
         'Follow' => 'đã theo dõi bạn',
+        'Repost',
+        'Share' => 'đã đăng lại bài viết của bạn',
         'ReportWarning' => 'Bài viết của bạn đã nhận cảnh báo báo cáo',
         'ContentHidden' => 'Nội dung của bạn đã bị ẩn',
-        default => 'có hoạt động mới liên quan đến bạn'
+        'AccountLocked' => 'Tài khoản của bạn đã bị khóa',
+        'AccountUnlocked' => 'Tài khoản của bạn đã được mở khóa',
+        'RoleChanged' => 'Vai trò tài khoản của bạn đã được cập nhật',
+        'System' => 'Bạn có một thông báo hệ thống mới',
+        default => 'Bạn có một thông báo mới'
     };
 }
 ?>
@@ -176,15 +178,12 @@ function notificationMessage($notification) {
                     <?php if (!empty($notifications)): ?>
                         <?php foreach ($notifications as $notification): ?>
                             <?php
-                                $isModerationNotification = in_array((int) ($notification['NotificationTypeID'] ?? 0), [4, 5], true)
-                                    || in_array((string) ($notification['TypeName'] ?? ''), ['ReportWarning', 'ContentHidden'], true);
-                                $isSystemNotification = (string) ($notification['TypeName'] ?? '') === 'System';
-                                $isDetailNotification = $isModerationNotification || $isSystemNotification;
-                                $senderName = $isSystemNotification
-                                    ? 'Tổng cục kiểm duyệt'
-                                    : ($isModerationNotification
-                                        ? 'Hệ thống'
-                                        : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng')));
+                                $systemAdminTypes = ['System', 'ReportWarning', 'ContentHidden', 'AccountLocked', 'AccountUnlocked', 'RoleChanged'];
+                                $isSystemAdminNotification = in_array((string) ($notification['TypeName'] ?? ''), $systemAdminTypes, true);
+                                $isDetailNotification = $isSystemAdminNotification;
+                                $senderName = $isSystemAdminNotification
+                                    ? 'Tổng Cục Kiểm Duyệt'
+                                    : ($notification['SenderName'] ?: (!empty($notification['SenderUsername']) ? '@' . $notification['SenderUsername'] : 'Người dùng'));
                                 $isUnread = (int) ($notification['IsRead'] ?? 0) === 0;
                                 $openUrl = BASE_URL . "App/Controllers/NotificationController.php?action=open&id=" . urlencode((string) $notification['NotificationID']);
                                 $profileUrl = BASE_URL . "App/Views/profile/profile.php?id=" . urlencode((string) $notification['SenderUserID']);
