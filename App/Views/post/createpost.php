@@ -197,6 +197,9 @@ function imagePath($path) {
     </div>
 </section>
 
+<script>
+    window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
+</script>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 

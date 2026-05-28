@@ -232,6 +232,43 @@ class PostController {
         ], JSON_UNESCAPED_UNICODE);
     }
 
+    public function getPostUpdates() {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $rawPostIds = $_GET['postIds'] ?? $_GET['postId'] ?? [];
+        if (!is_array($rawPostIds)) {
+            $rawPostIds = preg_split('/[\s,]+/', (string) $rawPostIds, -1, PREG_SPLIT_NO_EMPTY);
+        }
+
+        $postIds = array_values(array_unique(array_filter(array_map('intval', $rawPostIds), function ($postId) {
+            return $postId > 0;
+        })));
+
+        if (empty($postIds)) {
+            echo json_encode([
+                "success" => true,
+                "posts" => []
+            ], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $updates = $this->postModel->getPostUpdates($postIds, $_SESSION['user_id'] ?? null);
+        $posts = array_map(function ($post) {
+            return [
+                "PostID" => (int) ($post['PostID'] ?? 0),
+                "LikeCount" => (int) ($post['LikeCount'] ?? 0),
+                "CommentCount" => (int) ($post['CommentCount'] ?? 0),
+                "IsLiked" => (bool) ((int) ($post['IsLiked'] ?? 0)),
+                "LatestComments" => []
+            ];
+        }, $updates);
+
+        echo json_encode([
+            "success" => true,
+            "posts" => $posts
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
     public function repost() {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -706,6 +743,11 @@ class PostController {
     public function blockUser() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         $userId = $_SESSION['user_id'] ?? null;
         $blockedUserId = (int) ($_POST['userId'] ?? 0);
 
@@ -720,6 +762,11 @@ class PostController {
 
     public function markNotInterested() {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         $userId = $_SESSION['user_id'] ?? null;
         $postId = (int) ($_POST['postId'] ?? 0);
@@ -917,6 +964,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
         $controller->create();
     } elseif ($_GET['action'] === 'like') {
         $controller->like();
+    } elseif ($_GET['action'] === 'getPostUpdates') {
+        $controller->getPostUpdates();
     } elseif ($_GET['action'] === 'repost') {
         $controller->repost();
     } elseif ($_GET['action'] === 'comment') {

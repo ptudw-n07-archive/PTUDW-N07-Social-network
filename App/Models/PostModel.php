@@ -467,6 +467,55 @@ public function countLikes($postId) {
     return $row['total'];
 }
 
+public function getPostUpdates(array $postIds, $viewerId = null): array {
+    $postIds = array_values(array_unique(array_filter(array_map('intval', $postIds), function ($postId) {
+        return $postId > 0;
+    })));
+
+    if (empty($postIds)) {
+        return [];
+    }
+
+    $postIds = array_slice($postIds, 0, 50);
+    $placeholders = [];
+    foreach ($postIds as $index => $postId) {
+        $placeholders[] = ':postId' . $index;
+    }
+
+    $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+    $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+    $sql = "
+        SELECT
+            p.PostID,
+            $viewerLikeSelect
+            COUNT(DISTINCT l.UserID) AS LikeCount,
+            COUNT(DISTINCT c.CommentID) AS CommentCount
+        FROM posts p
+        LEFT JOIN likes l ON p.PostID = l.PostID
+        $viewerLikeJoin
+        LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
+        WHERE p.PostID IN (" . implode(',', $placeholders) . ")
+        AND p.IsHidden = 0
+        AND " . $this->visibilitySql($viewerId) . "
+        GROUP BY p.PostID
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    foreach ($postIds as $index => $postId) {
+        $stmt->bindValue(':postId' . $index, $postId, PDO::PARAM_INT);
+    }
+
+    if ($viewerId) {
+        $stmt->bindValue(":viewerId", (int) $viewerId, PDO::PARAM_INT);
+        $this->bindViewerParams($stmt, $viewerId);
+    }
+
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 public function createComment($userId, $postId, $content, $parentCommentId = null) {
     $parentCommentId = $parentCommentId ? (int) $parentCommentId : null;
 

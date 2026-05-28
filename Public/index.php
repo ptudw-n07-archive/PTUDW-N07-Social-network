@@ -66,7 +66,7 @@ $projectStats = [
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="/Public/assets/CSS/style.css">
+    <link rel="stylesheet" href="<?= htmlspecialchars(homepageUrl('Public/assets/CSS/style.css'), ENT_QUOTES, 'UTF-8') ?>">
 </head>
 
 <body>

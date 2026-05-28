@@ -1,6 +1,23 @@
-const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+const APP_BASE_URL = (function () {
+    if (window.APP_BASE_URL) {
+        return String(window.APP_BASE_URL).replace(/\/?$/, "/");
+    }
+
+    const script = document.currentScript || document.querySelector('script[src*="Public/assets/JS/feed.js"]');
+    const scriptSrc = script ? script.getAttribute("src") || "" : "";
+    const marker = "Public/assets/JS/feed.js";
+    const markerIndex = scriptSrc.indexOf(marker);
+
+    if (markerIndex >= 0) {
+        return scriptSrc.slice(0, markerIndex).replace(/\/?$/, "/");
+    }
+
+    return `${window.location.origin}/`;
+})();
 let pendingCommentDelete = null;
 let commentDeleteModalInstance = null;
+let feedUpdatesPollingInFlight = false;
+const FEED_UPDATES_POLL_INTERVAL = 10000;
 
 function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
@@ -116,6 +133,118 @@ function safeCommentSelectorValue(value) {
 // =======================
 // LIKE BUTTON - AJAX THẬT
 // =======================
+function getVisiblePostIds() {
+    const ids = [];
+
+    document.querySelectorAll(".post-card[data-post-id]").forEach(function (card) {
+        const postId = parseInt(card.dataset.postId || "0", 10);
+        if (postId > 0 && !ids.includes(postId)) {
+            ids.push(postId);
+        }
+    });
+
+    return ids;
+}
+
+function setPostLikeState(card, isLiked) {
+    const likeButton = card ? card.querySelector('button[onclick*="toggleLike"]') : null;
+    const icon = likeButton ? likeButton.querySelector("i") : null;
+
+    if (!likeButton || !icon) {
+        return;
+    }
+
+    if (isLiked) {
+        icon.classList.remove("bi-heart");
+        icon.classList.add("bi-heart-fill");
+        likeButton.classList.add("liked");
+        likeButton.setAttribute("aria-pressed", "true");
+        likeButton.style.color = "red";
+        return;
+    }
+
+    icon.classList.remove("bi-heart-fill");
+    icon.classList.add("bi-heart");
+    likeButton.classList.remove("liked");
+    likeButton.setAttribute("aria-pressed", "false");
+    likeButton.style.color = "";
+}
+
+function applyPostUpdate(update) {
+    const postId = parseInt(update && update.PostID ? update.PostID : "0", 10);
+
+    if (!postId) {
+        return;
+    }
+
+    const selectorPostId = safeCommentSelectorValue(postId);
+    document.querySelectorAll(`.post-card[data-post-id="${selectorPostId}"]`).forEach(function (card) {
+        const likeCount = card.querySelector("[data-like-count], .like-count");
+        const commentCount = card.querySelector("[data-comment-count], .comment-count");
+
+        if (likeCount && update.LikeCount !== undefined) {
+            likeCount.innerText = parseInt(update.LikeCount || 0, 10);
+        }
+
+        if (commentCount && update.CommentCount !== undefined) {
+            commentCount.innerText = parseInt(update.CommentCount || 0, 10);
+        }
+
+        if (update.IsLiked !== undefined) {
+            setPostLikeState(card, Boolean(update.IsLiked));
+        }
+    });
+}
+
+function pollPostUpdates() {
+    if (document.hidden || feedUpdatesPollingInFlight) {
+        return;
+    }
+
+    const postIds = getVisiblePostIds();
+    if (!postIds.length) {
+        return;
+    }
+
+    const params = new URLSearchParams();
+    postIds.slice(0, 50).forEach(function (postId) {
+        params.append("postIds[]", postId);
+    });
+
+    feedUpdatesPollingInFlight = true;
+
+    fetch(`${appUrl("App/Controllers/PostController.php?action=getPostUpdates")}&${params.toString()}`, {
+        method: "GET",
+        headers: {
+            "Accept": "application/json"
+        }
+    })
+        .then(function (response) {
+            return response.ok ? response.json() : null;
+        })
+        .then(function (data) {
+            if (!data || !data.success || !Array.isArray(data.posts)) {
+                return;
+            }
+
+            data.posts.forEach(applyPostUpdate);
+        })
+        .catch(function () {
+        })
+        .finally(function () {
+            feedUpdatesPollingInFlight = false;
+        });
+}
+
+function initPostUpdatesPolling() {
+    if (window.__archivePostUpdatesPollingStarted || !getVisiblePostIds().length) {
+        return;
+    }
+
+    window.__archivePostUpdatesPollingStarted = true;
+    window.setInterval(pollPostUpdates, FEED_UPDATES_POLL_INTERVAL);
+}
+
 function openPostDetail(element, event) {
     if (event) {
         const interactiveTarget = event.target.closest("a, button, input, textarea, select, label, video, .no-post-nav");
@@ -491,12 +620,12 @@ function addPostToUI(post) {
                     <div class="post-actions d-flex gap-4">
                         <button type="button" class="feed-like-btn no-post-nav" onclick="toggleLike(this)" data-post-id="${post.PostID}" aria-pressed="false">
                             <i class="bi bi-heart"></i>
-                            <span class="like-count">0</span>
+                            <span class="like-count" data-like-count>0</span>
                         </button>
 
                         <button type="button" class="no-post-nav" onclick="toggleCommentBox(this)">
                             <i class="bi bi-chat"></i>
-                            <span class="comment-count">0</span>
+                            <span class="comment-count" data-comment-count>0</span>
                         </button>
 
                         <button type="button" class="no-post-nav repost-btn" onclick="repostPost(this)" data-post-id="${post.PostID}" title="Đăng lại bài viết">
@@ -535,6 +664,7 @@ function addPostToUI(post) {
     }
     postsList.prepend(newPost);
     bindCommentTextareaAutoResize(newPost);
+    initPostUpdatesPolling();
 }
 
 function refreshTrendingHashtags() {
@@ -1187,6 +1317,7 @@ document.addEventListener("DOMContentLoaded", function () {
     bindCommentTextareaAutoResize();
     focusPostDetailComment();
     initHashtagComposerSuggestions();
+    initPostUpdatesPolling();
     initPostMenu();
 });
 

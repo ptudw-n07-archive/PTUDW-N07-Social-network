@@ -2281,29 +2281,6 @@ html {
     }
 }
 
-.post-detail-comment {
-    display: flex;
-    gap: 12px;
-    padding: 12px 0;
-    border-top: 1px solid rgba(121, 91, 74, 0.12);
-    scroll-margin-top: 110px;
-}
-
-.post-detail-comment .avatar {
-    width: 38px;
-    height: 38px;
-}
-
-.post-detail-comment.highlight,
-.post-detail-comment.comment-highlight {
-    margin: 8px -10px 0;
-    padding: 12px 10px;
-    border-radius: 14px;
-    background: #fff3f5;
-    box-shadow: 0 0 0 2px rgba(216, 137, 150, 0.25);
-    transition: background-color 0.4s ease, box-shadow 0.4s ease;
-}
-
 .post-detail-comment-unavailable {
     margin-top: 14px;
     padding: 11px 14px;

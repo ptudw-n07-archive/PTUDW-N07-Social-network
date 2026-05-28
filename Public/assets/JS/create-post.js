@@ -1,4 +1,19 @@
-const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+const APP_BASE_URL = (function () {
+    if (window.APP_BASE_URL) {
+        return String(window.APP_BASE_URL).replace(/\/?$/, "/");
+    }
+
+    const script = document.currentScript || document.querySelector('script[src*="Public/assets/JS/create-post.js"]');
+    const scriptSrc = script ? script.getAttribute("src") || "" : "";
+    const marker = "Public/assets/JS/create-post.js";
+    const markerIndex = scriptSrc.indexOf(marker);
+
+    if (markerIndex >= 0) {
+        return scriptSrc.slice(0, markerIndex).replace(/\/?$/, "/");
+    }
+
+    return `${window.location.origin}/`;
+})();
 
 function appUrl(path = "") {
     return APP_BASE_URL + String(path).replace(/^\/+/, "");
