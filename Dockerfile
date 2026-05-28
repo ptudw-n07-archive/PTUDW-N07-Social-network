@@ -17,7 +17,9 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 COPY . /var/www/html
 
-RUN chown -R www-data:www-data /var/www/html
+RUN mkdir -p /var/www/html/Public/uploads/avatars /var/www/html/Public/uploads/posts /var/www/html/storage/uploads/avatars /var/www/html/storage/uploads/posts \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/Public/uploads /var/www/html/storage/uploads
 
 RUN printf '%s\n' \
     '<VirtualHost *:__PORT__>' \
@@ -52,12 +54,30 @@ RUN printf '%s\n' \
     'set -e' \
     '' \
     ': "${PORT:=8080}"' \
+    ': "${UPLOADS_ROOT:=Public/uploads}"' \
     '' \
     'rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf' \
     'ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load' \
     'if [ -f /etc/apache2/mods-available/mpm_prefork.conf ]; then' \
     '    ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf' \
     'fi' \
+    '' \
+    'case "$UPLOADS_ROOT" in' \
+    '    /*) uploads_root="$UPLOADS_ROOT" ;;' \
+    '    *) uploads_root="/var/www/html/$UPLOADS_ROOT" ;;' \
+    'esac' \
+    'export UPLOADS_ROOT="$uploads_root"' \
+    'mkdir -p "$uploads_root/posts" "$uploads_root/avatars"' \
+    'if [ "$uploads_root" != "/var/www/html/Public/uploads" ]; then' \
+    '    if [ -d /var/www/html/Public/uploads ] && [ ! -L /var/www/html/Public/uploads ]; then' \
+    '        cp -a /var/www/html/Public/uploads/. "$uploads_root"/ 2>/dev/null || true' \
+    '        rm -rf /var/www/html/Public/uploads' \
+    '    fi' \
+    '    ln -sfn "$uploads_root" /var/www/html/Public/uploads' \
+    'fi' \
+    'chown -R www-data:www-data "$uploads_root" || true' \
+    'chown -h www-data:www-data /var/www/html/Public/uploads || true' \
+    'chmod -R 775 "$uploads_root" || true' \
     '' \
     'sed -i "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf' \
     'sed -i "s/__PORT__/${PORT}/g" /etc/apache2/sites-available/000-default.conf' \
