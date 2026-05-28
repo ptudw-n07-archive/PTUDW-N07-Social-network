@@ -8,7 +8,6 @@ RUN apt-get update \
 
 RUN a2dismod mpm_event || true
 RUN a2dismod mpm_worker || true
-RUN a2dismod mpm_prefork || true
 RUN a2enmod mpm_prefork rewrite headers
 
 WORKDIR /var/www/html
@@ -21,10 +20,8 @@ COPY . /var/www/html
 
 RUN chown -R www-data:www-data /var/www/html
 
-RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf
-
 RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
-<VirtualHost *:8080>
+<VirtualHost *:${PORT}>
     DocumentRoot /var/www/html
 
     <Directory /var/www/html>
@@ -48,6 +45,20 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'APACHE'
 </VirtualHost>
 APACHE
 
+RUN cat > /usr/local/bin/railway-apache-start <<'SH'
+#!/bin/sh
+set -e
+
+: "${PORT:=8080}"
+
+sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf
+sed -i "s/\${PORT}/${PORT}/g" /etc/apache2/sites-available/000-default.conf
+
+apache2-foreground
+SH
+
+RUN chmod +x /usr/local/bin/railway-apache-start
+
 EXPOSE 8080
 
-CMD ["apache2-foreground"]
+CMD ["railway-apache-start"]
