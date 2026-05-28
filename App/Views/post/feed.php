@@ -404,6 +404,8 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
     </div>
 </div>
 
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
 <script>
     window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
     window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
