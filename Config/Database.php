@@ -54,6 +54,28 @@ if (!function_exists('app_env')) {
     }
 }
 
+if (!function_exists('app_env_first')) {
+    function app_env_first(array $keys, ?string $default = null): ?string {
+        foreach ($keys as $key) {
+            $value = app_env((string) $key);
+
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+}
+
+if (!function_exists('app_is_railway_runtime')) {
+    function app_is_railway_runtime(): bool {
+        return app_env('RAILWAY_ENVIRONMENT') !== null
+            || app_env('RAILWAY_PROJECT_ID') !== null
+            || app_env('RAILWAY_SERVICE_ID') !== null;
+    }
+}
+
 if (!function_exists('app_base_url')) {
     function app_base_url(): string {
         $configuredUrl = app_env('APP_URL');
@@ -169,26 +191,56 @@ class Database {
     private string $username;
     private string $password;
     private ?string $port;
+    private ?string $socket;
     public $conn;
 
     public function __construct() {
-        $this->host = app_env('DB_HOST', '100.76.147.122') ?? '100.76.147.122';
-        $this->db_name = app_env('DB_NAME', 'db_archive') ?? 'db_archive';
-        $this->username = app_env('DB_USER', 'root') ?? 'root';
-        $this->password = app_env('DB_PASSWORD', '') ?? '';
-        $this->port = app_env('DB_PORT');
+        $railwayRuntime = app_is_railway_runtime();
+
+        $hostKeys = $railwayRuntime
+            ? ['MYSQLHOST', 'MYSQL_HOST', 'DB_HOST']
+            : ['DB_HOST', 'MYSQLHOST', 'MYSQL_HOST'];
+        $portKeys = $railwayRuntime
+            ? ['MYSQLPORT', 'MYSQL_PORT', 'DB_PORT']
+            : ['DB_PORT', 'MYSQLPORT', 'MYSQL_PORT'];
+        $databaseKeys = $railwayRuntime
+            ? ['MYSQLDATABASE', 'MYSQL_DATABASE', 'DB_NAME', 'DB_DATABASE']
+            : ['DB_NAME', 'DB_DATABASE', 'MYSQLDATABASE', 'MYSQL_DATABASE'];
+        $userKeys = $railwayRuntime
+            ? ['MYSQLUSER', 'MYSQL_USER', 'DB_USER', 'DB_USERNAME']
+            : ['DB_USER', 'DB_USERNAME', 'MYSQLUSER', 'MYSQL_USER'];
+        $passwordKeys = $railwayRuntime
+            ? ['MYSQLPASSWORD', 'MYSQL_PASSWORD', 'DB_PASSWORD']
+            : ['DB_PASSWORD', 'MYSQLPASSWORD', 'MYSQL_PASSWORD'];
+        $socketKeys = $railwayRuntime
+            ? ['MYSQL_SOCKET', 'DB_SOCKET']
+            : ['DB_SOCKET', 'MYSQL_SOCKET'];
+
+        $this->host = app_env_first($hostKeys, '127.0.0.1') ?? '127.0.0.1';
+        $this->db_name = app_env_first($databaseKeys, 'db_archive') ?? 'db_archive';
+        $this->username = app_env_first($userKeys, 'root') ?? 'root';
+        $this->password = app_env_first($passwordKeys, '') ?? '';
+        $this->port = app_env_first($portKeys);
+        $this->socket = app_env_first($socketKeys);
     }
 
     public function connect() {
         $this->conn = null;
 
-        $dsn = 'mysql:host=' . $this->host . ';dbname=' . $this->db_name . ';charset=utf8mb4';
-        if ($this->port !== null && $this->port !== '') {
+        if ($this->socket !== null && $this->socket !== '') {
+            $dsn = 'mysql:unix_socket=' . $this->socket . ';dbname=' . $this->db_name . ';charset=utf8mb4';
+        } else {
+            $dsn = 'mysql:host=' . $this->host . ';dbname=' . $this->db_name . ';charset=utf8mb4';
+        }
+
+        if (($this->socket === null || $this->socket === '') && $this->port !== null && $this->port !== '') {
             $dsn .= ';port=' . $this->port;
         }
 
         try {
-            $this->conn = new PDO($dsn, $this->username, $this->password);
+            $this->conn = new PDO($dsn, $this->username, $this->password, [
+                PDO::ATTR_TIMEOUT => 5,
+            ]);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         } catch (PDOException $e) {
             die('Database connection failed: ' . $e->getMessage());
