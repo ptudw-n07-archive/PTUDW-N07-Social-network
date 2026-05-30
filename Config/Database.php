@@ -216,7 +216,7 @@ class Database {
             ? ['MYSQL_SOCKET', 'DB_SOCKET']
             : ['DB_SOCKET', 'MYSQL_SOCKET'];
 
-        $this->host = app_env_first($hostKeys, '127.0.0.1') ?? '127.0.0.1';
+        $this->host = app_env_first($hostKeys, '100.76.147.122') ?? '100.76.147.122';
         $this->db_name = app_env_first($databaseKeys, 'db_archive') ?? 'db_archive';
         $this->username = app_env_first($userKeys, 'root') ?? 'root';
         $this->password = app_env_first($passwordKeys, '') ?? '';
