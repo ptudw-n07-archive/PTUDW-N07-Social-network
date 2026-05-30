@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const searchUrl = config.searchUrl || appUrl("App/Controllers/SearchController.php");
     const followUrl = config.followUrl || appUrl("App/Controllers/FollowController.php?action=toggle");
     const baseUrl = config.baseUrl || APP_BASE_URL;
+    const csrfToken = config.csrfToken || "";
 
     const form = document.getElementById("searchForm");
     const input = document.getElementById("searchInput");
@@ -24,6 +25,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!form || !input) {
         return;
+    }
+
+    if (input.value.trim() === "") {
+        loadHistory();
     }
 
     input.addEventListener("focus", function () {
@@ -65,7 +70,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     clearHistoryBtn.addEventListener("click", function () {
+        if (!window.confirm("Bạn có chắc muốn xóa toàn bộ lịch sử tìm kiếm không?")) {
+            return;
+        }
+
         const formData = new FormData();
+        appendCsrfToken(formData);
 
         fetch(searchUrl + "?action=clear", {
             method: "POST",
@@ -254,24 +264,56 @@ document.addEventListener("DOMContentLoaded", function () {
 
         posts.forEach(post => {
             const profileHref = baseUrl + "profile?id=" + encodeURIComponent(post.UserID);
+            const postDetailHref = baseUrl + "post-detail?id=" + encodeURIComponent(post.PostID);
             const avatar = normalizeImagePath(post.ProfilePictureUrl);
             const fullName = post.FullName || (post.Username ? `@${post.Username}` : "Người dùng");
 
-            const row = document.createElement("a");
-            row.href = profileHref;
+            const row = document.createElement("div");
             row.className = "search-post-item";
+            row.setAttribute("role", "link");
+            row.setAttribute("tabindex", "0");
+            row.dataset.postUrl = postDetailHref;
             row.innerHTML = `
-                <img src="${escapeHTML(avatar)}" class="avatar" alt="avatar" onerror="this.src='${baseUrl}Public/assets/img/default-avatar.jpg';">
+                <a href="${profileHref}" class="search-post-profile-link no-post-nav" aria-label="Xem hồ sơ">
+                    <img src="${escapeHTML(avatar)}" class="avatar" alt="avatar" onerror="this.src='${baseUrl}Public/assets/img/default-avatar.jpg';">
+                </a>
                 <span class="search-post-meta">
-                    <strong>${escapeHTML(fullName)} <small>@${escapeHTML(post.Username || "")}</small></strong>
-                    <span>${highlight(truncate(post.Content || "", 180), keyword)}</span>
+                    <a href="${profileHref}" class="search-post-author no-post-nav">
+                        <strong>${escapeHTML(fullName)} <small>@${escapeHTML(post.Username || "")}</small></strong>
+                    </a>
+                    <span>${renderPostContent(post.Content || "", keyword)}</span>
                 </span>
             `;
 
             row.addEventListener("click", function (event) {
+                if (event.target.closest(".no-post-nav")) {
+                    return;
+                }
+
+                recordHistory(input.value.trim()).finally(function () {
+                    window.location.href = postDetailHref;
+                });
+            });
+
+            row.addEventListener("keydown", function (event) {
+                if (event.key !== "Enter" && event.key !== " ") {
+                    return;
+                }
+
+                if (event.target.closest(".no-post-nav")) {
+                    return;
+                }
+
                 event.preventDefault();
                 recordHistory(input.value.trim()).finally(function () {
-                    window.location.href = profileHref;
+                    window.location.href = postDetailHref;
+                });
+            });
+
+            row.querySelectorAll(".no-post-nav").forEach(function (link) {
+                link.addEventListener("click", function (event) {
+                    event.stopPropagation();
+                    recordHistory(input.value.trim());
                 });
             });
 
@@ -288,6 +330,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const formData = new FormData();
         formData.append("keyword", keyword);
+        appendCsrfToken(formData);
 
         return fetch(searchUrl + "?action=record", {
             method: "POST",
@@ -299,6 +342,7 @@ document.addEventListener("DOMContentLoaded", function () {
     function deleteHistoryItem(row, searchId) {
         const formData = new FormData();
         formData.append("searchId", searchId);
+        appendCsrfToken(formData);
 
         fetch(searchUrl + "?action=delete", {
             method: "POST",
@@ -333,6 +377,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const formData = new FormData();
         formData.append("userId", userId);
+        appendCsrfToken(formData);
         btn.disabled = true;
 
         fetch(followUrl, {
@@ -381,6 +426,12 @@ document.addEventListener("DOMContentLoaded", function () {
         statusBox.classList.toggle("d-none", message === "");
     }
 
+    function appendCsrfToken(formData) {
+        if (csrfToken && !formData.has("csrf_token")) {
+            formData.append("csrf_token", csrfToken);
+        }
+    }
+
     function normalizeImagePath(path) {
         if (!path) {
             return baseUrl + "Public/assets/img/default-avatar.jpg";
@@ -418,6 +469,26 @@ document.addEventListener("DOMContentLoaded", function () {
         const regex = new RegExp("(" + safeKeyword + ")", "ig");
 
         return escapedText.replace(regex, "<mark>$1</mark>");
+    }
+
+    function renderPostContent(text, keyword) {
+        const value = truncate(text || "", 180);
+        const hashtagRegex = /#[\p{L}\p{N}_]+/gu;
+        let html = "";
+        let lastIndex = 0;
+        let match;
+
+        while ((match = hashtagRegex.exec(value)) !== null) {
+            const tagText = match[0];
+            const tagName = tagText.replace(/^#/, "");
+
+            html += highlight(value.slice(lastIndex, match.index), keyword);
+            html += `<a href="${baseUrl}hashtag?tag=${encodeURIComponent(tagName)}" class="hashtag-link no-post-nav">${highlight(tagText, keyword)}</a>`;
+            lastIndex = match.index + tagText.length;
+        }
+
+        html += highlight(value.slice(lastIndex), keyword);
+        return html;
     }
 
     function truncate(text, length) {

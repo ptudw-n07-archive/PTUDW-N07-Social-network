@@ -244,6 +244,8 @@ function notificationMessage($notification) {
     </div>
 </section>
 
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
 <script>
     window.NOTIFICATION_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
 </script>
