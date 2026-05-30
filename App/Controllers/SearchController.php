@@ -37,7 +37,7 @@ class SearchController {
                 return;
             }
 
-            $posts = $this->searchModel->searchPosts($keyword);
+            $posts = $this->searchModel->searchPosts($keyword, $userId);
 
             $this->json(true, "OK", [
                 'users' => $this->searchModel->searchUsers($userId, $keyword),
@@ -225,9 +225,12 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
         'search' => $controller->search(),
         'suggestHashtags' => $controller->suggestHashtags(),
         'history' => $controller->history(),
+        'getHistory' => $controller->history(),
         'record' => $controller->record(),
         'delete' => $controller->delete(),
+        'deleteHistory' => $controller->delete(),
         'clear' => $controller->clear(),
+        'clearHistory' => $controller->clear(),
         default => null
     };
 }
