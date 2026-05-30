@@ -57,7 +57,7 @@ class SearchModel {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function searchPosts(string $keyword, int $limit = 5): array {
+    public function searchPosts(string $keyword, ?int $viewerId = null, int $limit = 5): array {
         $keywordLike = '%' . $keyword . '%';
 
         $sql = "
@@ -68,7 +68,23 @@ class SearchModel {
                 u.UserID,
                 u.Username,
                 u.FullName,
-                u.ProfilePictureUrl
+                u.ProfilePictureUrl,
+                (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
+                (
+                    SELECT COUNT(c.CommentID)
+                    FROM comments c
+                    WHERE c.PostID = p.PostID
+                    AND c.IsHidden = 0
+                ) AS CommentCount,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM likes viewer_likes
+                        WHERE viewer_likes.PostID = p.PostID
+                        AND viewer_likes.UserID = :viewerId
+                    ) THEN 1
+                    ELSE 0
+                END AS IsLiked
             FROM posts p
             JOIN users u ON p.UserID = u.UserID
             WHERE p.IsHidden = 0
@@ -79,6 +95,7 @@ class SearchModel {
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':keyword', $keywordLike);
+        $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
 

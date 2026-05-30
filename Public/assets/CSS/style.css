@@ -2828,6 +2828,10 @@ SEARCH PAGE
     transition: opacity 0.18s ease, transform 0.18s ease, background-color 0.18s ease;
 }
 
+.search-post-item {
+    cursor: pointer;
+}
+
 .search-history-item:hover,
 .search-user-item:hover,
 .search-hashtag-item:hover,
@@ -2888,6 +2892,19 @@ SEARCH PAGE
 .search-post-item {
     min-width: 0;
     flex: 1;
+}
+
+.search-post-profile-link {
+    flex-shrink: 0;
+}
+
+.search-post-author {
+    color: inherit;
+    text-decoration: none;
+}
+
+.search-post-author:hover strong {
+    color: #d94f88;
 }
 
 .search-user-link {
