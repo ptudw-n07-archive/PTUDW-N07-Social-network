@@ -524,6 +524,111 @@ function scrollPostMedia(button, direction) {
     });
 }
 
+function initPostDetailPhotoModal() {
+    const photoModalElement = document.getElementById("postDetailPhotoModal");
+    const photoModalImage = document.getElementById("postDetailPhotoModalImage");
+    const photoModalLabel = document.getElementById("postDetailPhotoModalLabel");
+
+    if (!photoModalElement || !photoModalImage) {
+        return;
+    }
+
+    const postDetailMedia = document.querySelector(".post-detail-card .post-detail-media");
+    const postDetailImages = postDetailMedia
+        ? Array.from(postDetailMedia.querySelectorAll(".post-media-image")).filter(function (image) {
+            return Boolean(image.currentSrc || image.src);
+        })
+        : [];
+
+    if (postDetailImages.length === 0) {
+        return;
+    }
+
+    const postDetailPhotos = postDetailImages.map(function (image) {
+        return {
+            src: image.currentSrc || image.src,
+            alt: image.alt || "Ảnh bài viết"
+        };
+    });
+    const prevPhotoButton = document.querySelector("[data-post-detail-photo-prev]");
+    const nextPhotoButton = document.querySelector("[data-post-detail-photo-next]");
+    let activePhotoIndex = 0;
+
+    function openPostDetailPhoto(index) {
+        if (!window.bootstrap) {
+            return;
+        }
+
+        activePhotoIndex = (index + postDetailPhotos.length) % postDetailPhotos.length;
+        const photo = postDetailPhotos[activePhotoIndex] || {};
+
+        photoModalImage.src = photo.src || "";
+        photoModalImage.alt = photo.alt || "Ảnh bài viết";
+
+        if (photoModalLabel) {
+            photoModalLabel.textContent = `Ảnh bài viết ${activePhotoIndex + 1}/${postDetailPhotos.length}`;
+        }
+
+        if (prevPhotoButton) {
+            prevPhotoButton.hidden = postDetailPhotos.length <= 1;
+        }
+
+        if (nextPhotoButton) {
+            nextPhotoButton.hidden = postDetailPhotos.length <= 1;
+        }
+
+        window.bootstrap.Modal.getOrCreateInstance(photoModalElement).show();
+    }
+
+    postDetailImages.forEach(function (image, index) {
+        image.classList.add("post-detail-photo-trigger", "no-post-nav");
+        image.setAttribute("role", "button");
+        image.setAttribute("tabindex", "0");
+        image.setAttribute("aria-label", `Xem ảnh ${index + 1}/${postDetailPhotos.length}`);
+
+        image.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            openPostDetailPhoto(index);
+        });
+
+        image.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") {
+                return;
+            }
+
+            event.preventDefault();
+            openPostDetailPhoto(index);
+        });
+    });
+
+    if (prevPhotoButton) {
+        prevPhotoButton.addEventListener("click", function () {
+            openPostDetailPhoto(activePhotoIndex - 1);
+        });
+    }
+
+    if (nextPhotoButton) {
+        nextPhotoButton.addEventListener("click", function () {
+            openPostDetailPhoto(activePhotoIndex + 1);
+        });
+    }
+
+    photoModalElement.addEventListener("keydown", function (event) {
+        if (postDetailPhotos.length <= 1) {
+            return;
+        }
+
+        if (event.key === "ArrowLeft") {
+            openPostDetailPhoto(activePhotoIndex - 1);
+        }
+
+        if (event.key === "ArrowRight") {
+            openPostDetailPhoto(activePhotoIndex + 1);
+        }
+    });
+}
+
 function renderRepostEmbedHtml(post) {
     const repost = parseRepostContent(post.Content || "");
 
@@ -1331,6 +1436,7 @@ document.addEventListener("DOMContentLoaded", function () {
     initCommentDeleteModal();
     bindCommentTextareaAutoResize();
     focusPostDetailComment();
+    initPostDetailPhotoModal();
     initHashtagComposerSuggestions();
     initPostUpdatesPolling();
     initPostMenu();

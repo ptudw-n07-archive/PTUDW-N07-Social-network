@@ -253,6 +253,26 @@ function renderDetailComment(array $comment, array $post, int $currentUserId, in
     </div>
 </section>
 
+<div class="modal fade post-detail-photo-modal" id="postDetailPhotoModal" tabindex="-1" aria-labelledby="postDetailPhotoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="postDetailPhotoModalLabel">Ảnh bài viết</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <button type="button" class="post-detail-photo-nav post-detail-photo-prev" data-post-detail-photo-prev aria-label="Ảnh trước">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <img id="postDetailPhotoModalImage" src="" alt="Ảnh bài viết">
+                <button type="button" class="post-detail-photo-nav post-detail-photo-next" data-post-detail-photo-next aria-label="Ảnh tiếp theo">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade archive-comment-delete-modal" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
