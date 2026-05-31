@@ -27,23 +27,64 @@ class SearchController {
         try {
             $userId = $this->requireLoginJson();
             $keyword = $this->normalizeKeyword($_GET['q'] ?? $_POST['q'] ?? '');
+            $type = $_GET['type'] ?? 'all';
+            $page = max(1, (int) ($_GET['page'] ?? 1));
 
             if ($this->keywordLength($keyword) < 2) {
                 $this->json(true, "Nhap toi thieu 2 ky tu.", [
                     'users' => [],
                     'posts' => [],
-                    'hashtags' => []
+                    'hashtags' => [],
+                    'pagination' => ['hasMore' => false, 'total' => 0]
                 ]);
                 return;
             }
 
-            $posts = $this->searchModel->searchPosts($keyword, $userId);
+            $perPage = match ($type) {
+                'users' => 12,
+                'posts' => 10,
+                'hashtags' => 10,
+                default => 5
+            };
+            $offset = ($page - 1) * $perPage;
 
-            $this->json(true, "OK", [
-                'users' => $this->searchModel->searchUsers($userId, $keyword),
-                'posts' => $posts,
-                'hashtags' => $this->extractHashtags($posts, $keyword)
-            ]);
+            $result = match ($type) {
+                'users' => [
+                    'users' => $this->searchModel->searchUsers($userId, $keyword, $perPage, $offset),
+                    'posts' => [],
+                    'hashtags' => [],
+                    'pagination' => [
+                        'hasMore' => ($offset + $perPage) < $this->searchModel->countUsers($keyword, $userId),
+                        'total' => $this->searchModel->countUsers($keyword, $userId)
+                    ]
+                ],
+                'posts' => [
+                    'users' => [],
+                    'posts' => $this->searchModel->searchPosts($keyword, $userId, $perPage, $offset),
+                    'hashtags' => [],
+                    'pagination' => [
+                        'hasMore' => ($offset + $perPage) < $this->searchModel->countPosts($keyword, $userId),
+                        'total' => $this->searchModel->countPosts($keyword, $userId)
+                    ]
+                ],
+                'hashtags' => [
+                    'users' => [],
+                    'posts' => [],
+                    'hashtags' => $this->searchModel->searchHashtags($keyword, $perPage, $offset),
+                    'pagination' => [
+                        'hasMore' => ($offset + $perPage) < $this->searchModel->countHashtags($keyword),
+                        'total' => $this->searchModel->countHashtags($keyword)
+                    ]
+                ],
+                default => [
+                    'users' => $this->searchModel->searchUsers($userId, $keyword, 5, 0),
+                    'posts' => $this->searchModel->searchPosts($keyword, $userId, 5, 0),
+                    'hashtags' => $this->searchModel->searchHashtags($keyword, 5, 0),
+                    'pagination' => ['hasMore' => false, 'total' => 0]
+                ]
+            };
+
+            $this->json(true, "OK", $result);
         } catch (Exception $e) {
             $this->json(false, $e->getMessage());
         }
@@ -199,36 +240,6 @@ class SearchController {
 
     private function lower(string $value): string {
         return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
-    }
-
-    private function extractHashtags(array $posts, string $keyword): array {
-        $hashtags = [];
-        $needle = ltrim($this->lower($keyword), '#');
-
-        foreach ($posts as $post) {
-            preg_match_all('/#[\p{L}\p{N}_]+/u', $post['Content'] ?? '', $matches);
-
-            foreach ($matches[0] ?? [] as $tag) {
-                $tagKey = $this->lower(ltrim($tag, '#'));
-
-                if ($needle !== '' && !str_contains($tagKey, $needle)) {
-                    continue;
-                }
-
-                if (!isset($hashtags[$tagKey])) {
-                    $hashtags[$tagKey] = [
-                        'tag' => $tag,
-                        'count' => 0
-                    ];
-                }
-
-                $hashtags[$tagKey]['count']++;
-            }
-        }
-
-        usort($hashtags, fn($a, $b) => $b['count'] <=> $a['count']);
-
-        return array_slice(array_values($hashtags), 0, 5);
     }
 
     private function json(bool $success, string $message, array $extra = []): void {

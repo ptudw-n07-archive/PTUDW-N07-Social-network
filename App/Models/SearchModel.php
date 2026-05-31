@@ -10,7 +10,7 @@ class SearchModel {
         $this->conn = $db;
     }
 
-    public function searchUsers(int $currentUserId, string $keyword, int $limit = 12): array {
+    public function searchUsers(int $currentUserId, string $keyword, int $limit = 12, int $offset = 0): array {
         $keywordLike = '%' . $keyword . '%';
 
         $sql = "
@@ -39,7 +39,7 @@ class SearchModel {
                 END,
                 u.FullName ASC,
                 u.Username ASC
-            LIMIT :limit
+            LIMIT :limit OFFSET :offset
         ";
 
         $stmt = $this->conn->prepare($sql);
@@ -52,12 +52,13 @@ class SearchModel {
         $stmt->bindValue(':usernamePrefix', $prefixKeyword);
         $stmt->bindValue(':namePrefix', $prefixKeyword);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function searchPosts(string $keyword, ?int $viewerId = null, int $limit = 5): array {
+    public function searchPosts(string $keyword, ?int $viewerId = null, int $limit = 5, int $offset = 0): array {
         $keyword = trim($keyword);
 
         if (mb_strlen($keyword) >= 3) {
@@ -68,10 +69,12 @@ class SearchModel {
                     p.PostID,
                     p.Content,
                     p.CreatedAt,
+                    COALESCE(p.Privacy, 'public') AS Privacy,
                     u.UserID,
                     u.Username,
                     u.FullName,
                     u.ProfilePictureUrl,
+                    GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
                     MATCH(p.Content) AGAINST(:ftKeyword IN BOOLEAN MODE) AS Relevance,
                     (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
                     (
@@ -91,10 +94,12 @@ class SearchModel {
                     END AS IsLiked
                 FROM posts p
                 JOIN users u ON p.UserID = u.UserID
+                LEFT JOIN postimages pi ON p.PostID = pi.PostID
                 WHERE p.IsHidden = 0
                 AND MATCH(p.Content) AGAINST(:ftKeywordWhere IN BOOLEAN MODE)
+                GROUP BY p.PostID
                 ORDER BY Relevance DESC, p.CreatedAt DESC
-                LIMIT :limit
+                LIMIT :limit OFFSET :offset
             ";
 
             $stmt = $this->conn->prepare($sql);
@@ -102,6 +107,7 @@ class SearchModel {
             $stmt->bindValue(':ftKeywordWhere', $ftKeyword);
             $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         } else {
             $keywordLike = '%' . $keyword . '%';
 
@@ -110,10 +116,12 @@ class SearchModel {
                     p.PostID,
                     p.Content,
                     p.CreatedAt,
+                    COALESCE(p.Privacy, 'public') AS Privacy,
                     u.UserID,
                     u.Username,
                     u.FullName,
                     u.ProfilePictureUrl,
+                    GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
                     0 AS Relevance,
                     (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
                     (
@@ -133,20 +141,139 @@ class SearchModel {
                     END AS IsLiked
                 FROM posts p
                 JOIN users u ON p.UserID = u.UserID
+                LEFT JOIN postimages pi ON p.PostID = pi.PostID
                 WHERE p.IsHidden = 0
                 AND p.Content LIKE :keyword
+                GROUP BY p.PostID
                 ORDER BY p.CreatedAt DESC
-                LIMIT :limit
+                LIMIT :limit OFFSET :offset
             ";
 
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':keyword', $keywordLike);
             $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
 
         $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($results as &$post) {
+            $images = $post['Images'] ?? '';
+            $post['Images'] = $images !== '' ? explode(',', $images) : [];
+            $post['FirstImage'] = !empty($post['Images']) ? $post['Images'][0] : null;
+        }
+        unset($post);
+
+        return $results;
+    }
+
+    public function searchHashtags(string $keyword, int $limit = 5, int $offset = 0): array {
+        $keywordLike = '%' . $keyword . '%';
+        $prefixKeyword = $keyword . '%';
+
+        $sql = "
+            SELECT
+                h.HashtagID,
+                h.HashtagName,
+                h.UsageCount,
+                COUNT(DISTINCT ph.PostID) AS PostCount
+            FROM hashtags h
+            LEFT JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
+            LEFT JOIN posts p ON p.PostID = ph.PostID AND p.IsHidden = 0
+            WHERE (h.IsHidden = 0 OR h.IsHidden IS NULL)
+              AND h.HashtagName LIKE :keywordLike
+            GROUP BY h.HashtagID
+            ORDER BY
+                CASE WHEN h.HashtagName LIKE :prefix THEN 0 ELSE 1 END,
+                h.UsageCount DESC,
+                h.HashtagName ASC
+            LIMIT :limit OFFSET :offset
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':keywordLike', $keywordLike);
+        $stmt->bindValue(':prefix', $prefixKeyword);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function countUsers(string $keyword, int $currentUserId): int {
+        $keywordLike = '%' . $keyword . '%';
+
+        $sql = "
+            SELECT COUNT(*) AS Total
+            FROM users u
+            LEFT JOIN follows f
+                ON f.FollowedID = u.UserID
+                AND f.FollowerID = :followViewerId
+            WHERE u.UserID != :excludeUserId
+                AND (
+                    u.Username LIKE :usernameKeyword COLLATE utf8mb4_unicode_ci
+                    OR u.FullName LIKE :nameKeyword COLLATE utf8mb4_unicode_ci
+                    OR u.Email LIKE :emailKeyword COLLATE utf8mb4_unicode_ci
+                )
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':followViewerId', $currentUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':excludeUserId', $currentUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':usernameKeyword', $keywordLike);
+        $stmt->bindValue(':nameKeyword', $keywordLike);
+        $stmt->bindValue(':emailKeyword', $keywordLike);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countPosts(string $keyword, ?int $viewerId = null): int {
+        $keyword = trim($keyword);
+
+        if (mb_strlen($keyword) >= 3) {
+            $ftKeyword = '+' . implode('* +', explode(' ', $keyword)) . '*';
+            $sql = "
+                SELECT COUNT(*) AS Total
+                FROM posts p
+                WHERE p.IsHidden = 0
+                AND MATCH(p.Content) AGAINST(:ftKeyword IN BOOLEAN MODE)
+            ";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':ftKeyword', $ftKeyword);
+        } else {
+            $keywordLike = '%' . $keyword . '%';
+            $sql = "
+                SELECT COUNT(*) AS Total
+                FROM posts p
+                WHERE p.IsHidden = 0
+                AND p.Content LIKE :keyword
+            ";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':keyword', $keywordLike);
+        }
+
+        $stmt->execute();
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countHashtags(string $keyword): int {
+        $keywordLike = '%' . $keyword . '%';
+
+        $sql = "
+            SELECT COUNT(*) AS Total
+            FROM hashtags h
+            WHERE (h.IsHidden = 0 OR h.IsHidden IS NULL)
+              AND h.HashtagName LIKE :keywordLike
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':keywordLike', $keywordLike);
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
     }
 
     public function suggestUsers(string $keyword, int $currentUserId, int $limit = 8): array {
