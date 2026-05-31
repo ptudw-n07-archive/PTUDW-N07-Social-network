@@ -258,6 +258,12 @@ document.addEventListener("DOMContentLoaded", function () {
         followButton.innerHTML = isFollowing
             ? '<i class="bi bi-person-check-fill me-1"></i><span>Đã theo dõi</span>'
             : '<i class="bi bi-person-plus me-1"></i><span>Theo dõi</span>';
+
+        // Subtle pop feedback on state change
+        followButton.classList.remove("animate-follow-pop");
+        void followButton.offsetWidth;
+        followButton.classList.add("animate-follow-pop");
+        setTimeout(() => followButton.classList.remove("animate-follow-pop"), 300);
     }
 
     function showFollowAlert(message) {

@@ -138,7 +138,7 @@
     font: inherit;
     text-align: center;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    transition: background-color var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
 }
 
 .profile-page .profile-stat-action:hover,
@@ -160,6 +160,7 @@
     min-height: 42px;
     min-width: 132px;
     box-shadow: 0 8px 22px rgba(214, 144, 150, 0.14);
+    transition: var(--transition-lift), background-color 0.18s var(--ease-out-quart), border-color 0.18s var(--ease-out-quart);
 }
 
 .profile-page .profile-follow-btn:hover,
@@ -199,7 +200,7 @@
     background-color: rgba(255, 250, 247, 0.92);
     color: #8e5963;
     box-shadow: 0 8px 20px rgba(47, 36, 32, 0.08);
-    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .profile-page .profile-report-menu-toggle:hover,
@@ -240,7 +241,7 @@
     color: #7a645d;
     font-size: 0.85rem;
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--transition-base);
 }
 
 .profile-page .profile-follow-alert.is-visible {
@@ -352,7 +353,7 @@
 .profile-page .profile-post-card {
     border-color: rgba(121, 91, 74, 0.14);
     border-radius: 22px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
 }
 
 .profile-page .profile-post-card:hover {
@@ -653,7 +654,7 @@
     border: 1px solid rgba(121, 91, 74, 0.14);
     border-radius: 18px;
     background: #fffaf7;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
 }
 
 .profile-page .profile-photo-item:hover {
@@ -901,4 +902,15 @@ video.profile-post-media {
 .profile-page .sidebar-icon.active {
     background-color: #eee2dc;
     color: #2f2420;
+}
+
+@keyframes follow-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.profile-page .profile-follow-btn.animate-follow-pop,
+.profile-page .profile-unfollow-btn.animate-follow-pop {
+    animation: follow-pop 0.25s var(--ease-out-quart);
 }

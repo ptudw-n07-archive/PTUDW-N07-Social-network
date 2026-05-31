@@ -226,11 +226,26 @@
   --shadow-footer: 0 -10px 32px var(--shadow-brown-04);
 
   /* ==========================================================
-     TRANSITIONS
+     TRANSITIONS — exponential curves (warm, gentle brand)
      ========================================================== */
-  --transition-fast:  0.18s ease;
-  --transition-base:  0.2s ease;
-  --transition-slow:  0.3s ease;
+
+  /* Exponential easing functions */
+  --ease-out-quart: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo:  cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* Transition presets (use these via var(--transition-*)) */
+  --transition-fast:  0.18s var(--ease-out-quart);
+  --transition-base:  0.2s  var(--ease-out-quart);
+  --transition-slow:  0.3s  var(--ease-out-quart);
+
+  /* Micro-interaction helpers */
+  --transition-lift:   transform 0.2s var(--ease-out-quint), box-shadow 0.2s var(--ease-out-quint);
+  --transition-press:  transform 0.12s var(--ease-in-out-quart);
+  --transition-fade:   opacity 0.2s var(--ease-out-quart);
+  --transition-slide:  transform 0.25s var(--ease-out-quint), opacity 0.2s var(--ease-out-quart);
+  --transition-color:  color 0.18s var(--ease-out-quart), background-color 0.18s var(--ease-out-quart), border-color 0.18s var(--ease-out-quart);
 
   /* ==========================================================
      Z-INDEX

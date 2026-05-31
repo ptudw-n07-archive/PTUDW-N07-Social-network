@@ -280,6 +280,32 @@ function toggleLike(btn) {
         return;
     }
 
+    const icon = btn.querySelector("i");
+    const countEl = btn.querySelector(".like-count");
+
+    const prevLiked = btn.classList.contains("liked");
+    const prevCount = parseInt(countEl.innerText, 10) || 0;
+
+    const newCount = prevLiked ? prevCount - 1 : prevCount + 1;
+    countEl.innerText = newCount;
+
+    if (!prevLiked) {
+        icon.classList.remove("bi-heart");
+        icon.classList.add("bi-heart-fill");
+        btn.classList.add("liked");
+        btn.setAttribute("aria-pressed", "true");
+        // Heartbeat animation
+        btn.classList.remove("animate-like");
+        void btn.offsetWidth;
+        btn.classList.add("animate-like");
+        setTimeout(() => btn.classList.remove("animate-like"), 500);
+    } else {
+        icon.classList.remove("bi-heart-fill");
+        icon.classList.add("bi-heart");
+        btn.classList.remove("liked");
+        btn.setAttribute("aria-pressed", "false");
+    }
+
     const formData = new FormData();
     formData.append("postId", postId);
     appendFeedCsrfToken(formData);
@@ -291,17 +317,13 @@ function toggleLike(btn) {
     .then(response => response.json())
     .then(data => {
         if (!data.success) {
+            rollbackLike(btn, prevLiked, prevCount);
             showPostToast(data.message || "Like thất bại.");
             return;
         }
 
-        const icon = btn.querySelector("i");
-        const count = btn.querySelector(".like-count");
-
+        countEl.innerText = data.likeCount;
         const isLiked = Boolean(data.isLiked ?? data.liked ?? data.status === "liked");
-
-        count.innerText = data.likeCount;
-
         if (isLiked) {
             icon.classList.remove("bi-heart");
             icon.classList.add("bi-heart-fill");
@@ -316,8 +338,28 @@ function toggleLike(btn) {
     })
     .catch(error => {
         console.error(error);
+        rollbackLike(btn, prevLiked, prevCount);
         showPostToast("Có lỗi khi like bài viết.");
     });
+}
+
+function rollbackLike(btn, prevLiked, prevCount) {
+    const icon = btn.querySelector("i");
+    const countEl = btn.querySelector(".like-count");
+
+    countEl.innerText = prevCount;
+
+    if (prevLiked) {
+        icon.classList.remove("bi-heart");
+        icon.classList.add("bi-heart-fill");
+        btn.classList.add("liked");
+        btn.setAttribute("aria-pressed", "true");
+    } else {
+        icon.classList.remove("bi-heart-fill");
+        icon.classList.add("bi-heart");
+        btn.classList.remove("liked");
+        btn.setAttribute("aria-pressed", "false");
+    }
 }
 
 
@@ -701,7 +743,7 @@ function addPostToUI(post) {
     const privacy = post.Privacy || "public";
 
     const newPost = document.createElement("div");
-    newPost.className = `bg-white post-card mb-3${repost ? " repost-card" : ""}`;
+    newPost.className = `bg-white post-card mb-3${repost ? " repost-card" : ""} post-card-new`;
     newPost.id = `post-${post.PostID}`;
     newPost.dataset.postId = post.PostID || "";
     newPost.dataset.ownerId = post.UserID || "";
@@ -868,7 +910,13 @@ function toggleCommentBox(btn) {
     const commentBox = postCard.querySelector(".comment-box");
 
     if (commentBox) {
+        const wasHidden = commentBox.classList.contains("d-none");
         commentBox.classList.toggle("d-none");
+        if (wasHidden) {
+            commentBox.classList.remove("comment-box-enter");
+            void commentBox.offsetWidth;
+            commentBox.classList.add("comment-box-enter");
+        }
     }
 }
 
