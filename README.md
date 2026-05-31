@@ -38,7 +38,7 @@ Ví dụ local:
 
 ```env
 APP_URL=http://localhost:8080
-DB_HOST=127.0.0.1
+DB_HOST=100.76.147.122
 DB_PORT=3306
 DB_NAME=db_archive
 DB_USER=root
