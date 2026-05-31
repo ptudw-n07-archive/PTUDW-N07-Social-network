@@ -43,8 +43,11 @@ DB_PORT=3306
 DB_NAME=db_archive
 DB_USER=root
 DB_PASSWORD=
-UPLOADS_ROOT=storage/uploads
+UPLOADS_ROOT=Public/uploads
 ```
+
+> ⚠️ `UPLOADS_ROOT` phải là `Public/uploads` để ảnh upload hiển thị được.
+> Nếu để `storage/uploads`, ảnh sẽ lưu ở `storage/uploads/posts/` nhưng code tìm trong `Public/uploads/posts/` → ảnh không hiện.
 
 ## Yêu cầu
 
