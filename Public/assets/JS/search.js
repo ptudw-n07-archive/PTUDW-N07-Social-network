@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
         window.clearTimeout(debounceTimer);
         window.clearTimeout(suggestTimer);
 
-        if (keyword.length >= 1) {
+        if (keyword.length === 1) {
             suggestTimer = window.setTimeout(function () {
                 fetchSuggestions(keyword);
             }, 120);
@@ -708,6 +708,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function fetchSuggestions(keyword) {
+        if (keyword.length !== 1) {
+            hideSuggestions();
+            return;
+        }
+
         if (keyword === lastSuggestKeyword) {
             return;
         }
@@ -742,6 +747,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderSuggestions(users, hashtags, keyword) {
+        if (input.value.trim().length >= 2 || keyword.length >= 2) {
+            hideSuggestions();
+            return;
+        }
+
         if (keyword.length < 2) {
             clearResults();
             hideHistory();
