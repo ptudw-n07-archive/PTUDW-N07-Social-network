@@ -230,7 +230,12 @@ SEARCH PAGE
 
 .search-panel {
     padding: 28px;
-    overflow: hidden;
+    overflow: visible;
+}
+
+.search-combobox {
+    position: relative;
+    z-index: 2;
 }
 
 .search-form {
@@ -542,7 +547,18 @@ SEARCH SUGGESTIONS
 ========================= */
 
 .search-suggestions {
-    padding: 16px 0 0;
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0;
+    right: 0;
+    padding: 14px;
+    border: 1px solid var(--border-brown-12);
+    border-radius: 24px;
+    background: rgba(255, 253, 251, 0.98);
+    box-shadow: 0 24px 54px rgba(69, 49, 38, 0.12);
+    backdrop-filter: blur(10px);
+    max-height: min(420px, calc(100vh - 220px));
+    overflow-y: auto;
 }
 
 .search-suggestions .suggestions-group + .suggestions-group {
@@ -643,7 +659,8 @@ SEARCH SUGGESTIONS
 
 @media (max-width: 767.98px) {
     .search-suggestions {
-        padding: 12px 0 0;
+        top: calc(100% + 10px);
+        padding: 12px;
     }
 
     .suggestions-item {

@@ -72,6 +72,9 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             clearResults();
+            if (tabsContainer) {
+                tabsContainer.classList.add("d-none");
+            }
             if (keyword.length === 0) {
                 loadHistory();
             } else {
@@ -739,6 +742,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderSuggestions(users, hashtags, keyword) {
+        if (keyword.length < 2) {
+            clearResults();
+            hideHistory();
+            if (tabsContainer) {
+                tabsContainer.classList.add("d-none");
+            }
+            showStatus("");
+        }
+
         suggestUsersEl.innerHTML = "";
         suggestHashtagsEl.innerHTML = "";
 
@@ -800,6 +812,11 @@ document.addEventListener("DOMContentLoaded", function () {
     function hideSuggestions() {
         suggestionsContainer.classList.add("d-none");
         hasSuggestions = false;
+
+        const keyword = input.value.trim();
+        if (keyword.length > 0 && keyword.length < 2) {
+            showStatus("Nhập thêm ký tự để tìm kiếm.");
+        }
     }
 
     function updateSuggestionFocus(items, oldIndex, newIndex) {
