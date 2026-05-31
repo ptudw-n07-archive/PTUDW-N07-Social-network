@@ -23,7 +23,7 @@ $resetToken = $resetToken ?? ($_GET['token'] ?? '');
         <p class="subtitle">Nhập mật khẩu mới cho tài khoản của bạn</p>
 
         <?php if (isset($_SESSION['error'])): ?>
-            <div style="color:#dc3545;padding:8px;margin-bottom:15px;font-size:14px;text-align:center;background:rgba(220,53,69,.1);border-radius:4px;">
+            <div class="auth-alert-error">
                 <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
@@ -45,7 +45,7 @@ $resetToken = $resetToken ?? ($_GET['token'] ?? '');
             <button type="submit" class="btn-login">CẬP NHẬT MẬT KHẨU</button>
         </form>
 
-        <div class="extra-links" style="justify-content:center;">
+        <div class="extra-links extra-links-centered-single">
             <a href="<?php echo app_url('login'); ?>">Quay lại Đăng nhập</a>
         </div>
     </div>

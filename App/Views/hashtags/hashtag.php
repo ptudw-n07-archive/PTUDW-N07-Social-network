@@ -245,14 +245,13 @@ function renderHashtagPostContent($content) {
                                                 <?php $mediaSrc = hashtagPostMediaPath($img); ?>
                                                 <?php if ($mediaSrc !== ''): ?>
                                                     <?php if (hashtagPostMediaType($img) === 'video'): ?>
-                                                        <video controls class="img-fluid rounded-4 mb-3" style="max-height: 450px; object-fit: cover;">
+                                                        <video controls class="img-fluid rounded-4 mb-3 media-fit-cover">
                                                             <source src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(hashtagPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
                                                         </video>
                                                     <?php elseif (hashtagPostMediaType($img) === 'image'): ?>
                                                         <img
                                                             src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>"
-                                                            class="img-fluid rounded-4 mb-3"
-                                                            style="max-height: 450px; object-fit: cover;"
+                                                            class="img-fluid rounded-4 mb-3 media-fit-cover"
                                                             alt="post image"
                                                         >
                                                     <?php endif; ?>

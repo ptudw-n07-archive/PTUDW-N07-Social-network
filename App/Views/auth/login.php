@@ -22,13 +22,13 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
         <p class="subtitle">Vui lòng đăng nhập để kết nối với bạn bè</p>
              
         <?php if(isset($_SESSION['error'])): ?>
-            <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.08); border-radius: 4px;">
+            <div class="auth-alert-error">
                 <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
         <?php if(isset($_SESSION['success'])): ?>
-            <div style="color: #198754; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(25, 135, 84, 0.08); border-radius: 4px;">
+            <div class="auth-alert-success">
                 <?php echo htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
@@ -57,21 +57,21 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
             <span>Đăng nhập bằng Google</span>
         </a>
 
-        <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
+        <div class="auth-footer">
             
-            <div style="text-align: left; flex: 1;">
-                <a href="<?php echo app_url('forgot-password'); ?>" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
+            <div class="auth-footer-left">
+                <a href="<?php echo app_url('forgot-password'); ?>" class="auth-footer-link">Quên mật khẩu?</a>
             </div>
 
-            <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
-                <a href="<?php echo app_url(''); ?>" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+            <div class="auth-footer-center">
+                <a href="<?php echo app_url(''); ?>" class="auth-footer-link-home" title="Về trang chủ">
                     <i class="fa-solid fa-house"></i>
                 </a>
             </div>
 
-            <div style="text-align: right; flex: 1; line-height: 1.5;">
-                <span style="color: #666;">Chưa có tài khoản?</span><br>
-                <a href="<?php echo app_url('register'); ?>" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
+            <div class="auth-footer-right">
+                <span class="auth-footer-muted">Chưa có tài khoản?</span><br>
+                <a href="<?php echo app_url('register'); ?>" class="auth-link-accent">Đăng ký</a>
             </div>
 
         </div> </div> </body>

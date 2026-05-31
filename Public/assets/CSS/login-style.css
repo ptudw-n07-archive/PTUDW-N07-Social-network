@@ -39,12 +39,110 @@
 }
 
 :root {
-    --primary-color: #d69096; /* Hồng của nhóm */
-    --bg-color: #f5eee9;      /* Kem vintage */
-    --text-color: #46332c;    /* Nâu trầm */
-    /* MÀU MỚI THEO YÊU CẦU */
-    --coffee-light: #fffaf7 ;     /* Màu cà phê sáng cho ô lớn */
+    --primary-color: #d69096;
+    --bg-color: #f5eee9;
+    --text-color: #46332c;
+    --coffee-light: #fffaf7;
     --ivory-white: #fffdfa;
+}
+
+/* ==== ALERT MESSAGES ==== */
+.auth-alert-error,
+.auth-alert-success {
+    padding: 8px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    text-align: center;
+    border-radius: 4px;
+}
+
+.auth-alert-error {
+    color: #dc3545;
+    background: rgba(220, 53, 69, 0.08);
+}
+
+.auth-alert-success {
+    color: #198754;
+    background: rgba(25, 135, 84, 0.08);
+}
+
+/* ==== AUTH FOOTER ==== */
+.auth-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    font-size: 14px;
+}
+
+.auth-footer-left {
+    text-align: left;
+    flex: 1;
+}
+
+.auth-footer-center {
+    text-align: center;
+    flex: 0 0 auto;
+    padding: 0 15px;
+}
+
+.auth-footer-right {
+    text-align: right;
+    flex: 1;
+    line-height: 1.5;
+}
+
+.auth-footer-link {
+    color: #666;
+    text-decoration: none;
+}
+
+.auth-footer-link:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.auth-footer-link-home {
+    color: #888;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.auth-footer-link-home:hover {
+    color: var(--primary-color);
+}
+
+.auth-footer-muted {
+    color: #666;
+}
+
+.auth-footer-separator {
+    color: #ccc;
+}
+
+.auth-link-accent {
+    color: var(--primary-color);
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.auth-link-accent:hover {
+    color: #c57d84;
+    text-decoration: none;
+}
+
+.auth-ml-sm {
+    margin-left: 5px;
+}
+
+/* ==== EXTRA LINKS UTILITY ==== */
+.extra-links-centered {
+    justify-content: center;
+    gap: 15px;
+}
+
+.extra-links-centered-single {
+    justify-content: center;
 }
 
 body {

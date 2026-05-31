@@ -21,13 +21,13 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
         <p class="subtitle">Tạo tài khoản để kết nối và chia sẻ ngay</p>
         
         <?php if(isset($_SESSION['error'])): ?>
-            <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.08); border-radius: 4px;">
+            <div class="auth-alert-error">
                 <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
         <?php if(isset($_SESSION['success'])): ?>
-            <div style="color: #198754; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(25, 135, 84, 0.08); border-radius: 4px;">
+            <div class="auth-alert-success">
                 <?php echo htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
@@ -68,8 +68,8 @@ require_once __DIR__ . '/../../Services/CsrfService.php';
             <span>HOẶC</span>
         </div>
 
-        <div class="extra-links" style="justify-content: center;">
-            <p>Đã có tài khoản? <a href="<?php echo app_url('login'); ?>" style="color: var(--primary-color); margin-left: 5px;">Đăng nhập ngay</a></p>
+        <div class="extra-links extra-links-centered">
+            <p>Đã có tài khoản? <a href="<?php echo app_url('login'); ?>" class="auth-link-accent auth-ml-sm">Đăng nhập ngay</a></p>
         </div>
 
         <a href="<?php echo app_url(''); ?>" class="back-home"><i class="fa-solid fa-house"></i> Về trang chủ</a>

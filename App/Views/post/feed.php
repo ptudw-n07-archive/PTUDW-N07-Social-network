@@ -298,7 +298,7 @@ function renderFeedComment(array $comment, array $post, int $currentUserId, bool
                     <?php else: ?>
                         <div class="bg-white post-card mb-3 text-center py-5" role="status">
                             <div class="py-4">
-                                <i class="bi bi-file-text" style="font-size: 3rem; color: #d69096; opacity: 0.5;"></i>
+                                <i class="bi bi-file-text feed-empty-icon"></i>
                                 <h5 class="mt-3 text-muted">Chưa có bài viết nào</h5>
                                 <p class="text-muted mb-0">Hãy là người đầu tiên đăng bài! Bắt đầu bằng cách nhấn vào ô "Bạn đang nghĩ gì?" ở trên.</p>
                             </div>

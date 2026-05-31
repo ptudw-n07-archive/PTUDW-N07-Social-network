@@ -1,0 +1,93 @@
+@import url('variables.css');
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+body {
+    background-color: var(--clr-cream-400);
+    color: var(--clr-brown-500);
+    font-family: var(--font-body);
+    font-size: 15px;
+}
+
+/* HEADER + FOOTER */
+.bg-dark {
+    background-color: var(--clr-cream-600) !important;
+    color: var(--clr-brown-600) !important;
+    border-radius: var(--radius-3xl);
+}
+
+/* BOX */
+.bg-light {
+    background-color: var(--clr-cream-200) !important;
+    border: 1px solid var(--border-brown-18);
+    border-radius: var(--radius-4xl);
+}
+
+/* MAIN */
+.bg-white {
+    background-color: var(--clr-cream-50) !important;
+    border: 1px solid var(--border-brown-18);
+    border-radius: var(--radius-4xl);
+}
+
+/* TIÊU ĐỀ */
+h5 {
+    color: var(--clr-brown-500);
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+/* BUTTON */
+.btn-pink {
+    background-color: var(--clr-rose-400);
+    color: white;
+    border: none;
+}
+
+.btn-pink:hover {
+    background-color: var(--clr-rose-550);
+}
+
+/* =========================
+   INDEX PAGE
+========================= */
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* Cross-document View Transitions: MPA fade giữa các page */
+@view-transition {
+    navigation: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    ::view-transition-old(root) {
+        animation: vt-fade-out 0.25s ease-out;
+    }
+
+    ::view-transition-new(root) {
+        animation: vt-fade-in 0.3s ease-in;
+    }
+}
+
+@keyframes vt-fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+@keyframes vt-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+

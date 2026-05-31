@@ -21,13 +21,13 @@ if (session_status() === PHP_SESSION_NONE) {
         <p class="subtitle">Nhập email đăng ký để nhận liên kết đặt lại mật khẩu</p>
 
         <?php if (isset($_SESSION['error'])): ?>
-            <div style="color:#dc3545;padding:8px;margin-bottom:15px;font-size:14px;text-align:center;background:rgba(220,53,69,.1);border-radius:4px;">
+            <div class="auth-alert-error">
                 <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
         <?php if (isset($_SESSION['success'])): ?>
-            <div style="color:#198754;padding:8px;margin-bottom:15px;font-size:14px;text-align:center;background:rgba(25,135,84,.1);border-radius:4px;">
+            <div class="auth-alert-success">
                 <?php echo htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
@@ -42,9 +42,9 @@ if (session_status() === PHP_SESSION_NONE) {
             <button type="submit" class="btn-login">GỬI LIÊN KẾT KHÔI PHỤC</button>
         </form>
 
-        <div class="extra-links" style="justify-content:center;gap:15px;">
+        <div class="extra-links extra-links-centered">
             <a href="<?php echo app_url('login'); ?>">Quay lại Đăng nhập</a>
-            <span style="color:#ccc;">|</span>
+            <span class="auth-footer-separator">|</span>
             <a href="<?php echo app_url('register'); ?>">Đăng ký tài khoản</a>
         </div>
     </div>
