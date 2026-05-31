@@ -49,6 +49,9 @@ UPLOADS_ROOT=Public/uploads
 > ⚠️ `UPLOADS_ROOT` phải là `Public/uploads` để ảnh upload hiển thị được.
 > Nếu để `storage/uploads`, ảnh sẽ lưu ở `storage/uploads/posts/` nhưng code tìm trong `Public/uploads/posts/` → ảnh không hiện.
 
+> 💡 **Local dev**: Khi chạy localhost, tài khoản đăng ký mới được **tự động kích hoạt** — không cần email xác thực.
+> Trên Railway (production), vẫn gửi email kích hoạt bình thường.
+
 ## Yêu cầu
 
 - **PHP 8.0+** (có CLI)

@@ -115,11 +115,17 @@ class AuthController
                 throw new \RuntimeException('Could not create pending user.');
             }
 
-            $this->gmailService->sendVerificationEmail($email, $username, $verifyLink);
+            // Auto-verify on localhost, send email on production
+            if (!app_is_railway_runtime()) {
+                $this->userModel->markEmailVerified($userId);
+                $this->conn->commit();
+                $_SESSION['success'] = 'Đăng ký thành công! Bạn có thể đăng nhập ngay.';
+            } else {
+                $this->gmailService->sendVerificationEmail($email, $username, $verifyLink);
+                $this->conn->commit();
+                $_SESSION['success'] = 'Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.';
+            }
 
-            $this->conn->commit();
-
-            $_SESSION['success'] = 'Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.';
             $this->redirect('login');
         } catch (PDOException $e) {
             $this->rollBackIfNeeded();
