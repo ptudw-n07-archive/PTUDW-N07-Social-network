@@ -2,7 +2,7 @@
 .archive-header {
     position: sticky;
     top: 0;
-    z-index: 999;
+    z-index: var(--z-header);
     background-color: rgba(245, 238, 233, 0.95);
     border-bottom: 1px solid var(--border-brown-12);
 }
@@ -57,7 +57,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #6a5550 !important;
+    color: var(--clr-brown-250) !important;
     flex-shrink: 0;
     line-height: 1;
 }

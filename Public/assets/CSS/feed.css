@@ -71,13 +71,6 @@
     text-align: center;
 }
 
-.sidebar-icon:hover,
-.sidebar-icon.active {
-    background-color: var(--clr-cream-600);
-    color: var(--clr-brown-700);
-    box-shadow: 0 8px 22px rgba(214, 144, 150, 0.18);
-}
-
 .sidebar-logout {
     color: var(--clr-rose-800);
 }
@@ -419,7 +412,6 @@
 }
 
 .feed-page #posts-list .post-card:hover {
-    transform: translateY(-1px);
     border-color: var(--border-brown-24);
     box-shadow: 0 18px 42px rgba(47, 36, 32, 0.09);
 }
@@ -1110,7 +1102,6 @@ button.liked[onclick*="toggleLike"]:hover i {
 }
 
 .feed-page .suggested-user-avatar-link:hover {
-    transform: translateY(-1px);
     box-shadow: 0 8px 20px rgba(58, 42, 33, 0.12);
 }
 
@@ -1149,7 +1140,7 @@ button.liked[onclick*="toggleLike"]:hover i {
 .post-actions span {
     border: none;
     background: transparent;
-    color: var(--clr-brown-240);
+    color: var(--clr-brown-400);
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -1162,7 +1153,6 @@ button.liked[onclick*="toggleLike"]:hover i {
 .post-actions button:hover,
 .post-actions a:hover {
     color: var(--clr-brown-700);
-    transform: translateY(-1px);
 }
 
 .post-actions button:active {
@@ -1193,7 +1183,7 @@ button.liked[onclick*="toggleLike"]:hover i {
 .more-btn {
     border: none;
     background: transparent;
-    color: #6a5550;
+    color: var(--clr-brown-250);
     font-size: 0.95rem;
     padding: 0;
 }
@@ -1386,7 +1376,6 @@ button.liked[onclick*="toggleLike"]:hover i {
 .post-action-option:hover {
     background-color: #f7ebe5;
     border-color: var(--border-brown-20);
-    transform: translateY(-1px);
 }
 
 .post-action-report-form {
