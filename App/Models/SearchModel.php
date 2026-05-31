@@ -62,7 +62,74 @@ class SearchModel {
         $keyword = trim($keyword);
 
         if (mb_strlen($keyword) >= 3) {
-            $ftKeyword = '+' . implode('* +', explode(' ', $keyword)) . '*';
+            // Strip FULLTEXT boolean mode special characters from each term
+            $terms = explode(' ', $keyword);
+            $sanitized = [];
+            foreach ($terms as $term) {
+                $clean = preg_replace('/[+\-~*()@"<>!]/', '', $term);
+                $clean = trim($clean);
+                if ($clean !== '') {
+                    $sanitized[] = $clean;
+                }
+            }
+            if (empty($sanitized)) {
+                // Fallback if all terms were stripped: use LIKE instead
+                $keywordLike = '%' . $keyword . '%';
+
+                $sql = "
+                SELECT
+                    p.PostID,
+                    p.Content,
+                    p.CreatedAt,
+                    COALESCE(p.Privacy, 'public') AS Privacy,
+                    u.UserID,
+                    u.Username,
+                    u.FullName,
+                    u.ProfilePictureUrl,
+                    GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                    0 AS Relevance,
+                    (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
+                    (
+                        SELECT COUNT(c.CommentID)
+                        FROM comments c
+                        WHERE c.PostID = p.PostID
+                        AND c.IsHidden = 0
+                    ) AS CommentCount,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM likes viewer_likes
+                            WHERE viewer_likes.PostID = p.PostID
+                            AND viewer_likes.UserID = :viewerId
+                        ) THEN 1
+                        ELSE 0
+                    END AS IsLiked
+                FROM posts p
+                JOIN users u ON p.UserID = u.UserID
+                LEFT JOIN postimages pi ON p.PostID = pi.PostID
+                WHERE p.IsHidden = 0
+                AND p.Content LIKE :keyword
+                GROUP BY p.PostID
+                ORDER BY p.CreatedAt DESC
+                LIMIT :limit OFFSET :offset
+                ";
+
+                $stmt = $this->conn->prepare($sql);
+                $stmt->bindValue(':keyword', $keywordLike);
+                $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
+                $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+                $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+                $stmt->execute();
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($results as &$post) {
+                    $images = $post['Images'] ?? '';
+                    $post['Images'] = $images !== '' ? explode(',', $images) : [];
+                    $post['FirstImage'] = !empty($post['Images']) ? $post['Images'][0] : null;
+                }
+                unset($post);
+                return $results;
+            }
+            $ftKeyword = '+' . implode('* +', $sanitized) . '*';
 
             $sql = "
                 SELECT
@@ -234,7 +301,29 @@ class SearchModel {
         $keyword = trim($keyword);
 
         if (mb_strlen($keyword) >= 3) {
-            $ftKeyword = '+' . implode('* +', explode(' ', $keyword)) . '*';
+            $terms = explode(' ', $keyword);
+            $sanitized = [];
+            foreach ($terms as $term) {
+                $clean = preg_replace('/[+\-~*()@"<>!]/', '', $term);
+                $clean = trim($clean);
+                if ($clean !== '') {
+                    $sanitized[] = $clean;
+                }
+            }
+            if (empty($sanitized)) {
+                $keywordLike = '%' . $keyword . '%';
+                $sql = "
+                    SELECT COUNT(*) AS Total
+                    FROM posts p
+                    WHERE p.IsHidden = 0
+                    AND p.Content LIKE :keyword
+                ";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->bindValue(':keyword', $keywordLike);
+                $stmt->execute();
+                return (int) $stmt->fetchColumn();
+            }
+            $ftKeyword = '+' . implode('* +', $sanitized) . '*';
             $sql = "
                 SELECT COUNT(*) AS Total
                 FROM posts p
