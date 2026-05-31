@@ -98,6 +98,13 @@ if (!isset($_SESSION['user_id'])) {
                         Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm.
                     </div>
 
+                    <div id="searchTabs" class="search-tabs d-none">
+                        <button class="search-tab active" data-type="all">Tất cả</button>
+                        <button class="search-tab" data-type="users">Tài khoản</button>
+                        <button class="search-tab" data-type="posts">Bài viết</button>
+                        <button class="search-tab" data-type="hashtags">Hashtag</button>
+                    </div>
+
                     <section id="historySection" class="search-section d-none">
                         <div class="search-section-heading">
                             <h5>Gần đây</h5>
@@ -111,6 +118,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Tài khoản</h5>
                         </div>
                         <div id="userResults" class="search-list"></div>
+                        <button id="loadMoreUsers" class="search-load-more d-none" data-type="users">Xem thêm tài khoản</button>
                     </section>
 
                     <section id="hashtagSection" class="search-section d-none">
@@ -118,6 +126,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Hashtag</h5>
                         </div>
                         <div id="hashtagResults" class="search-list"></div>
+                        <button id="loadMoreHashtags" class="search-load-more d-none" data-type="hashtags">Xem thêm hashtag</button>
                     </section>
 
                     <section id="postSection" class="search-section d-none">
@@ -125,6 +134,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Bài viết liên quan</h5>
                         </div>
                         <div id="postResults" class="search-list"></div>
+                        <button id="loadMorePosts" class="search-load-more d-none" data-type="posts">Xem thêm bài viết</button>
                     </section>
                 </div>
             </div>

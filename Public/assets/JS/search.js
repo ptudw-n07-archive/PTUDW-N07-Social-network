@@ -23,11 +23,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const suggestUsersEl = document.getElementById("suggestUsers");
     const suggestHashtagsEl = document.getElementById("suggestHashtags");
 
+    const tabsContainer = document.getElementById("searchTabs");
+    const loadMoreUsers = document.getElementById("loadMoreUsers");
+    const loadMorePosts = document.getElementById("loadMorePosts");
+    const loadMoreHashtags = document.getElementById("loadMoreHashtags");
+
     let debounceTimer = null;
     let suggestTimer = null;
     let lastKeyword = "";
     let lastSuggestKeyword = "";
     let hasSuggestions = false;
+    let currentTab = "all";
+    let pageData = { users: 1, posts: 1, hashtags: 1 };
+    let isLoadingMore = { users: false, posts: false, hashtags: false };
 
     if (!form || !input) {
         return;
@@ -59,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
         debounceTimer = window.setTimeout(function () {
             if (keyword.length >= 2) {
                 hideSuggestions();
-                runSearch(keyword);
+                runSearch(keyword, currentTab);
                 return;
             }
 
@@ -82,7 +90,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         recordHistory(keyword);
-        runSearch(keyword);
+        runSearch(keyword, currentTab);
     });
 
     input.addEventListener("keydown", function (event) {
@@ -120,6 +128,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+    initTabs();
+    initLoadMore();
+
     clearHistoryBtn.addEventListener("click", function () {
         if (!window.confirm("Bạn có chắc muốn xóa toàn bộ lịch sử tìm kiếm không?")) {
             return;
@@ -146,35 +157,162 @@ document.addEventListener("DOMContentLoaded", function () {
             .catch(() => showStatus("Có lỗi khi xóa lịch sử."));
     });
 
-    function runSearch(keyword) {
-        lastKeyword = keyword;
-        hideHistory();
-        showStatus("Đang tìm kiếm...");
+    function initTabs() {
+        if (!tabsContainer) return;
 
-        fetch(searchUrl + "?action=search&q=" + encodeURIComponent(keyword))
-            .then(response => response.json())
-            .then(data => {
-                if (keyword !== lastKeyword) {
-                    return;
-                }
+        tabsContainer.querySelectorAll(".search-tab").forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                var type = this.dataset.type;
+                if (type === currentTab) return;
+
+                currentTab = type;
+                tabsContainer.querySelectorAll(".search-tab").forEach(function (t) {
+                    t.classList.toggle("active", t.dataset.type === type);
+                });
+
+                pageData[type] = 1;
+                runSearch(input.value.trim(), type);
+            });
+        });
+    }
+
+    function initLoadMore() {
+        [loadMoreUsers, loadMorePosts, loadMoreHashtags].forEach(function (btn) {
+            if (!btn) return;
+            btn.addEventListener("click", function () {
+                var type = this.dataset.type;
+                if (isLoadingMore[type]) return;
+
+                isLoadingMore[type] = true;
+                pageData[type]++;
+                this.disabled = true;
+                this.textContent = "Đang tải...";
+
+                fetchSearch(input.value.trim(), type, pageData[type], true);
+            });
+        });
+    }
+
+    function fetchSearch(keyword, type, page, append) {
+        return fetch(searchUrl + "?action=search&q=" + encodeURIComponent(keyword) + "&type=" + encodeURIComponent(type) + "&page=" + page)
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (keyword !== lastKeyword) return;
 
                 if (!data.success) {
-                    clearResults();
                     showStatus(data.message || "Không thể tìm kiếm.");
                     return;
                 }
 
-                renderUsers(data.users || [], keyword);
-                renderHashtags(data.hashtags || [], keyword);
-                renderPosts(data.posts || [], keyword);
+                if (type === "all") {
+                    renderUsers(data.users || [], keyword, false);
+                    renderHashtags(data.hashtags || [], keyword, false);
+                    renderPosts(data.posts || [], keyword, false);
+                    if (tabsContainer) tabsContainer.classList.remove("d-none");
+                    var total = (data.users || []).length + (data.hashtags || []).length + (data.posts || []).length;
+                    showStatus(total > 0 ? "" : "Không tìm thấy kết quả phù hợp.");
+                } else {
+                    if (append) {
+                        appendResults(data, type, keyword);
+                    } else {
+                        clearResults();
+                        renderFiltered(data, type, keyword);
+                    }
+                    if (tabsContainer) tabsContainer.classList.remove("d-none");
+                    showResultStatus(data, type);
+                }
 
-                const total = (data.users || []).length + (data.hashtags || []).length + (data.posts || []).length;
-                showStatus(total > 0 ? "" : "Không tìm thấy kết quả phù hợp.");
+                updateLoadMoreButtons(data, type);
             })
-            .catch(() => {
-                clearResults();
+            .catch(function () {
+                if (!append) clearResults();
                 showStatus("Có lỗi khi tìm kiếm.");
+            })
+            .finally(function () {
+                if (append) {
+                    isLoadingMore[type] = false;
+                    var btn = getLoadMoreBtn(type);
+                    if (btn) { btn.disabled = false; btn.textContent = getLoadMoreText(type); }
+                }
             });
+    }
+
+    function renderFiltered(data, type, keyword) {
+        if (type === "users") renderUsers(data.users || [], keyword, false);
+        if (type === "posts") renderPosts(data.posts || [], keyword, false);
+        if (type === "hashtags") renderHashtags(data.hashtags || [], keyword, false);
+    }
+
+    function appendResults(data, type, keyword) {
+        if (type === "users") renderUsers(data.users || [], keyword, true);
+        if (type === "posts") renderPosts(data.posts || [], keyword, true);
+        if (type === "hashtags") renderHashtags(data.hashtags || [], keyword, true);
+    }
+
+    function showResultStatus(data, type) {
+        var items = [];
+        if (type === "users") items = data.users || [];
+        if (type === "posts") items = data.posts || [];
+        if (type === "hashtags") items = data.hashtags || [];
+        showStatus(items.length > 0 ? "" : "Không tìm thấy kết quả phù hợp.");
+    }
+
+    function updateLoadMoreButtons(data, type) {
+        var hasMore = data.pagination && data.pagination.hasMore;
+        var btn = getLoadMoreBtn(type);
+        if (btn) btn.classList.toggle("d-none", !hasMore);
+    }
+
+    function getLoadMoreBtn(type) {
+        if (type === "users") return loadMoreUsers;
+        if (type === "posts") return loadMorePosts;
+        if (type === "hashtags") return loadMoreHashtags;
+        return null;
+    }
+
+    function getLoadMoreText(type) {
+        if (type === "users") return "Xem thêm tài khoản";
+        if (type === "posts") return "Xem thêm bài viết";
+        if (type === "hashtags") return "Xem thêm hashtag";
+        return "Xem thêm";
+    }
+
+    function runSearch(keyword, type) {
+        type = type || "all";
+        currentTab = type;
+        lastKeyword = keyword;
+        hideHistory();
+        showStatus("Đang tìm kiếm...");
+        pageData = { users: 1, posts: 1, hashtags: 1 };
+
+        if (type === "all") {
+            fetch(searchUrl + "?action=search&q=" + encodeURIComponent(keyword))
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (keyword !== lastKeyword) return;
+
+                    if (!data.success) {
+                        clearResults();
+                        showStatus(data.message || "Không thể tìm kiếm.");
+                        return;
+                    }
+
+                    renderUsers(data.users || [], keyword, false);
+                    renderHashtags(data.hashtags || [], keyword, false);
+                    renderPosts(data.posts || [], keyword, false);
+
+                    if (tabsContainer) tabsContainer.classList.remove("d-none");
+
+                    var total = (data.users || []).length + (data.hashtags || []).length + (data.posts || []).length;
+                    showStatus(total > 0 ? "" : "Không tìm thấy kết quả phù hợp.");
+                })
+                .catch(function () {
+                    clearResults();
+                    showStatus("Có lỗi khi tìm kiếm.");
+                });
+        } else {
+            fetchSearch(keyword, type, 1, false);
+        }
     }
 
     function loadHistory() {
@@ -229,7 +367,7 @@ document.addEventListener("DOMContentLoaded", function () {
             row.querySelector(".search-history-keyword").addEventListener("click", function () {
                 input.value = keyword;
                 recordHistory(keyword);
-                runSearch(keyword);
+                runSearch(keyword, currentTab);
             });
 
             row.querySelector(".search-history-delete").addEventListener("click", function (event) {
@@ -241,9 +379,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function renderUsers(users, keyword) {
-        userResults.innerHTML = "";
-        userSection.classList.toggle("d-none", users.length === 0);
+    function renderUsers(users, keyword, append) {
+        if (!append) userResults.innerHTML = "";
+        userSection.classList.toggle("d-none", userResults.children.length === 0 && users.length === 0);
 
         users.forEach(user => {
             const profileHref = baseUrl + "profile?id=" + encodeURIComponent(user.UserID);
@@ -284,77 +422,85 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function renderHashtags(hashtags, keyword) {
-        hashtagResults.innerHTML = "";
-        hashtagSection.classList.toggle("d-none", hashtags.length === 0);
+    function renderHashtags(hashtags, keyword, append) {
+        if (!append) hashtagResults.innerHTML = "";
+        hashtagSection.classList.toggle("d-none", hashtagResults.children.length === 0 && hashtags.length === 0);
 
-        hashtags.forEach(item => {
-            const tag = String(item.tag || "").replace(/^#/, "");
-            const row = document.createElement("a");
-            row.href = baseUrl + "hashtag?tag=" + encodeURIComponent(tag);
+        hashtags.forEach(function (item) {
+            var tagName = item.HashtagName || "";
+            var postCount = item.PostCount || item.UsageCount || 0;
+            var tagDisplay = "#" + tagName;
+            var row = document.createElement("a");
+            row.href = baseUrl + "hashtag?tag=" + encodeURIComponent(tagName);
             row.className = "search-hashtag-item";
             row.innerHTML = `
                 <span class="search-hashtag-icon"><i class="bi bi-hash"></i></span>
                 <span>
-                    <strong>${highlight(item.tag || "", keyword)}</strong>
-                    <small>${Number(item.count || 0)} bài viết liên quan</small>
+                    <strong>${highlight(tagDisplay, keyword)}</strong>
+                    <small>${Number(postCount)} bài viết</small>
                 </span>
             `;
 
             row.addEventListener("click", function () {
-                recordHistory("#" + tag);
+                recordHistory(tagDisplay);
             });
 
             hashtagResults.appendChild(row);
         });
     }
 
-    function renderPosts(posts, keyword) {
-        postResults.innerHTML = "";
-        postSection.classList.toggle("d-none", posts.length === 0);
+    function renderPosts(posts, keyword, append) {
+        if (!append) postResults.innerHTML = "";
+        postSection.classList.toggle("d-none", postResults.children.length === 0 && posts.length === 0);
 
-        posts.forEach(post => {
-            const profileHref = baseUrl + "profile?id=" + encodeURIComponent(post.UserID);
-            const postDetailHref = baseUrl + "post-detail?id=" + encodeURIComponent(post.PostID);
-            const avatar = normalizeImagePath(post.ProfilePictureUrl);
-            const fullName = post.FullName || (post.Username ? `@${post.Username}` : "Người dùng");
+        posts.forEach(function (post) {
+            var profileHref = baseUrl + "profile?id=" + encodeURIComponent(post.UserID);
+            var postDetailHref = baseUrl + "post-detail?id=" + encodeURIComponent(post.PostID);
+            var avatar = normalizeImagePath(post.ProfilePictureUrl);
+            var fullName = post.FullName || (post.Username ? "@" + post.Username : "Người dùng");
+            var firstImage = post.FirstImage || null;
+            var privacy = post.Privacy || "public";
 
-            const row = document.createElement("div");
+            var privacyBadge = "";
+            if (privacy === "followers") privacyBadge = '<span class="privacy-badge privacy-followers"><i class="bi bi-people"></i></span>';
+            else if (privacy === "private") privacyBadge = '<span class="privacy-badge privacy-private"><i class="bi bi-lock"></i></span>';
+
+            var thumbnailHtml = "";
+            if (firstImage) {
+                var imgPath = normalizeImagePath(firstImage);
+                thumbnailHtml = '<a href="' + postDetailHref + '" class="search-post-thumb no-post-nav" onclick="event.stopPropagation();" tabindex="-1">' +
+                    '<img src="' + escapeHTML(imgPath) + '" alt="" loading="lazy" onerror="this.parentElement.classList.add(\'d-none\');">' +
+                    '</a>';
+            }
+
+            var row = document.createElement("div");
             row.className = "search-post-item";
             row.setAttribute("role", "link");
             row.setAttribute("tabindex", "0");
             row.dataset.postUrl = postDetailHref;
-            row.innerHTML = `
-                <a href="${profileHref}" class="search-post-profile-link no-post-nav" aria-label="Xem hồ sơ">
-                    <img src="${escapeHTML(avatar)}" class="avatar" alt="avatar" onerror="this.src='${baseUrl}Public/assets/img/default-avatar.jpg';">
-                </a>
-                <span class="search-post-meta">
-                    <a href="${profileHref}" class="search-post-author no-post-nav">
-                        <strong>${escapeHTML(fullName)} <small>@${escapeHTML(post.Username || "")}</small></strong>
-                    </a>
-                    <span>${renderPostContent(post.Content || "", keyword)}</span>
-                </span>
-            `;
+            row.innerHTML = [
+                '<a href="' + profileHref + '" class="search-post-profile-link no-post-nav" aria-label="Xem hồ sơ">',
+                '  <img src="' + escapeHTML(avatar) + '" class="avatar" alt="avatar" onerror="this.src=\'' + baseUrl + 'Public/assets/img/default-avatar.jpg\';">',
+                '</a>',
+                '<span class="search-post-meta">',
+                '  <a href="' + profileHref + '" class="search-post-author no-post-nav">',
+                '    <strong>' + (privacyBadge ? privacyBadge + " " : "") + escapeHTML(fullName) + ' <small>@' + escapeHTML(post.Username || "") + '</small></strong>',
+                '  </a>',
+                '  <span>' + renderPostContent(post.Content || "", keyword) + '</span>',
+                '</span>',
+                thumbnailHtml
+            ].join("");
 
             row.addEventListener("click", function (event) {
-                if (event.target.closest(".no-post-nav")) {
-                    return;
-                }
-
+                if (event.target.closest(".no-post-nav")) return;
                 recordHistory(input.value.trim()).finally(function () {
                     window.location.href = postDetailHref;
                 });
             });
 
             row.addEventListener("keydown", function (event) {
-                if (event.key !== "Enter" && event.key !== " ") {
-                    return;
-                }
-
-                if (event.target.closest(".no-post-nav")) {
-                    return;
-                }
-
+                if (event.key !== "Enter" && event.key !== " ") return;
+                if (event.target.closest(".no-post-nav")) return;
                 event.preventDefault();
                 recordHistory(input.value.trim()).finally(function () {
                     window.location.href = postDetailHref;
@@ -635,7 +781,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     hideSuggestions();
                     input.value = "#" + tagName;
                     recordHistory(input.value.trim());
-                    runSearch(input.value.trim());
+                    runSearch(input.value.trim(), currentTab);
                 });
 
                 suggestHashtagsEl.appendChild(el);
