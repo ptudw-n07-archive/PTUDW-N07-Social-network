@@ -205,7 +205,7 @@ function pollPostUpdates() {
     }
 
     const params = new URLSearchParams();
-    postIds.slice(0, 50).forEach(function (postId) {
+    postIds.slice(0, 100).forEach(function (postId) {
         params.append("postIds[]", postId);
     });
 

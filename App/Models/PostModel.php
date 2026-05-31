@@ -11,7 +11,7 @@ class PostModel {
         $this->ensurePostInteractionSchema();
     }
 
-    public function getAllPosts($viewerId = null, int $limit = 20) {
+    public function getAllPosts($viewerId = null, int $limit = 100) {
         $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
         $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
 
@@ -44,7 +44,7 @@ class PostModel {
         ";
 
         $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(":limit", max(1, min($limit, 50)), PDO::PARAM_INT);
+        $stmt->bindValue(":limit", max(1, min($limit, 100)), PDO::PARAM_INT);
 
         if ($viewerId) {
             $stmt->bindValue(":viewerId", (int) $viewerId, PDO::PARAM_INT);
@@ -479,7 +479,7 @@ public function getPostUpdates(array $postIds, $viewerId = null): array {
         return [];
     }
 
-    $postIds = array_slice($postIds, 0, 50);
+    $postIds = array_slice($postIds, 0, 100);
     $placeholders = [];
     foreach ($postIds as $index => $postId) {
         $placeholders[] = ':postId' . $index;
