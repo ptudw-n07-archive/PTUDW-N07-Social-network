@@ -68,33 +68,19 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="feed-title text-center mb-4">Tìm kiếm</div>
 
                 <div class="bg-white search-panel">
-                    <div class="search-combobox">
-                        <form id="searchForm" class="search-form" autocomplete="off">
-                            <i class="bi bi-search search-input-icon"></i>
-                            <label for="searchInput" class="visually-hidden">Tìm kiếm</label>
-                            <input
-                                type="search"
-                                id="searchInput"
-                                class="search-input"
-                                placeholder="Tìm username, họ tên, bài viết hoặc hashtag"
-                            >
-                            <button type="submit" class="search-submit-btn" aria-label="Tìm kiếm">
-                                <i class="bi bi-arrow-right"></i>
-                            </button>
-                        </form>
-
-                        <div id="suggestionsContainer" class="search-suggestions d-none">
-                            <div class="suggestions-group">
-                                <div class="suggestions-heading">Tài khoản</div>
-                                <div id="suggestUsers" class="suggestions-list"></div>
-                            </div>
-                            <div class="suggestions-group">
-                                <div class="suggestions-heading">Hashtag</div>
-                                <div id="suggestHashtags" class="suggestions-list"></div>
-                            </div>
-                            <div class="suggestions-empty">Không có gợi ý.</div>
-                        </div>
-                    </div>
+                    <form id="searchForm" class="search-form" autocomplete="off">
+                        <i class="bi bi-search search-input-icon"></i>
+                        <label for="searchInput" class="visually-hidden">Tìm kiếm</label>
+                        <input
+                            type="search"
+                            id="searchInput"
+                            class="search-input"
+                            placeholder="Tìm username, họ tên, bài viết hoặc hashtag"
+                        >
+                        <button type="submit" class="search-submit-btn" aria-label="Tìm kiếm">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </form>
 
                     <div id="searchStatus" class="search-status">
                         Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm.
