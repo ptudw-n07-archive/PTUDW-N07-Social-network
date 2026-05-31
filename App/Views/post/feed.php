@@ -5,13 +5,11 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once __DIR__ . '/../../../Config/Database.php';
 
-// 2. CHẶN LỖI: Nếu chưa đăng nhập, bắt buộc đá về trang login ngay lập tức
 if (!isset($_SESSION['user_id'])) {
     header('Location: ' . app_url('login'));
     exit();
 }
 
-// 3. Đọc dữ liệu an toàn từ Session sau khi đã chắc chắn user đã đăng nhập
 $currentUserId   = $_SESSION['user_id'];
 $currentUsername = $_SESSION['username'];
 $currentFullName = $_SESSION['user_name'];

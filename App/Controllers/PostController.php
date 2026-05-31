@@ -1,15 +1,14 @@
 <?php
-namespace App\Controllers; // ✨ 1. Thêm namespace cho Controller
+namespace App\Controllers;
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php'; 
-require_once __DIR__ . '/../Models/PostModel.php';     
+require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../Models/PostModel.php';
 require_once __DIR__ . '/../Models/NotificationModel.php';
 
-// ✨ 2. Khai báo sử dụng lớp PostModel từ bên thư mục Models và lớp Database từ gốc
 use App\Models\PostModel;
 use App\Models\NotificationModel;
 use Database;

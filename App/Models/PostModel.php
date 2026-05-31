@@ -271,85 +271,85 @@ class PostModel {
         return false;
     }
 
-public function addPostImage($postId, $imageUrl) {
-    $sql = "INSERT INTO postimages (PostID, ImageUrl)
-            VALUES (:postId, :imageUrl)";
+    public function addPostImage($postId, $imageUrl) {
+        $sql = "INSERT INTO postimages (PostID, ImageUrl)
+                VALUES (:postId, :imageUrl)";
 
-    $stmt = $this->conn->prepare($sql);
-    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
-    $stmt->bindParam(":imageUrl", $imageUrl);
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $stmt->bindParam(":imageUrl", $imageUrl);
 
-    return $stmt->execute();
-}
-
-public function createRepost($currentUserId, $originalPostId) {
-    $originalPost = $this->getPostById($originalPostId, $currentUserId);
-
-    if (!$originalPost) {
-        return false;
+        return $stmt->execute();
     }
 
-    $rootOriginalId = $this->resolveRootOriginalPostId((int) ($originalPost['OriginalPostID'] ?? 0) ?: (int) $originalPostId);
-    $rootOriginalPost = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
+    public function createRepost($currentUserId, $originalPostId) {
+        $originalPost = $this->getPostById($originalPostId, $currentUserId);
 
-    if ($rootOriginalPost) {
-        $originalPost = [
-            'PostID' => $rootOriginalPost['OriginalPostID'] ?? $rootOriginalId,
-            'UserID' => $rootOriginalPost['OriginalUserID'] ?? 0,
-            'Username' => $rootOriginalPost['OriginalUsername'] ?? '',
-            'FullName' => $rootOriginalPost['OriginalFullName'] ?? '',
-            'ProfilePictureUrl' => $rootOriginalPost['OriginalProfilePictureUrl'] ?? '',
-            'Content' => $rootOriginalPost['OriginalContent'] ?? '',
-            'Images' => $rootOriginalPost['OriginalImages'] ?? ''
-        ];
-        $originalPostId = (int) ($rootOriginalPost['OriginalPostID'] ?? $rootOriginalId);
-    }
-
-    if ((int) $originalPost['UserID'] === (int) $currentUserId) {
-        return false;
-    }
-
-    $sourceUsername = trim((string) ($originalPost['Username'] ?? ''));
-    $sourceName = $sourceUsername !== '' ? '@' . $sourceUsername : 'người dùng';
-    $sourceContent = trim((string) ($originalPost['Content'] ?? ''));
-    $repostContent = "Đăng lại từ {$sourceName}:";
-
-    if ($sourceContent !== '') {
-        $repostContent .= "\n\n" . $sourceContent;
-    }
-
-    try {
-        $this->conn->beginTransaction();
-
-        $postId = $this->createPost($currentUserId, $repostContent);
-        if (!$postId) {
-            $this->conn->rollBack();
+        if (!$originalPost) {
             return false;
         }
 
-        $linkSql = "UPDATE posts SET OriginalPostID = :originalPostId WHERE PostID = :postId";
-        $linkStmt = $this->conn->prepare($linkSql);
-        $linkStmt->bindParam(":originalPostId", $originalPostId, PDO::PARAM_INT);
-        $linkStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
-        $linkStmt->execute();
+        $rootOriginalId = $this->resolveRootOriginalPostId((int) ($originalPost['OriginalPostID'] ?? 0) ?: (int) $originalPostId);
+        $rootOriginalPost = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
 
-        $imageUrls = array_values(array_filter(array_map('trim', explode(',', (string) ($originalPost['Images'] ?? '')))));
-
-        foreach ($imageUrls as $imageUrl) {
-            $this->addPostImage($postId, $imageUrl);
+        if ($rootOriginalPost) {
+            $originalPost = [
+                'PostID' => $rootOriginalPost['OriginalPostID'] ?? $rootOriginalId,
+                'UserID' => $rootOriginalPost['OriginalUserID'] ?? 0,
+                'Username' => $rootOriginalPost['OriginalUsername'] ?? '',
+                'FullName' => $rootOriginalPost['OriginalFullName'] ?? '',
+                'ProfilePictureUrl' => $rootOriginalPost['OriginalProfilePictureUrl'] ?? '',
+                'Content' => $rootOriginalPost['OriginalContent'] ?? '',
+                'Images' => $rootOriginalPost['OriginalImages'] ?? ''
+            ];
+            $originalPostId = (int) ($rootOriginalPost['OriginalPostID'] ?? $rootOriginalId);
         }
 
-        $this->conn->commit();
-        return (int) $postId;
-    } catch (\Throwable $e) {
-        if ($this->conn->inTransaction()) {
-            $this->conn->rollBack();
+        if ((int) $originalPost['UserID'] === (int) $currentUserId) {
+            return false;
         }
 
-        error_log('[PostModel] createRepost failed: ' . $e->getMessage());
-        return false;
+        $sourceUsername = trim((string) ($originalPost['Username'] ?? ''));
+        $sourceName = $sourceUsername !== '' ? '@' . $sourceUsername : 'người dùng';
+        $sourceContent = trim((string) ($originalPost['Content'] ?? ''));
+        $repostContent = "Đăng lại từ {$sourceName}:";
+
+        if ($sourceContent !== '') {
+            $repostContent .= "\n\n" . $sourceContent;
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            $postId = $this->createPost($currentUserId, $repostContent);
+            if (!$postId) {
+                $this->conn->rollBack();
+                return false;
+            }
+
+            $linkSql = "UPDATE posts SET OriginalPostID = :originalPostId WHERE PostID = :postId";
+            $linkStmt = $this->conn->prepare($linkSql);
+            $linkStmt->bindParam(":originalPostId", $originalPostId, PDO::PARAM_INT);
+            $linkStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $linkStmt->execute();
+
+            $imageUrls = array_values(array_filter(array_map('trim', explode(',', (string) ($originalPost['Images'] ?? '')))));
+
+            foreach ($imageUrls as $imageUrl) {
+                $this->addPostImage($postId, $imageUrl);
+            }
+
+            $this->conn->commit();
+            return (int) $postId;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+
+            error_log('[PostModel] createRepost failed: ' . $e->getMessage());
+            return false;
+        }
     }
-}
 
 private function attachOriginalPostData(array $posts): array {
     foreach ($posts as &$post) {
