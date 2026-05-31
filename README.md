@@ -46,19 +46,60 @@ DB_PASSWORD=
 UPLOADS_ROOT=storage/uploads
 ```
 
+## Yêu cầu
+
+- **PHP 8.0+** (có CLI)
+- **MySQL 8.0+**
+- **Composer** (dùng `composer.phar` kèm trong repo)
+
 ## Chạy local
 
-Nếu máy có PHP CLI:
+### 1. Cài dependencies
+
+```bash
+php composer.phar install
+```
+
+### 2. Tạo database
+
+```bash
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS db_archive CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u root db_archive < db_archive_final.sql
+```
+
+> Nếu chưa có MySQL, cài qua Homebrew: `brew install mysql && brew services start mysql`
+
+### 3. Cấu hình env
 
 ```bash
 cp .env.example .env
+```
+
+Sửa file `.env` với thông tin phù hợp (xem mục **Biến môi trường** bên trên).
+
+### 4. Chạy server
+
+```bash
 php -S 0.0.0.0:8080 -t . Public/index.php
 ```
 
-Mở trình duyệt tại:
+### 5. Mở trình duyệt
 
 ```text
 http://localhost:8080
+```
+
+### (Tuỳ chọn) Đăng nhập bằng Google
+
+1. Vào [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Tạo OAuth Client ID loại **Web application**
+3. Thêm `http://localhost:8080/App/Controllers/GoogleLoginController.php` vào **Authorized redirect URIs**
+4. Copy `Client ID` và `Client Secret` vào `.env`:
+
+```env
+GOOGLE_LOGIN_CLIENT_ID=your-client-id
+GOOGLE_LOGIN_CLIENT_SECRET=your-client-secret
+GOOGLE_LOGIN_REDIRECT_URI=http://localhost:8080/App/Controllers/GoogleLoginController.php
 ```
 
 ## Trial deploy lên Railway
@@ -128,4 +169,5 @@ sh ./run-app.sh
 
 - `Public/uploads` không commit vì được tạo runtime bằng symlink
 - `storage/uploads/*` có `.gitkeep` để giữ cấu trúc thư mục
-- `db_archive.sql` là dữ liệu hỗ trợ/import thủ công, không phải phần bắt buộc của deploy flow
+- `*.sql` không push lên git, cần giữ file để người khác import database
+- Google Login cần OAuth Client ID riêng từ Google Cloud Console
