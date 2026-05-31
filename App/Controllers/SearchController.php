@@ -62,6 +62,27 @@ class SearchController {
         }
     }
 
+    public function suggest(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $userId = $this->requireLoginJson();
+            $keyword = $this->normalizeKeyword($_GET['q'] ?? '');
+
+            if ($this->keywordLength($keyword) < 1) {
+                $this->json(true, "OK", ['users' => [], 'hashtags' => []]);
+                return;
+            }
+
+            $this->json(true, "OK", [
+                'users' => $this->searchModel->suggestUsers($keyword, $userId),
+                'hashtags' => $this->searchModel->suggestHashtags($keyword, 8)
+            ]);
+        } catch (Exception $e) {
+            $this->json(false, $e->getMessage(), ['users' => [], 'hashtags' => []]);
+        }
+    }
+
     public function suggestHashtags(): void {
         header('Content-Type: application/json; charset=utf-8');
 
@@ -223,6 +244,7 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
 
     match ($_GET['action']) {
         'search' => $controller->search(),
+        'suggest' => $controller->suggest(),
         'suggestHashtags' => $controller->suggestHashtags(),
         'history' => $controller->history(),
         'getHistory' => $controller->history(),

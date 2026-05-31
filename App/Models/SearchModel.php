@@ -27,14 +27,14 @@ class SearchModel {
                 AND f.FollowerID = :followViewerId
             WHERE u.UserID != :excludeUserId
                 AND (
-                    u.Username LIKE :usernameKeyword
-                    OR u.FullName LIKE :nameKeyword
-                    OR u.Email LIKE :emailKeyword
+                    u.Username LIKE :usernameKeyword COLLATE utf8mb4_unicode_ci
+                    OR u.FullName LIKE :nameKeyword COLLATE utf8mb4_unicode_ci
+                    OR u.Email LIKE :emailKeyword COLLATE utf8mb4_unicode_ci
                 )
             ORDER BY
                 CASE
-                    WHEN u.Username LIKE :usernamePrefix THEN 0
-                    WHEN u.FullName LIKE :namePrefix THEN 1
+                    WHEN u.Username LIKE :usernamePrefix COLLATE utf8mb4_unicode_ci THEN 0
+                    WHEN u.FullName LIKE :namePrefix COLLATE utf8mb4_unicode_ci THEN 1
                     ELSE 2
                 END,
                 u.FullName ASC,
@@ -58,44 +58,128 @@ class SearchModel {
     }
 
     public function searchPosts(string $keyword, ?int $viewerId = null, int $limit = 5): array {
-        $keywordLike = '%' . $keyword . '%';
+        $keyword = trim($keyword);
+
+        if (mb_strlen($keyword) >= 3) {
+            $ftKeyword = '+' . implode('* +', explode(' ', $keyword)) . '*';
+
+            $sql = "
+                SELECT
+                    p.PostID,
+                    p.Content,
+                    p.CreatedAt,
+                    u.UserID,
+                    u.Username,
+                    u.FullName,
+                    u.ProfilePictureUrl,
+                    MATCH(p.Content) AGAINST(:ftKeyword IN BOOLEAN MODE) AS Relevance,
+                    (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
+                    (
+                        SELECT COUNT(c.CommentID)
+                        FROM comments c
+                        WHERE c.PostID = p.PostID
+                        AND c.IsHidden = 0
+                    ) AS CommentCount,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM likes viewer_likes
+                            WHERE viewer_likes.PostID = p.PostID
+                            AND viewer_likes.UserID = :viewerId
+                        ) THEN 1
+                        ELSE 0
+                    END AS IsLiked
+                FROM posts p
+                JOIN users u ON p.UserID = u.UserID
+                WHERE p.IsHidden = 0
+                AND MATCH(p.Content) AGAINST(:ftKeywordWhere IN BOOLEAN MODE)
+                ORDER BY Relevance DESC, p.CreatedAt DESC
+                LIMIT :limit
+            ";
+
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':ftKeyword', $ftKeyword);
+            $stmt->bindValue(':ftKeywordWhere', $ftKeyword);
+            $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        } else {
+            $keywordLike = '%' . $keyword . '%';
+
+            $sql = "
+                SELECT
+                    p.PostID,
+                    p.Content,
+                    p.CreatedAt,
+                    u.UserID,
+                    u.Username,
+                    u.FullName,
+                    u.ProfilePictureUrl,
+                    0 AS Relevance,
+                    (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
+                    (
+                        SELECT COUNT(c.CommentID)
+                        FROM comments c
+                        WHERE c.PostID = p.PostID
+                        AND c.IsHidden = 0
+                    ) AS CommentCount,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM likes viewer_likes
+                            WHERE viewer_likes.PostID = p.PostID
+                            AND viewer_likes.UserID = :viewerId
+                        ) THEN 1
+                        ELSE 0
+                    END AS IsLiked
+                FROM posts p
+                JOIN users u ON p.UserID = u.UserID
+                WHERE p.IsHidden = 0
+                AND p.Content LIKE :keyword
+                ORDER BY p.CreatedAt DESC
+                LIMIT :limit
+            ";
+
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindValue(':keyword', $keywordLike);
+            $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function suggestUsers(string $keyword, int $currentUserId, int $limit = 8): array {
+        $keywordPrefix = $keyword . '%';
+        $keywordContains = '%' . $keyword . '%';
 
         $sql = "
             SELECT
-                p.PostID,
-                p.Content,
-                p.CreatedAt,
                 u.UserID,
                 u.Username,
                 u.FullName,
-                u.ProfilePictureUrl,
-                (SELECT COUNT(DISTINCT l.UserID) FROM likes l WHERE l.PostID = p.PostID) AS LikeCount,
-                (
-                    SELECT COUNT(c.CommentID)
-                    FROM comments c
-                    WHERE c.PostID = p.PostID
-                    AND c.IsHidden = 0
-                ) AS CommentCount,
+                u.ProfilePictureUrl
+            FROM users u
+            WHERE u.UserID != :currentUserId
+              AND (
+                  u.Username LIKE :prefixKeyword COLLATE utf8mb4_unicode_ci
+                  OR u.FullName LIKE :prefixKeyword2 COLLATE utf8mb4_unicode_ci
+              )
+            ORDER BY
                 CASE
-                    WHEN EXISTS (
-                        SELECT 1
-                        FROM likes viewer_likes
-                        WHERE viewer_likes.PostID = p.PostID
-                        AND viewer_likes.UserID = :viewerId
-                    ) THEN 1
-                    ELSE 0
-                END AS IsLiked
-            FROM posts p
-            JOIN users u ON p.UserID = u.UserID
-            WHERE p.IsHidden = 0
-            AND p.Content LIKE :keyword
-            ORDER BY p.CreatedAt DESC
+                    WHEN u.Username LIKE :prefix COLLATE utf8mb4_unicode_ci THEN 0
+                    ELSE 1
+                END,
+                u.FullName ASC,
+                u.Username ASC
             LIMIT :limit
         ";
 
         $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':keyword', $keywordLike);
-        $stmt->bindValue(':viewerId', (int) ($viewerId ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':currentUserId', $currentUserId, PDO::PARAM_INT);
+        $stmt->bindValue(':prefixKeyword', $keywordContains);
+        $stmt->bindValue(':prefixKeyword2', $keywordContains);
+        $stmt->bindValue(':prefix', $keywordPrefix);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
 
