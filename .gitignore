@@ -7,4 +7,4 @@ Public/uploads
 vendor/
 storage/logs/*.log
 *.sql
-*.sql
+!database/*.sql
