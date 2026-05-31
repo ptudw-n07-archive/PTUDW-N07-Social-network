@@ -82,6 +82,18 @@ if (!isset($_SESSION['user_id'])) {
                         </button>
                     </form>
 
+                    <div id="suggestionsContainer" class="search-suggestions d-none">
+                        <div class="suggestions-group">
+                            <div class="suggestions-heading">Tài khoản</div>
+                            <div id="suggestUsers" class="suggestions-list"></div>
+                        </div>
+                        <div class="suggestions-group">
+                            <div class="suggestions-heading">Hashtag</div>
+                            <div id="suggestHashtags" class="suggestions-list"></div>
+                        </div>
+                        <div class="suggestions-empty">Không có gợi ý.</div>
+                    </div>
+
                     <div id="searchStatus" class="search-status">
                         Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm.
                     </div>

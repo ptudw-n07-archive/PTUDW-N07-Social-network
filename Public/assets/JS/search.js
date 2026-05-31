@@ -19,9 +19,15 @@ document.addEventListener("DOMContentLoaded", function () {
     const hashtagResults = document.getElementById("hashtagResults");
     const postSection = document.getElementById("postSection");
     const postResults = document.getElementById("postResults");
+    const suggestionsContainer = document.getElementById("suggestionsContainer");
+    const suggestUsersEl = document.getElementById("suggestUsers");
+    const suggestHashtagsEl = document.getElementById("suggestHashtags");
 
     let debounceTimer = null;
+    let suggestTimer = null;
     let lastKeyword = "";
+    let lastSuggestKeyword = "";
+    let hasSuggestions = false;
 
     if (!form || !input) {
         return;
@@ -40,9 +46,19 @@ document.addEventListener("DOMContentLoaded", function () {
     input.addEventListener("input", function () {
         const keyword = input.value.trim();
         window.clearTimeout(debounceTimer);
+        window.clearTimeout(suggestTimer);
+
+        if (keyword.length >= 1) {
+            suggestTimer = window.setTimeout(function () {
+                fetchSuggestions(keyword);
+            }, 120);
+        } else {
+            hideSuggestions();
+        }
 
         debounceTimer = window.setTimeout(function () {
             if (keyword.length >= 2) {
+                hideSuggestions();
                 runSearch(keyword);
                 return;
             }
@@ -67,6 +83,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
         recordHistory(keyword);
         runSearch(keyword);
+    });
+
+    input.addEventListener("keydown", function (event) {
+        if (suggestionsContainer.classList.contains("d-none")) {
+            return;
+        }
+
+        const items = suggestionsContainer.querySelectorAll(".suggestions-item");
+
+        if (items.length === 0) {
+            return;
+        }
+
+        let currentIndex = Array.from(items).findIndex(function (el) {
+            return el.classList.contains("active");
+        });
+
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            var nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+            updateSuggestionFocus(items, currentIndex, nextIndex);
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            var prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+            updateSuggestionFocus(items, currentIndex, prevIndex);
+        } else if (event.key === "Enter") {
+            if (currentIndex >= 0) {
+                event.preventDefault();
+                items[currentIndex].click();
+            }
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            hideSuggestions();
+            input.blur();
+        }
     });
 
     clearHistoryBtn.addEventListener("click", function () {
@@ -506,6 +557,125 @@ document.addEventListener("DOMContentLoaded", function () {
         div.innerText = String(text || "");
         return div.innerHTML;
     }
+
+    function fetchSuggestions(keyword) {
+        if (keyword === lastSuggestKeyword) {
+            return;
+        }
+
+        lastSuggestKeyword = keyword;
+
+        fetch(searchUrl + "?action=suggest&q=" + encodeURIComponent(keyword))
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (keyword !== input.value.trim()) {
+                    return;
+                }
+
+                if (!data.success) {
+                    hideSuggestions();
+                    return;
+                }
+
+                var users = data.users || [];
+                var hashtags = data.hashtags || [];
+
+                if (users.length === 0 && hashtags.length === 0) {
+                    hideSuggestions();
+                    return;
+                }
+
+                renderSuggestions(users, hashtags, keyword);
+            })
+            .catch(function () {
+                hideSuggestions();
+            });
+    }
+
+    function renderSuggestions(users, hashtags, keyword) {
+        suggestUsersEl.innerHTML = "";
+        suggestHashtagsEl.innerHTML = "";
+
+        if (users.length > 0) {
+            users.forEach(function (user) {
+                var el = document.createElement("a");
+                el.className = "suggestions-item suggestions-user-item";
+                el.href = baseUrl + "profile?id=" + encodeURIComponent(user.UserID);
+                var avatar = normalizeImagePath(user.ProfilePictureUrl);
+                var fullName = user.FullName || user.Username || "Người dùng";
+                el.innerHTML = '<img src="' + escapeHTML(avatar) + '" class="suggestions-user-avatar" alt="" onerror="this.src=\'' + baseUrl + 'Public/assets/img/default-avatar.jpg\';">' +
+                    '<span class="suggestions-item-text"><strong>' + highlight(fullName, keyword) + '</strong><small>@' + highlight(user.Username || "", keyword) + '</small></span>';
+
+                el.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    hideSuggestions();
+                    window.location.href = this.href;
+                });
+
+                suggestUsersEl.appendChild(el);
+            });
+        } else {
+            var empty = document.createElement("div");
+            empty.className = "suggestions-empty-item";
+            empty.textContent = "Không tìm thấy tài khoản.";
+            suggestUsersEl.appendChild(empty);
+        }
+
+        if (hashtags.length > 0) {
+            hashtags.forEach(function (tag) {
+                var el = document.createElement("a");
+                el.className = "suggestions-item suggestions-hashtag-item";
+                var tagName = tag.HashtagName || "";
+                el.href = baseUrl + "hashtag?tag=" + encodeURIComponent(tagName);
+                el.innerHTML = '<span class="suggestions-hashtag-icon"><i class="bi bi-hash"></i></span>' +
+                    '<span class="suggestions-item-text"><strong>' + highlight("#" + tagName, keyword) + '</strong><small>' + (tag.UsageCount || 0) + ' bài viết</small></span>';
+
+                el.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    hideSuggestions();
+                    input.value = "#" + tagName;
+                    recordHistory(input.value.trim());
+                    runSearch(input.value.trim());
+                });
+
+                suggestHashtagsEl.appendChild(el);
+            });
+        } else {
+            var empty2 = document.createElement("div");
+            empty2.className = "suggestions-empty-item";
+            empty2.textContent = "Không tìm thấy hashtag.";
+            suggestHashtagsEl.appendChild(empty2);
+        }
+
+        suggestionsContainer.classList.remove("d-none");
+        hasSuggestions = true;
+    }
+
+    function hideSuggestions() {
+        suggestionsContainer.classList.add("d-none");
+        hasSuggestions = false;
+    }
+
+    function updateSuggestionFocus(items, oldIndex, newIndex) {
+        if (oldIndex >= 0) {
+            items[oldIndex].classList.remove("active");
+        }
+
+        items[newIndex].classList.add("active");
+        items[newIndex].scrollIntoView({ block: "nearest" });
+    }
+
+    document.addEventListener("click", function (event) {
+        if (!hasSuggestions) {
+            return;
+        }
+
+        var panel = suggestionsContainer.closest(".search-panel");
+
+        if (panel && !panel.contains(event.target)) {
+            hideSuggestions();
+        }
+    });
 
     const moreButton = document.getElementById("moreButton");
     const moreDropdown = document.getElementById("moreDropdown");
