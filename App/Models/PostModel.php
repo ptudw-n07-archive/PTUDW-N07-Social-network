@@ -8,45 +8,20 @@ class PostModel {
 
     public function __construct($db) {
         $this->conn = $db;
+        $this->ensurePostInteractionSchema();
     }
 
-    public function getAllPosts() {
-        $sql = "
-            SELECT 
-                p.PostID,
-                p.Content,
-                p.CreatedAt,
-                u.UserID,
-                u.Username,
-                u.FullName,
-                u.ProfilePictureUrl,
-                GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
-                COUNT(DISTINCT l.UserID) AS LikeCount,
-                COUNT(DISTINCT c.CommentID) AS CommentCount
-            FROM posts p
-            JOIN users u ON p.UserID = u.UserID
-            LEFT JOIN postimages pi ON p.PostID = pi.PostID
-            LEFT JOIN likes l ON p.PostID = l.PostID
-            LEFT JOIN comments c ON p.PostID = c.PostID
-            GROUP BY p.PostID
-            ORDER BY p.CreatedAt DESC
-        ";
-
-        $stmt = $this->conn->prepare($sql);
-        $stmt->execute();
-
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    public function getPostsByUserId($userId, $viewerId = null) {
+    public function getAllPosts($viewerId = null, int $limit = 100) {
         $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
         $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
 
         $sql = "
-            SELECT
+            SELECT 
                 p.PostID,
+                p.OriginalPostID,
                 p.Content,
                 p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
                 u.UserID,
                 u.Username,
                 u.FullName,
@@ -60,14 +35,132 @@ class PostModel {
             LEFT JOIN postimages pi ON p.PostID = pi.PostID
             LEFT JOIN likes l ON p.PostID = l.PostID
             $viewerLikeJoin
-            LEFT JOIN comments c ON p.PostID = c.PostID
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
+            WHERE p.IsHidden = 0
+            AND " . $this->visibilitySql($viewerId) . "
+            GROUP BY p.PostID
+            ORDER BY p.CreatedAt DESC
+            LIMIT :limit
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(":limit", max(1, min($limit, 100)), PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindValue(":viewerId", (int) $viewerId, PDO::PARAM_INT);
+        }
+        $this->bindViewerParams($stmt, $viewerId);
+        $stmt->execute();
+
+        return $this->attachOriginalPostData($stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function getPostsByUserId($userId, $viewerId = null, bool $includeReposts = true) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+        $repostFilter = $includeReposts ? "" : "AND p.OriginalPostID IS NULL AND p.Content NOT LIKE :repostPattern";
+
+        $sql = "
+            SELECT
+                p.PostID,
+                p.OriginalPostID,
+                p.Content,
+                p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
+                u.UserID,
+                u.Username,
+                u.FullName,
+                u.ProfilePictureUrl,
+                GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                $viewerLikeSelect
+                COUNT(DISTINCT l.UserID) AS LikeCount,
+                COUNT(DISTINCT c.CommentID) AS CommentCount
+            FROM posts p
+            JOIN users u ON p.UserID = u.UserID
+            LEFT JOIN postimages pi ON p.PostID = pi.PostID
+            LEFT JOIN likes l ON p.PostID = l.PostID
+            $viewerLikeJoin
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
             WHERE p.UserID = :userId
+            AND p.IsHidden = 0
+            $repostFilter
+            AND " . $this->visibilitySql($viewerId) . "
             GROUP BY p.PostID
             ORDER BY p.CreatedAt DESC
         ";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+            $this->bindViewerParams($stmt, $viewerId);
+        }
+
+        if (!$includeReposts) {
+            $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
+        }
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getRepostsByUserId($userId, $viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON COALESCE(op.PostID, rp.PostID) = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+        $sql = "
+            SELECT
+                COALESCE(op.PostID, rp.PostID) AS PostID,
+                rp.PostID AS RepostID,
+                rp.OriginalPostID,
+                COALESCE(op.Content, rp.Content) AS Content,
+                COALESCE(op.CreatedAt, rp.CreatedAt) AS CreatedAt,
+                rp.CreatedAt AS RepostedAt,
+                COALESCE(op.Privacy, rp.Privacy, 'public') AS Privacy,
+                COALESCE(ou.UserID, ru.UserID) AS UserID,
+                COALESCE(ou.Username, ru.Username) AS Username,
+                COALESCE(ou.FullName, ru.FullName) AS FullName,
+                COALESCE(ou.ProfilePictureUrl, ru.ProfilePictureUrl) AS ProfilePictureUrl,
+                GROUP_CONCAT(DISTINCT COALESCE(opi.ImageUrl, rpi.ImageUrl)) AS Images,
+                $viewerLikeSelect
+                COUNT(DISTINCT l.UserID) AS LikeCount,
+                COUNT(DISTINCT c.CommentID) AS CommentCount
+            FROM posts rp
+            JOIN users ru ON rp.UserID = ru.UserID
+            LEFT JOIN posts op ON rp.OriginalPostID = op.PostID AND op.IsHidden = 0
+            LEFT JOIN users ou ON op.UserID = ou.UserID
+            LEFT JOIN postimages rpi ON rp.PostID = rpi.PostID
+            LEFT JOIN postimages opi ON op.PostID = opi.PostID
+            LEFT JOIN likes l ON COALESCE(op.PostID, rp.PostID) = l.PostID
+            $viewerLikeJoin
+            LEFT JOIN comments c ON COALESCE(op.PostID, rp.PostID) = c.PostID AND c.IsHidden = 0
+            WHERE rp.UserID = :userId
+            AND rp.IsHidden = 0
+            AND (rp.OriginalPostID IS NOT NULL OR rp.Content LIKE :repostPattern)
+            AND (
+                op.PostID IS NULL
+                OR COALESCE(op.Privacy, 'public') = 'public'
+                OR op.UserID = :privacyViewerId
+                OR (
+                    op.Privacy = 'followers'
+                    AND EXISTS (
+                        SELECT 1 FROM follows f
+                        WHERE f.FollowerID = :followViewerId
+                        AND f.FollowedID = op.UserID
+                    )
+                )
+            )
+            GROUP BY rp.PostID, op.PostID
+            ORDER BY rp.CreatedAt DESC
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
+        $stmt->bindValue(":privacyViewerId", (int) ($viewerId ?: 0), PDO::PARAM_INT);
+        $stmt->bindValue(":followViewerId", (int) ($viewerId ?: 0), PDO::PARAM_INT);
 
         if ($viewerId) {
             $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
@@ -79,39 +172,259 @@ class PostModel {
     }
 
     public function countPostsByUserId($userId) {
-        $sql = "SELECT COUNT(*) AS total FROM posts WHERE UserID = :userId";
+        $sql = "
+            SELECT COUNT(*) AS total
+            FROM posts
+            WHERE UserID = :userId
+            AND IsHidden = 0
+            AND OriginalPostID IS NULL
+            AND Content NOT LIKE :repostPattern
+        ";
 
         $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindValue(":repostPattern", "Đăng lại từ @%:%");
         $stmt->execute();
 
         return (int) $stmt->fetchColumn();
     }
 
-    public function createPost($userId, $content) {
-    $sql = "INSERT INTO posts (UserID, Content, CreatedAt)
-            VALUES (:userId, :content, NOW())";
+    public function getUserById($userId) {
+        $sql = "
+            SELECT UserID, Username, FullName, ProfilePictureUrl
+            FROM users
+            WHERE UserID = :userId
+            LIMIT 1
+        ";
 
-    $stmt = $this->conn->prepare($sql);
-    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
-    $stmt->bindParam(":content", $content);
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->execute();
 
-    if ($stmt->execute()) {
-        return $this->conn->lastInsertId();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    return false;
+    public function getPostById($postId, $viewerId = null) {
+        $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+        $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+        $sql = "
+            SELECT
+                p.PostID,
+                p.OriginalPostID,
+                p.Content,
+                p.CreatedAt,
+                COALESCE(p.Privacy, 'public') AS Privacy,
+                u.UserID,
+                u.Username,
+                u.FullName,
+                u.ProfilePictureUrl,
+                GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
+                $viewerLikeSelect
+                COUNT(DISTINCT l.UserID) AS LikeCount,
+                COUNT(DISTINCT c.CommentID) AS CommentCount
+            FROM posts p
+            JOIN users u ON p.UserID = u.UserID
+            LEFT JOIN postimages pi ON p.PostID = pi.PostID
+            LEFT JOIN likes l ON p.PostID = l.PostID
+            $viewerLikeJoin
+            LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
+            WHERE p.PostID = :postId
+            AND p.IsHidden = 0
+            AND " . $this->visibilitySql($viewerId) . "
+            GROUP BY p.PostID
+            LIMIT 1
+        ";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+
+        if ($viewerId) {
+            $stmt->bindParam(":viewerId", $viewerId, PDO::PARAM_INT);
+            $this->bindViewerParams($stmt, $viewerId);
+        }
+
+        $stmt->execute();
+
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return false;
+        }
+
+        $posts = $this->attachOriginalPostData([$post]);
+        return $posts[0] ?? $post;
+    }
+
+    public function createPost($userId, $content) {
+        $sql = "INSERT INTO posts (UserID, Content, CreatedAt)
+                VALUES (:userId, :content, NOW())";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->bindParam(":content", $content);
+
+        if ($stmt->execute()) {
+            return $this->conn->lastInsertId();
+        }
+
+        return false;
+    }
+
+    public function addPostImage($postId, $imageUrl) {
+        $sql = "INSERT INTO postimages (PostID, ImageUrl)
+                VALUES (:postId, :imageUrl)";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $stmt->bindParam(":imageUrl", $imageUrl);
+
+        return $stmt->execute();
+    }
+
+    public function createRepost($currentUserId, $originalPostId) {
+        $originalPost = $this->getPostById($originalPostId, $currentUserId);
+
+        if (!$originalPost) {
+            return false;
+        }
+
+        $rootOriginalId = $this->resolveRootOriginalPostId((int) ($originalPost['OriginalPostID'] ?? 0) ?: (int) $originalPostId);
+        $rootOriginalPost = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
+
+        if ($rootOriginalPost) {
+            $originalPost = [
+                'PostID' => $rootOriginalPost['OriginalPostID'] ?? $rootOriginalId,
+                'UserID' => $rootOriginalPost['OriginalUserID'] ?? 0,
+                'Username' => $rootOriginalPost['OriginalUsername'] ?? '',
+                'FullName' => $rootOriginalPost['OriginalFullName'] ?? '',
+                'ProfilePictureUrl' => $rootOriginalPost['OriginalProfilePictureUrl'] ?? '',
+                'Content' => $rootOriginalPost['OriginalContent'] ?? '',
+                'Images' => $rootOriginalPost['OriginalImages'] ?? ''
+            ];
+            $originalPostId = (int) ($rootOriginalPost['OriginalPostID'] ?? $rootOriginalId);
+        }
+
+        if ((int) $originalPost['UserID'] === (int) $currentUserId) {
+            return false;
+        }
+
+        $sourceUsername = trim((string) ($originalPost['Username'] ?? ''));
+        $sourceName = $sourceUsername !== '' ? '@' . $sourceUsername : 'người dùng';
+        $sourceContent = trim((string) ($originalPost['Content'] ?? ''));
+        $repostContent = "Đăng lại từ {$sourceName}:";
+
+        if ($sourceContent !== '') {
+            $repostContent .= "\n\n" . $sourceContent;
+        }
+
+        try {
+            $this->conn->beginTransaction();
+
+            $postId = $this->createPost($currentUserId, $repostContent);
+            if (!$postId) {
+                $this->conn->rollBack();
+                return false;
+            }
+
+            $linkSql = "UPDATE posts SET OriginalPostID = :originalPostId WHERE PostID = :postId";
+            $linkStmt = $this->conn->prepare($linkSql);
+            $linkStmt->bindParam(":originalPostId", $originalPostId, PDO::PARAM_INT);
+            $linkStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $linkStmt->execute();
+
+            $imageUrls = array_values(array_filter(array_map('trim', explode(',', (string) ($originalPost['Images'] ?? '')))));
+
+            foreach ($imageUrls as $imageUrl) {
+                $this->addPostImage($postId, $imageUrl);
+            }
+
+            $this->conn->commit();
+            return (int) $postId;
+        } catch (\Throwable $e) {
+            if ($this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+
+            error_log('[PostModel] createRepost failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+private function attachOriginalPostData(array $posts): array {
+    foreach ($posts as &$post) {
+        $originalPostId = (int) ($post['OriginalPostID'] ?? 0);
+
+        if ($originalPostId <= 0) {
+            continue;
+        }
+
+        $rootOriginalId = $this->resolveRootOriginalPostId($originalPostId);
+        $originalData = $rootOriginalId ? $this->getOriginalPostData($rootOriginalId) : null;
+
+        if (!$originalData) {
+            continue;
+        }
+
+        $post = array_merge($post, $originalData);
+    }
+    unset($post);
+
+    return $posts;
 }
 
-public function addPostImage($postId, $imageUrl) {
-    $sql = "INSERT INTO postimages (PostID, ImageUrl)
-            VALUES (:postId, :imageUrl)";
+private function resolveRootOriginalPostId(int $postId): ?int {
+    $currentPostId = $postId;
+    $visitedPostIds = [];
+
+    while ($currentPostId > 0 && !isset($visitedPostIds[$currentPostId])) {
+        $visitedPostIds[$currentPostId] = true;
+
+        $stmt = $this->conn->prepare("SELECT PostID, OriginalPostID FROM posts WHERE PostID = :postId AND IsHidden = 0 LIMIT 1");
+        $stmt->bindValue(":postId", $currentPostId, PDO::PARAM_INT);
+        $stmt->execute();
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return null;
+        }
+
+        if (empty($post['OriginalPostID'])) {
+            return (int) $post['PostID'];
+        }
+
+        $currentPostId = (int) $post['OriginalPostID'];
+    }
+
+    return null;
+}
+
+private function getOriginalPostData(int $postId): ?array {
+    $sql = "
+        SELECT
+            p.PostID AS OriginalPostID,
+            p.Content AS OriginalContent,
+            p.CreatedAt AS OriginalCreatedAt,
+            u.UserID AS OriginalUserID,
+            u.Username AS OriginalUsername,
+            u.FullName AS OriginalFullName,
+            u.ProfilePictureUrl AS OriginalProfilePictureUrl,
+            GROUP_CONCAT(DISTINCT pi.ImageUrl) AS OriginalImages
+        FROM posts p
+        JOIN users u ON p.UserID = u.UserID
+        LEFT JOIN postimages pi ON p.PostID = pi.PostID
+        WHERE p.PostID = :postId
+        AND p.IsHidden = 0
+        GROUP BY p.PostID
+        LIMIT 1
+    ";
 
     $stmt = $this->conn->prepare($sql);
-    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
-    $stmt->bindParam(":imageUrl", $imageUrl);
+    $stmt->bindValue(":postId", $postId, PDO::PARAM_INT);
+    $stmt->execute();
+    $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    return $stmt->execute();
+    return $post ?: null;
 }
 
 public function toggleLike($userId, $postId) {
@@ -147,7 +460,7 @@ public function toggleLike($userId, $postId) {
 }
 
 public function countLikes($postId) {
-    $sql = "SELECT COUNT(*) AS total FROM likes WHERE PostID = :postId";
+    $sql = "SELECT COUNT(DISTINCT UserID) AS total FROM likes WHERE PostID = :postId";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
@@ -157,30 +470,151 @@ public function countLikes($postId) {
     return $row['total'];
 }
 
-public function createComment($userId, $postId, $content) {
-    $sql = "INSERT INTO comments (PostID, UserID, Content, CreatedAt)
-            VALUES (:postId, :userId, :content, NOW())";
+public function getPostUpdates(array $postIds, $viewerId = null): array {
+    $postIds = array_values(array_unique(array_filter(array_map('intval', $postIds), function ($postId) {
+        return $postId > 0;
+    })));
+
+    if (empty($postIds)) {
+        return [];
+    }
+
+    $postIds = array_slice($postIds, 0, 100);
+    $placeholders = [];
+    foreach ($postIds as $index => $postId) {
+        $placeholders[] = ':postId' . $index;
+    }
+
+    $viewerLikeSelect = $viewerId ? "COUNT(DISTINCT viewer_likes.UserID) AS IsLiked," : "0 AS IsLiked,";
+    $viewerLikeJoin = $viewerId ? "LEFT JOIN likes viewer_likes ON p.PostID = viewer_likes.PostID AND viewer_likes.UserID = :viewerId" : "";
+
+    $sql = "
+        SELECT
+            p.PostID,
+            $viewerLikeSelect
+            COUNT(DISTINCT l.UserID) AS LikeCount,
+            COUNT(DISTINCT c.CommentID) AS CommentCount
+        FROM posts p
+        LEFT JOIN likes l ON p.PostID = l.PostID
+        $viewerLikeJoin
+        LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
+        WHERE p.PostID IN (" . implode(',', $placeholders) . ")
+        AND p.IsHidden = 0
+        AND " . $this->visibilitySql($viewerId) . "
+        GROUP BY p.PostID
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    foreach ($postIds as $index => $postId) {
+        $stmt->bindValue(':postId' . $index, $postId, PDO::PARAM_INT);
+    }
+
+    if ($viewerId) {
+        $stmt->bindValue(":viewerId", (int) $viewerId, PDO::PARAM_INT);
+        $this->bindViewerParams($stmt, $viewerId);
+    }
+
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function createComment($userId, $postId, $content, $parentCommentId = null) {
+    $parentCommentId = $parentCommentId ? (int) $parentCommentId : null;
+
+    if ($parentCommentId !== null) {
+        $parentSql = "
+            SELECT CommentID, ParentCommentID
+            FROM comments
+            WHERE CommentID = :parentCommentId
+            AND PostID = :postId
+            AND IsHidden = 0
+            AND ParentCommentID IS NULL
+            LIMIT 1
+        ";
+        $parentStmt = $this->conn->prepare($parentSql);
+        $parentStmt->bindParam(":parentCommentId", $parentCommentId, PDO::PARAM_INT);
+        $parentStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $parentStmt->execute();
+        $parentComment = $parentStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$parentComment) {
+            return false;
+        }
+
+        $parentCommentId = (int) $parentComment['CommentID'];
+    }
+
+    $sql = "INSERT INTO comments (PostID, UserID, Content, ParentCommentID, CreatedAt)
+            VALUES (:postId, :userId, :content, :parentCommentId, NOW())";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
     $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
     $stmt->bindParam(":content", $content);
+    $stmt->bindValue(":parentCommentId", $parentCommentId, $parentCommentId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
 
-    return $stmt->execute();
+    if ($stmt->execute()) {
+        return $this->conn->lastInsertId();
+    }
+
+    return false;
 }
+
+public function getPostOwnerId($postId) {
+    $sql = "SELECT UserID FROM posts WHERE PostID = :postId LIMIT 1";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    $ownerId = $stmt->fetchColumn();
+    return $ownerId ? (int) $ownerId : null;
+}
+
+public function getOriginalPostOwnerId($postId) {
+    $currentPostId = (int) $postId;
+    $visitedPostIds = [];
+
+    while ($currentPostId > 0 && !isset($visitedPostIds[$currentPostId])) {
+        $visitedPostIds[$currentPostId] = true;
+
+        $sql = "SELECT UserID, OriginalPostID FROM posts WHERE PostID = :postId LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(":postId", $currentPostId, PDO::PARAM_INT);
+        $stmt->execute();
+        $post = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$post) {
+            return null;
+        }
+
+        if (empty($post['OriginalPostID'])) {
+            return (int) $post['UserID'];
+        }
+
+        $currentPostId = (int) $post['OriginalPostID'];
+    }
+
+    return null;
+}
+
 public function getCommentsByPostId($postId) {
     $sql = "
         SELECT 
             c.CommentID,
+            c.PostID,
+            c.UserID,
             c.Content,
             c.CreatedAt,
-            u.UserID,
+            c.ParentCommentID,
             u.Username,
             u.FullName,
             u.ProfilePictureUrl
         FROM comments c
         JOIN users u ON c.UserID = u.UserID
         WHERE c.PostID = :postId
+        AND c.IsHidden = 0
         ORDER BY c.CreatedAt ASC
     ";
 
@@ -189,6 +623,155 @@ public function getCommentsByPostId($postId) {
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function getCommentsByPostIds(array $postIds): array {
+    $postIds = array_values(array_unique(array_filter(array_map('intval', $postIds))));
+
+    if (empty($postIds)) {
+        return [];
+    }
+
+    $placeholders = [];
+    foreach ($postIds as $index => $postId) {
+        $placeholders[] = ":postId{$index}";
+    }
+
+    $sql = "
+        SELECT 
+            c.CommentID,
+            c.PostID,
+            c.UserID,
+            c.Content,
+            c.CreatedAt,
+            c.ParentCommentID,
+            u.Username,
+            u.FullName,
+            u.ProfilePictureUrl
+        FROM comments c
+        JOIN users u ON c.UserID = u.UserID
+        WHERE c.PostID IN (" . implode(',', $placeholders) . ")
+        AND c.IsHidden = 0
+        ORDER BY c.CreatedAt ASC
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+
+    foreach ($postIds as $index => $postId) {
+        $stmt->bindValue(":postId{$index}", $postId, PDO::PARAM_INT);
+    }
+
+    $stmt->execute();
+    $commentsByPostId = [];
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $comment) {
+        $commentsByPostId[(int) $comment['PostID']][] = $comment;
+    }
+
+    return $commentsByPostId;
+}
+
+public function getCommentById($commentId) {
+    $sql = "
+        SELECT 
+            c.CommentID,
+            c.PostID,
+            c.UserID,
+            c.Content,
+            c.CreatedAt,
+            c.ParentCommentID,
+            c.IsHidden,
+            p.UserID AS PostOwnerID,
+            u.Username,
+            u.FullName,
+            u.ProfilePictureUrl
+        FROM comments c
+        JOIN posts p ON p.PostID = c.PostID
+        JOIN users u ON u.UserID = c.UserID
+        WHERE c.CommentID = :commentId
+        LIMIT 1
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+public function updateComment($commentId, $userId, $content): bool {
+    $sql = "
+        UPDATE comments
+        SET Content = :content
+        WHERE CommentID = :commentId
+        AND UserID = :userId
+        AND IsHidden = 0
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":content", $content);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->rowCount() > 0;
+}
+
+public function hideComment($commentId, $currentUserId): bool {
+    $comment = $this->getCommentById($commentId);
+
+    if (!$comment || (int) ($comment['IsHidden'] ?? 0) === 1) {
+        return false;
+    }
+
+    $isCommentOwner = (int) $comment['UserID'] === (int) $currentUserId;
+    $isPostOwner = (int) $comment['PostOwnerID'] === (int) $currentUserId;
+
+    if (!$isCommentOwner && !$isPostOwner) {
+        return false;
+    }
+
+    $sql = "UPDATE comments SET IsHidden = 1 WHERE CommentID = :commentId OR ParentCommentID = :commentId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->execute();
+
+    return $stmt->rowCount() > 0;
+}
+
+public function createCommentReport($reporterUserId, $commentId, string $reason, string $details = ''): bool {
+    $comment = $this->getCommentById($commentId);
+
+    if (!$comment || (int) ($comment['IsHidden'] ?? 0) === 1) {
+        return false;
+    }
+
+    if ((int) $comment['UserID'] === (int) $reporterUserId) {
+        return false;
+    }
+
+    if ($details === '') {
+        $details = $reason;
+    }
+
+    $sql = "
+        INSERT INTO reports
+            (ReporterUserID, ReportedUserID, PostID, CommentID, Reason, Details, CreatedAt, Status, AdminNote, ResolvedAt)
+        VALUES
+            (:reporterUserId, :reportedUserId, :postId, :commentId, :reason, :details, NOW(), 'Pending', NULL, NULL)
+    ";
+
+    $stmt = $this->conn->prepare($sql);
+    $reportedUserId = (int) $comment['UserID'];
+    $postId = (int) $comment['PostID'];
+    $stmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":reportedUserId", $reportedUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":commentId", $commentId, PDO::PARAM_INT);
+    $stmt->bindParam(":reason", $reason);
+    $stmt->bindParam(":details", $details);
+
+    return $stmt->execute();
 }
 
 public function syncPostHashtags($postId, array $hashtagNames) {
@@ -236,73 +819,62 @@ public function syncPostHashtags($postId, array $hashtagNames) {
 }
 
 public function getTrendingHashtags($limit = 10) {
-    $recentSql = "
-        SELECT 
-            h.HashtagID,
-            h.HashtagName,
-            COUNT(ph.PostID) AS TotalPosts
-        FROM hashtags h
-        JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
-        WHERE ph.CreatedAt >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        GROUP BY h.HashtagID, h.HashtagName
-        ORDER BY TotalPosts DESC
-        LIMIT :limit
-    ";
-
-    $recentStmt = $this->conn->prepare($recentSql);
-    $recentStmt->bindParam(":limit", $limit, PDO::PARAM_INT);
-    $recentStmt->execute();
-    $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (!empty($recent)) {
-        return $recent;
-    }
-
-    $fallbackSql = "
+    $sql = "
         SELECT
             h.HashtagID,
             h.HashtagName,
-            h.UsageCount AS TotalPosts
+            COUNT(DISTINCT ph.PostID) AS TotalPosts
         FROM hashtags h
-        WHERE h.UsageCount > 0
-        ORDER BY h.UsageCount DESC
+        JOIN posthashtags ph ON h.HashtagID = ph.HashtagID
+        JOIN posts p ON p.PostID = ph.PostID
+        WHERE p.IsHidden = 0
+        AND (h.IsHidden = 0 OR h.IsHidden IS NULL)
+        GROUP BY h.HashtagID, h.HashtagName
+        ORDER BY TotalPosts DESC, h.HashtagName ASC
         LIMIT :limit
     ";
 
-    $fallbackStmt = $this->conn->prepare($fallbackSql);
-    $fallbackStmt->bindParam(":limit", $limit, PDO::PARAM_INT);
-    $fallbackStmt->execute();
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindValue(":limit", (int) $limit, PDO::PARAM_INT);
+    $stmt->execute();
 
-    return $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-public function getPostsByHashtag($tag) {
+public function getPostsByHashtag($tag, $viewerId = null) {
     $sql = "
         SELECT 
             p.PostID,
             p.Content,
             p.CreatedAt,
+            COALESCE(p.Privacy, 'public') AS Privacy,
             u.UserID,
             u.Username,
             u.FullName,
             u.ProfilePictureUrl,
             GROUP_CONCAT(DISTINCT pi.ImageUrl) AS Images,
             COUNT(DISTINCT l.UserID) AS LikeCount,
-            COUNT(DISTINCT c.CommentID) AS CommentCount
+            COUNT(DISTINCT c.CommentID) AS CommentCount,
+            MAX(CASE WHEN viewerLike.UserID IS NULL THEN 0 ELSE 1 END) AS IsLiked
         FROM posts p
         JOIN users u ON p.UserID = u.UserID
         JOIN posthashtags ph ON p.PostID = ph.PostID
         JOIN hashtags h ON ph.HashtagID = h.HashtagID
         LEFT JOIN postimages pi ON p.PostID = pi.PostID
         LEFT JOIN likes l ON p.PostID = l.PostID
-        LEFT JOIN comments c ON p.PostID = c.PostID
+        LEFT JOIN likes viewerLike ON viewerLike.PostID = p.PostID AND viewerLike.UserID = :viewerLikeUserId
+        LEFT JOIN comments c ON p.PostID = c.PostID AND c.IsHidden = 0
         WHERE h.HashtagName = :tag
+        AND p.IsHidden = 0
+        AND " . $this->visibilitySql($viewerId) . "
         GROUP BY p.PostID
         ORDER BY p.CreatedAt DESC
     ";
 
     $stmt = $this->conn->prepare($sql);
     $stmt->bindParam(":tag", $tag);
+    $stmt->bindValue(":viewerLikeUserId", $viewerId ? (int) $viewerId : 0, PDO::PARAM_INT);
+    $this->bindViewerParams($stmt, $viewerId);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -356,6 +928,243 @@ private function refreshUsageCounts(array $hashtagIds) {
         $stmt->bindValue(":hashtagId", (int) $hashtagId, PDO::PARAM_INT);
         $stmt->execute();
     }
+}
+
+public function updatePostContent($postId, $userId, $content): bool {
+    $sql = "UPDATE posts SET Content = :content WHERE PostID = :postId AND UserID = :userId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":content", $content);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+public function removePostImages($postId, array $imageUrls): void {
+    if (empty($imageUrls)) {
+        return;
+    }
+
+    $sql = "DELETE FROM postimages WHERE PostID = :postId AND ImageUrl = :imageUrl";
+    $stmt = $this->conn->prepare($sql);
+
+    foreach ($imageUrls as $imageUrl) {
+        $stmt->bindValue(":postId", (int) $postId, PDO::PARAM_INT);
+        $stmt->bindValue(":imageUrl", (string) $imageUrl);
+        $stmt->execute();
+    }
+}
+
+public function replacePostHashtags($postId, array $hashtagNames): void {
+    $oldSql = "SELECT HashtagID FROM posthashtags WHERE PostID = :postId";
+    $oldStmt = $this->conn->prepare($oldSql);
+    $oldStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $oldStmt->execute();
+    $oldIds = array_map('intval', $oldStmt->fetchAll(PDO::FETCH_COLUMN));
+
+    $deleteSql = "DELETE FROM posthashtags WHERE PostID = :postId";
+    $deleteStmt = $this->conn->prepare($deleteSql);
+    $deleteStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $deleteStmt->execute();
+
+    if (!empty($hashtagNames)) {
+        $this->syncPostHashtags($postId, $hashtagNames);
+    }
+
+    $this->refreshUsageCounts($oldIds);
+}
+
+public function deletePost($postId, $userId): bool {
+    if ((int) $this->getPostOwnerId($postId) !== (int) $userId) {
+        return false;
+    }
+
+    $this->conn->beginTransaction();
+
+    try {
+        foreach (['notifications', 'likes', 'comments', 'postimages', 'posthashtags', 'postpreferences', 'reports'] as $table) {
+            $sql = "DELETE FROM {$table} WHERE PostID = :postId";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $stmt->execute();
+        }
+
+        $stmt = $this->conn->prepare("DELETE FROM posts WHERE PostID = :postId AND UserID = :userId");
+        $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+        $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $this->conn->commit();
+        return $stmt->rowCount() > 0;
+    } catch (\Throwable $e) {
+        $this->conn->rollBack();
+        return false;
+    }
+}
+
+public function updatePostPrivacy($postId, $userId, string $privacy): bool {
+    $allowed = ['public', 'private', 'followers'];
+    if (!in_array($privacy, $allowed, true)) {
+        return false;
+    }
+
+    $sql = "UPDATE posts SET Privacy = :privacy WHERE PostID = :postId AND UserID = :userId";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":privacy", $privacy);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->rowCount() > 0;
+}
+
+public function createReport($reporterUserId, $postId, string $reason, string $details): bool {
+    $post = $this->getPostById($postId, $reporterUserId);
+    if (!$post || (int) $post['UserID'] === (int) $reporterUserId) {
+        return false;
+    }
+
+    $duplicateSql = "
+        SELECT 1
+        FROM reports
+        WHERE ReporterUserID = :reporterUserId
+        AND PostID = :postId
+        AND Reason = :reason
+        AND Details = :details
+        AND CreatedAt >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        LIMIT 1
+    ";
+    $duplicateStmt = $this->conn->prepare($duplicateSql);
+    $duplicateStmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $duplicateStmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $duplicateStmt->bindParam(":reason", $reason);
+    $duplicateStmt->bindParam(":details", $details);
+    $duplicateStmt->execute();
+
+    if ($duplicateStmt->fetchColumn()) {
+        return true;
+    }
+
+    $sql = "
+        INSERT INTO reports
+            (ReporterUserID, ReportedUserID, PostID, CommentID, Reason, Details, CreatedAt, Status, AdminNote, ResolvedAt)
+        VALUES
+            (:reporterUserId, :reportedUserId, :postId, NULL, :reason, :details, NOW(), 'Pending', NULL, NULL)
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $reportedUserId = (int) $post['UserID'];
+    $stmt->bindParam(":reporterUserId", $reporterUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":reportedUserId", $reportedUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    $stmt->bindParam(":reason", $reason);
+    $stmt->bindParam(":details", $details);
+    return $stmt->execute();
+}
+
+public function blockUser($blockerUserId, $blockedUserId): bool {
+    if ((int) $blockerUserId === (int) $blockedUserId) {
+        return false;
+    }
+
+    $checkSql = "
+        SELECT 1
+        FROM userblocks
+        WHERE BlockerUserID = :blockerUserId
+        AND BlockedUserID = :blockedUserId
+        LIMIT 1
+    ";
+    $checkStmt = $this->conn->prepare($checkSql);
+    $checkStmt->bindParam(":blockerUserId", $blockerUserId, PDO::PARAM_INT);
+    $checkStmt->bindParam(":blockedUserId", $blockedUserId, PDO::PARAM_INT);
+    $checkStmt->execute();
+
+    if ($checkStmt->fetchColumn()) {
+        return true;
+    }
+
+    $sql = "
+        INSERT INTO userblocks (BlockerUserID, BlockedUserID, CreatedAt)
+        VALUES (:blockerUserId, :blockedUserId, NOW())
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":blockerUserId", $blockerUserId, PDO::PARAM_INT);
+    $stmt->bindParam(":blockedUserId", $blockedUserId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+public function markNotInterested($userId, $postId): bool {
+    $sql = "
+        INSERT IGNORE INTO postpreferences (UserID, PostID, PreferenceType, CreatedAt)
+        VALUES (:userId, :postId, 'not_interested', NOW())
+    ";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bindParam(":userId", $userId, PDO::PARAM_INT);
+    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+    return $stmt->execute();
+}
+
+private function visibilitySql($viewerId = null): string {
+    if (!$viewerId) {
+        return "COALESCE(p.Privacy, 'public') = 'public'";
+    }
+
+    return "
+        (
+            COALESCE(p.Privacy, 'public') = 'public'
+            OR p.UserID = :privacyViewerId
+            OR (
+                p.Privacy = 'followers'
+                AND EXISTS (
+                    SELECT 1 FROM follows f
+                    WHERE f.FollowerID = :followViewerId
+                    AND f.FollowedID = p.UserID
+                )
+            )
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM userblocks ub
+            WHERE ub.BlockerUserID = :blockerUserId
+            AND ub.BlockedUserID = p.UserID
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM postpreferences pp
+            WHERE pp.UserID = :preferenceUserId
+            AND pp.PostID = p.PostID
+            AND pp.PreferenceType = 'not_interested'
+        )
+    ";
+}
+
+private function bindViewerParams($stmt, $viewerId = null): void {
+    if (!$viewerId) {
+        return;
+    }
+
+    $stmt->bindValue(":privacyViewerId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":followViewerId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":blockerUserId", (int) $viewerId, PDO::PARAM_INT);
+    $stmt->bindValue(":preferenceUserId", (int) $viewerId, PDO::PARAM_INT);
+}
+
+private function ensurePostInteractionSchema(): void {
+    try {
+        $this->conn->exec("ALTER TABLE posts ADD COLUMN OriginalPostID INT NULL DEFAULT NULL");
+    } catch (\Throwable $e) {
+    }
+
+    try {
+        $this->conn->exec("ALTER TABLE posts ADD COLUMN Privacy VARCHAR(20) NOT NULL DEFAULT 'public'");
+    } catch (\Throwable $e) {
+    }
+
+    $this->conn->exec("
+        CREATE TABLE IF NOT EXISTS postpreferences (
+            PreferenceID INT AUTO_INCREMENT PRIMARY KEY,
+            UserID INT NOT NULL,
+            PostID INT NOT NULL,
+            PreferenceType VARCHAR(50) NOT NULL,
+            CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_post_preference (UserID, PostID, PreferenceType)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
 }
 }
 ?>

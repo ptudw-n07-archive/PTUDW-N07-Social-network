@@ -3,12 +3,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: " . BASE_URL . "App/Views/auth/login.php");
+    header('Location: ' . app_url('login'));
     exit();
 }
 ?>
@@ -20,9 +18,11 @@ if (!isset($_SESSION['user_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archive - Tìm kiếm</title>
 
+    <link rel="icon" type="image/png" href="<?php echo BASE_URL; ?>Public/assets/img/favicon-48x48.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
 
@@ -32,7 +32,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -43,11 +43,11 @@ if (!isset($_SESSION['user_id'])) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Trang chủ">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Trang chủ">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn" title="Hồ sơ">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn" title="Hồ sơ">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -61,49 +61,7 @@ if (!isset($_SESSION['user_id'])) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-                    <div class="sidebar-logo">
-                        <i class="bi bi-circle-square"></i>
-                    </div>
-
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="sidebar-icon" title="Trang chủ">
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-
-                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="sidebar-icon active" title="Tìm kiếm">
-                        <i class="bi bi-search"></i>
-                    </a>
-
-                    <a href="<?php echo BASE_URL; ?>App/Views/createpost.php" class="sidebar-icon" title="Đăng bài">
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-
-                    <a href="#" class="sidebar-icon" title="Thông báo">
-                        <i class="bi bi-heart"></i>
-                    </a>
-
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="sidebar-icon" title="Hồ sơ">
-                        <i class="bi bi-person"></i>
-                    </a>
-
-                    <div class="more-menu-wrapper">
-                        <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
-                            <i class="bi bi-list more-icon"></i>
-                            <span>More</span>
-                        </button>
-
-                        <div class="more-dropdown" id="moreDropdown">
-                            <button type="button" class="more-dropdown-item">Appearance</button>
-                            <button type="button" class="more-dropdown-item">Settings</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Liked</button>
-                            <button type="button" class="more-dropdown-item">Archive</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Report a problem</button>
-                            <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
-                        </div>
-                    </div>
-                </aside>
+                <?php $activePage = 'search'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">
@@ -112,12 +70,12 @@ if (!isset($_SESSION['user_id'])) {
                 <div class="bg-white search-panel">
                     <form id="searchForm" class="search-form" autocomplete="off">
                         <i class="bi bi-search search-input-icon"></i>
+                        <label for="searchInput" class="visually-hidden">Tìm kiếm</label>
                         <input
                             type="search"
                             id="searchInput"
                             class="search-input"
                             placeholder="Tìm username, họ tên, bài viết hoặc hashtag"
-                            aria-label="Tìm kiếm"
                         >
                         <button type="submit" class="search-submit-btn" aria-label="Tìm kiếm">
                             <i class="bi bi-arrow-right"></i>
@@ -126,6 +84,13 @@ if (!isset($_SESSION['user_id'])) {
 
                     <div id="searchStatus" class="search-status">
                         Nhập ít nhất 2 ký tự để bắt đầu tìm kiếm.
+                    </div>
+
+                    <div id="searchTabs" class="search-tabs d-none">
+                        <button class="search-tab active" data-type="all">Tất cả</button>
+                        <button class="search-tab" data-type="users">Tài khoản</button>
+                        <button class="search-tab" data-type="posts">Bài viết</button>
+                        <button class="search-tab" data-type="hashtags">Hashtag</button>
                     </div>
 
                     <section id="historySection" class="search-section d-none">
@@ -141,6 +106,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Tài khoản</h5>
                         </div>
                         <div id="userResults" class="search-list"></div>
+                        <button id="loadMoreUsers" class="search-load-more d-none" data-type="users">Xem thêm tài khoản</button>
                     </section>
 
                     <section id="hashtagSection" class="search-section d-none">
@@ -148,6 +114,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Hashtag</h5>
                         </div>
                         <div id="hashtagResults" class="search-list"></div>
+                        <button id="loadMoreHashtags" class="search-load-more d-none" data-type="hashtags">Xem thêm hashtag</button>
                     </section>
 
                     <section id="postSection" class="search-section d-none">
@@ -155,6 +122,7 @@ if (!isset($_SESSION['user_id'])) {
                             <h5>Bài viết liên quan</h5>
                         </div>
                         <div id="postResults" class="search-list"></div>
+                        <button id="loadMorePosts" class="search-load-more d-none" data-type="posts">Xem thêm bài viết</button>
                     </section>
                 </div>
             </div>
@@ -162,15 +130,19 @@ if (!isset($_SESSION['user_id'])) {
     </div>
 </section>
 
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
 <script>
     window.SEARCH_CONFIG = {
         baseUrl: "<?php echo BASE_URL; ?>",
         searchUrl: "<?php echo BASE_URL; ?>App/Controllers/SearchController.php",
-        followUrl: "<?php echo BASE_URL; ?>App/Controllers/FollowController.php?action=toggle"
+        followUrl: "<?php echo BASE_URL; ?>App/Controllers/FollowController.php?action=toggle",
+        csrfToken: "<?php echo htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8'); ?>"
     };
 </script>
 <script src="<?php echo BASE_URL; ?>Public/assets/JS/search.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>

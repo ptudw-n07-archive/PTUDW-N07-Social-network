@@ -3,18 +3,31 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: " . BASE_URL . "App/Views/auth/login.php");
+    header('Location: ' . app_url('login'));
     exit();
 }
 
 $currentUsername = $_SESSION['username'] ?? '';
-$currentFullName = $_SESSION['user_name'] ?? $currentUsername;
-$currentAvatar   = $_SESSION['ProfilePictureUrl'] ?? '';
+$currentFullName = !empty($_SESSION['user_name']) ? $_SESSION['user_name'] : '@' . $currentUsername;
+$postController = new \App\Controllers\PostController();
+$currentUser = $postController->getCurrentUser((int) $_SESSION['user_id']);
+$currentUsername = $currentUser['Username'] ?? $currentUsername;
+$currentFullName = !empty($currentUser['FullName'])
+    ? $currentUser['FullName']
+    : (!empty($currentFullName) ? $currentFullName : '@' . $currentUsername);
+$currentAvatar = $currentUser['ProfilePictureUrl']
+    ?? $_SESSION['ProfilePictureUrl']
+    ?? $_SESSION['avatar']
+    ?? $_SESSION['user_avatar']
+    ?? '';
+
+if ($currentAvatar !== '') {
+    $_SESSION['ProfilePictureUrl'] = $currentAvatar;
+}
 
 function imagePath($path) {
     $path = trim((string) $path);
@@ -37,6 +50,10 @@ function imagePath($path) {
         return BASE_URL . "Public/" . $path;
     }
 
+    if (!str_contains($path, "/")) {
+        return BASE_URL . "Public/uploads/avatars/" . basename($path);
+    }
+
     return BASE_URL . $path;
 }
 ?>
@@ -48,10 +65,12 @@ function imagePath($path) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archive - Đăng bài</title>
 
+    <link rel="icon" type="image/png" href="<?php echo BASE_URL; ?>Public/assets/img/favicon-48x48.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
 
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
@@ -62,7 +81,7 @@ function imagePath($path) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">
                     ARCHIVE
                 </a>
             </div>
@@ -75,11 +94,11 @@ function imagePath($path) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Về bảng tin">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Về bảng tin">
                         <i class="bi bi-house-door"></i>
                     </a>
 
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -94,71 +113,7 @@ function imagePath($path) {
         <div class="row g-4">
 
             <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-
-                    <div class="sidebar-logo">
-                        <i class="bi bi-circle-square"></i>
-                    </div>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/feed.php"
-                        class="sidebar-icon"
-                        title="Trang chủ"
-                    >
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/search.php"
-                        class="sidebar-icon"
-                        title="Tìm kiếm"
-                    >
-                        <i class="bi bi-search"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/createpost.php"
-                        class="sidebar-icon active"
-                        title="Đăng bài"
-                    >
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-
-                    <a 
-                        href="#"
-                        class="sidebar-icon"
-                        title="Thông báo"
-                    >
-                        <i class="bi bi-heart"></i>
-                    </a>
-
-                    <a 
-                        href="<?php echo BASE_URL; ?>App/Views/profile.php"
-                        class="sidebar-icon"
-                        title="Hồ sơ"
-                    >
-                        <i class="bi bi-person"></i>
-                    </a>
-
-                    <div class="more-menu-wrapper">
-                        <button type="button" class="more-button" id="moreButton" aria-expanded="false" aria-controls="moreDropdown">
-                            <i class="bi bi-list more-icon"></i>
-                            <span>More</span>
-                        </button>
-
-                        <div class="more-dropdown" id="moreDropdown">
-                            <button type="button" class="more-dropdown-item">Appearance</button>
-                            <button type="button" class="more-dropdown-item">Settings</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Liked</button>
-                            <button type="button" class="more-dropdown-item">Archive</button>
-                            <hr>
-                            <button type="button" class="more-dropdown-item">Report a problem</button>
-                            <a href="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout" class="more-dropdown-item logout-item">Log out</a>
-                        </div>
-                    </div>
-
-                </aside>
+                <?php $activePage = 'create'; include __DIR__ . '/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-7 col-md-8 mx-auto">
@@ -184,16 +139,22 @@ function imagePath($path) {
                     </div>
 
                     <form id="postForm" method="POST" enctype="multipart/form-data">
-                        <textarea 
-                            name="content"
-                            class="form-control composer-input mb-3" 
-                            rows="7"
-                            placeholder="Viết vài dòng cho hôm nay..."
-                        ></textarea>
+                        <?= \App\Services\CsrfService::hiddenField() ?>
+                        <label for="composerEditor" class="visually-hidden">Nội dung bài viết</label>
+                        <textarea name="content" id="composerTextarea" hidden></textarea>
+                        <div
+                            id="composerEditor"
+                            class="form-control composer-input post-content-editor mb-3"
+                            contenteditable="true"
+                            role="textbox"
+                            aria-multiline="true"
+                            data-content-target="composerTextarea"
+                            data-placeholder="Viết vài dòng cho hôm nay..."
+                        ></div>
 
                         <label for="postImages" class="custom-upload-btn mb-3">
-                            <i class="bi bi-plus-square"></i>
-                            <span>+ Thêm ảnh/video</span>
+                            <i class="bi bi-image"></i>
+                            <span>Thêm ảnh</span>
                         </label>
 
                         <input 
@@ -209,7 +170,7 @@ function imagePath($path) {
 
                         <div class="d-flex justify-content-between align-items-center">
                             <a 
-                                href="<?php echo BASE_URL; ?>App/Views/feed.php" 
+                                href="<?php echo app_url('feed'); ?>" 
                                 class="btn btn-light px-4"
                             >
                                 Hủy
@@ -241,8 +202,15 @@ function imagePath($path) {
     </div>
 </section>
 
-<script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js"></script>
+<?php require_once __DIR__ . '/../partials/footer.php'; ?>
+
+<script>
+    window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
+</script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/hashtag-suggestions.js?v=20260528-contenteditable"></script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/create-post.js?v=20260528-contenteditable"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<?php include __DIR__ . '/partials/bottom-nav.php'; ?>
 </body>
 </html>

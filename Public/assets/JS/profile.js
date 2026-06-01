@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
+    const APP_BASE_URL = window.APP_BASE_URL || `${window.location.origin}/`;
+    const appUrl = path => APP_BASE_URL + String(path || "").replace(/^\/+/, "");
     const form = document.getElementById("updateProfileForm");
     const avatarInput = document.getElementById("avatarInput");
     const avatarModalPreview = document.getElementById("avatarModalPreview");
@@ -6,6 +8,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const followButton = document.getElementById("profileFollowButton");
     const followAlert = document.getElementById("profileFollowAlert");
     const followerCount = document.getElementById("profileFollowerCount");
+    const reportUserForm = document.getElementById("profileReportUserForm");
+    const reportUserAlert = document.getElementById("profileReportUserAlert");
+    const profilePhotos = Array.isArray(window.PROFILE_PHOTOS) ? window.PROFILE_PHOTOS : [];
+    const photoModalElement = document.getElementById("profilePhotoModal");
+    const photoModalImage = document.getElementById("profilePhotoModalImage");
+    const photoModalLabel = document.getElementById("profilePhotoModalLabel");
+    let activePhotoIndex = 0;
 
     if (followButton) {
         followButton.addEventListener("click", function () {
@@ -22,8 +31,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const formData = new FormData();
             formData.append("userId", userId);
+            appendProfileCsrfToken(formData);
 
-            fetch(window.PROFILE_FOLLOW_URL || "/App/Controllers/FollowController.php?action=toggle", {
+            fetch(window.PROFILE_FOLLOW_URL || appUrl("App/Controllers/FollowController.php?action=toggle"), {
                 method: "POST",
                 body: formData
             })
@@ -50,6 +60,39 @@ document.addEventListener("DOMContentLoaded", function () {
                 .finally(() => {
                     followButton.disabled = false;
                 });
+        });
+    }
+
+    document.querySelectorAll("[data-profile-photo-index]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            openProfilePhoto(Number.parseInt(button.dataset.profilePhotoIndex || "0", 10));
+        });
+    });
+
+    const prevPhotoButton = document.querySelector("[data-profile-photo-prev]");
+    const nextPhotoButton = document.querySelector("[data-profile-photo-next]");
+
+    if (prevPhotoButton) {
+        prevPhotoButton.addEventListener("click", function () {
+            openProfilePhoto(activePhotoIndex - 1);
+        });
+    }
+
+    if (nextPhotoButton) {
+        nextPhotoButton.addEventListener("click", function () {
+            openProfilePhoto(activePhotoIndex + 1);
+        });
+    }
+
+    if (photoModalElement) {
+        photoModalElement.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowLeft") {
+                openProfilePhoto(activePhotoIndex - 1);
+            }
+
+            if (event.key === "ArrowRight") {
+                openProfilePhoto(activePhotoIndex + 1);
+            }
         });
     }
 
@@ -83,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu';
             }
 
-            fetch(window.PROFILE_UPDATE_URL || "/App/Controllers/ProfileController.php?action=update", {
+            fetch(window.PROFILE_UPDATE_URL || appUrl("App/Controllers/ProfileController.php?action=update"), {
                 method: "POST",
                 body: new FormData(form)
             })
@@ -112,14 +155,99 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    if (reportUserForm) {
+        reportUserForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const submitButton = reportUserForm.querySelector('button[type="submit"]');
+            const originalHTML = submitButton ? submitButton.innerHTML : "";
+            const formData = new FormData(reportUserForm);
+            appendProfileCsrfToken(formData);
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang gửi';
+            }
+
+            fetch(window.PROFILE_REPORT_USER_URL || appUrl("App/Controllers/ProfileController.php?action=reportUser"), {
+                method: "POST",
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        showReportUserAlert(data.message || "Không thể gửi báo cáo.", "danger");
+                        return;
+                    }
+
+                    showReportUserAlert(data.message || "Đã gửi báo cáo người dùng.", "success");
+                    reportUserForm.reset();
+
+                    window.setTimeout(function () {
+                        const modalElement = document.getElementById("reportUserModal");
+                        if (modalElement && window.bootstrap) {
+                            window.bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+                        }
+                    }, 900);
+                })
+                .catch(error => {
+                    console.error(error);
+                    showReportUserAlert("Có lỗi khi gửi báo cáo.", "danger");
+                })
+                .finally(() => {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalHTML;
+                    }
+                });
+        });
+    }
+
     function showProfileAlert(message, type) {
         if (!alertBox) {
-            alert(message);
+            showPostToast(message);
             return;
         }
 
         alertBox.className = "alert alert-" + type;
         alertBox.textContent = message;
+    }
+
+    function showReportUserAlert(message, type) {
+        if (!reportUserAlert) {
+            showProfileAlert(message, type);
+            return;
+        }
+
+        reportUserAlert.className = "alert alert-" + type;
+        reportUserAlert.textContent = message;
+    }
+
+    function appendProfileCsrfToken(formData) {
+        const token = window.FEED_CSRF_TOKEN || "";
+
+        if (token && !formData.has("csrf_token")) {
+            formData.append("csrf_token", token);
+        }
+    }
+
+    function openProfilePhoto(index) {
+        if (!photoModalElement || !photoModalImage || profilePhotos.length === 0 || !window.bootstrap) {
+            return;
+        }
+
+        activePhotoIndex = (index + profilePhotos.length) % profilePhotos.length;
+        const photo = profilePhotos[activePhotoIndex] || {};
+
+        photoModalImage.src = photo.src || "";
+        photoModalImage.alt = photo.alt || "Ảnh đã đăng";
+
+        if (photoModalLabel) {
+            photoModalLabel.textContent = `Ảnh đã đăng ${activePhotoIndex + 1}/${profilePhotos.length}`;
+        }
+
+        const modal = window.bootstrap.Modal.getOrCreateInstance(photoModalElement);
+        modal.show();
     }
 
     function updateFollowButton(isFollowing) {
@@ -130,6 +258,12 @@ document.addEventListener("DOMContentLoaded", function () {
         followButton.innerHTML = isFollowing
             ? '<i class="bi bi-person-check-fill me-1"></i><span>Đã theo dõi</span>'
             : '<i class="bi bi-person-plus me-1"></i><span>Theo dõi</span>';
+
+        // Subtle pop feedback on state change
+        followButton.classList.remove("animate-follow-pop");
+        void followButton.offsetWidth;
+        followButton.classList.add("animate-follow-pop");
+        setTimeout(() => followButton.classList.remove("animate-follow-pop"), 300);
     }
 
     function showFollowAlert(message) {

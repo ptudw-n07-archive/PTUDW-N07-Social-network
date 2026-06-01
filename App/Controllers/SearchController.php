@@ -13,6 +13,9 @@ use Database;
 use Exception;
 
 class SearchController {
+    private const MIN_SEARCH_KEYWORD_LENGTH = 2;
+    private const DEFAULT_SEARCH_LIMIT = 5;
+
     private SearchModel $searchModel;
 
     public function __construct() {
@@ -27,23 +30,35 @@ class SearchController {
         try {
             $userId = $this->requireLoginJson();
             $keyword = $this->normalizeKeyword($_GET['q'] ?? $_POST['q'] ?? '');
+            $type = $_GET['type'] ?? 'all';
+            $page = max(1, (int) ($_GET['page'] ?? 1));
 
-            if ($this->keywordLength($keyword) < 2) {
+            if ($this->keywordLength($keyword) < self::MIN_SEARCH_KEYWORD_LENGTH) {
                 $this->json(true, "Nhap toi thieu 2 ky tu.", [
                     'users' => [],
                     'posts' => [],
-                    'hashtags' => []
+                    'hashtags' => [],
+                    'pagination' => ['hasMore' => false, 'total' => 0]
                 ]);
                 return;
             }
 
-            $posts = $this->searchModel->searchPosts($keyword);
+            $perPage = $this->perPageForType($type);
+            $offset = ($page - 1) * $perPage;
 
-            $this->json(true, "OK", [
-                'users' => $this->searchModel->searchUsers($userId, $keyword),
-                'posts' => $posts,
-                'hashtags' => $this->extractHashtags($posts, $keyword)
-            ]);
+            $result = match ($type) {
+                'users' => $this->searchTypedUsers($userId, $keyword, $perPage, $offset),
+                'posts' => $this->searchTypedPosts($userId, $keyword, $perPage, $offset),
+                'hashtags' => $this->searchTypedHashtags($keyword, $perPage, $offset),
+                default => [
+                    'users' => $this->searchModel->searchUsers($userId, $keyword, self::DEFAULT_SEARCH_LIMIT, 0),
+                    'posts' => $this->searchModel->searchPosts($keyword, $userId, self::DEFAULT_SEARCH_LIMIT, 0),
+                    'hashtags' => $this->searchModel->searchHashtags($keyword, self::DEFAULT_SEARCH_LIMIT, 0),
+                    'pagination' => ['hasMore' => false, 'total' => 0]
+                ]
+            };
+
+            $this->json(true, "OK", $result);
         } catch (Exception $e) {
             $this->json(false, $e->getMessage());
         }
@@ -62,32 +77,60 @@ class SearchController {
         }
     }
 
+    public function suggest(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        try {
+            $userId = $this->requireLoginJson();
+            $keyword = $this->normalizeKeyword($_GET['q'] ?? '');
+
+            if ($this->keywordLength($keyword) < 1) {
+                $this->json(true, "OK", ['users' => [], 'hashtags' => []]);
+                return;
+            }
+
+            $this->json(true, "OK", [
+                'users' => $this->searchModel->suggestUsers($keyword, $userId),
+                'hashtags' => $this->searchModel->suggestHashtags($keyword, 8)
+            ]);
+        } catch (Exception $e) {
+            $this->json(false, $e->getMessage(), ['users' => [], 'hashtags' => []]);
+        }
+    }
+
     public function suggestHashtags(): void {
         header('Content-Type: application/json; charset=utf-8');
 
         try {
             $this->requireLoginJson();
-            $keyword = $this->normalizeHashtagKeyword($_GET['keyword'] ?? $_POST['keyword'] ?? '');
+            $keyword = $this->normalizeHashtagKeyword($_GET['q'] ?? $_POST['q'] ?? $_GET['keyword'] ?? $_POST['keyword'] ?? '');
 
             if ($keyword === '') {
-                echo json_encode([], JSON_UNESCAPED_UNICODE);
+                $this->json(true, "OK", ['hashtags' => []]);
                 return;
             }
 
-            echo json_encode($this->searchModel->suggestHashtags($keyword, 10), JSON_UNESCAPED_UNICODE);
+            $this->json(true, "OK", [
+                'hashtags' => $this->searchModel->suggestHashtags($keyword, 8)
+            ]);
         } catch (Exception $e) {
-            echo json_encode([], JSON_UNESCAPED_UNICODE);
+            $this->json(false, $e->getMessage(), ['hashtags' => []]);
         }
     }
 
     public function record(): void {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         try {
             $userId = $this->requireLoginJson();
             $keyword = $this->normalizeKeyword($_POST['keyword'] ?? $_POST['q'] ?? '');
 
-            if ($this->keywordLength($keyword) < 2) {
+            if ($this->keywordLength($keyword) < self::MIN_SEARCH_KEYWORD_LENGTH) {
                 $this->json(false, "Tu khoa can toi thieu 2 ky tu.");
                 return;
             }
@@ -101,6 +144,11 @@ class SearchController {
 
     public function delete(): void {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         try {
             $userId = $this->requireLoginJson();
@@ -120,6 +168,11 @@ class SearchController {
 
     public function clear(): void {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
 
         try {
             $userId = $this->requireLoginJson();
@@ -159,38 +212,52 @@ class SearchController {
         return function_exists('mb_strlen') ? mb_strlen($keyword) : strlen($keyword);
     }
 
-    private function lower(string $value): string {
-        return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+    private function perPageForType(string $type): int {
+        return match ($type) {
+            'users' => 12,
+            'posts', 'hashtags' => 10,
+            default => self::DEFAULT_SEARCH_LIMIT
+        };
     }
 
-    private function extractHashtags(array $posts, string $keyword): array {
-        $hashtags = [];
-        $needle = ltrim($this->lower($keyword), '#');
+    private function searchTypedUsers(int $userId, string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countUsers($keyword, $userId);
 
-        foreach ($posts as $post) {
-            preg_match_all('/#[\p{L}\p{N}_]+/u', $post['Content'] ?? '', $matches);
+        return [
+            'users' => $this->searchModel->searchUsers($userId, $keyword, $perPage, $offset),
+            'posts' => [],
+            'hashtags' => [],
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
 
-            foreach ($matches[0] ?? [] as $tag) {
-                $tagKey = $this->lower(ltrim($tag, '#'));
+    private function searchTypedPosts(int $userId, string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countPosts($keyword, $userId);
 
-                if ($needle !== '' && !str_contains($tagKey, $needle)) {
-                    continue;
-                }
+        return [
+            'users' => [],
+            'posts' => $this->searchModel->searchPosts($keyword, $userId, $perPage, $offset),
+            'hashtags' => [],
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
 
-                if (!isset($hashtags[$tagKey])) {
-                    $hashtags[$tagKey] = [
-                        'tag' => $tag,
-                        'count' => 0
-                    ];
-                }
+    private function searchTypedHashtags(string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countHashtags($keyword);
 
-                $hashtags[$tagKey]['count']++;
-            }
-        }
+        return [
+            'users' => [],
+            'posts' => [],
+            'hashtags' => $this->searchModel->searchHashtags($keyword, $perPage, $offset),
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
 
-        usort($hashtags, fn($a, $b) => $b['count'] <=> $a['count']);
-
-        return array_slice(array_values($hashtags), 0, 5);
+    private function pagination(int $total, int $perPage, int $offset): array {
+        return [
+            'hasMore' => ($offset + $perPage) < $total,
+            'total' => $total
+        ];
     }
 
     private function json(bool $success, string $message, array $extra = []): void {
@@ -204,13 +271,17 @@ class SearchController {
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
     $controller = new SearchController();
 
-    match ($_GET['action']) {
+    match ((string) $_GET['action']) {
         'search' => $controller->search(),
+        'suggest' => $controller->suggest(),
         'suggestHashtags' => $controller->suggestHashtags(),
         'history' => $controller->history(),
+        'getHistory' => $controller->history(),
         'record' => $controller->record(),
         'delete' => $controller->delete(),
+        'deleteHistory' => $controller->delete(),
         'clear' => $controller->clear(),
+        'clearHistory' => $controller->clear(),
         default => null
     };
 }

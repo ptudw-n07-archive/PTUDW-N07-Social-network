@@ -1,0 +1,322 @@
+/* ============================================================
+   ARCHIVE Design System Tokens
+   ============================================================
+   Usage: @import url('variables.css');
+   Reference variables with var(--token-name) in any CSS file.
+   ============================================================ */
+
+:root {
+  /* ==========================================================
+     COLOR PALETTE — Browns (primary brand)
+     ========================================================== */
+  --clr-brown-900: #1f1a18;   /* darkest — photo modal overlay */
+  --clr-brown-800: #241b18;   /* near-black — strong headings */
+  --clr-brown-700: #2f2420;   /* primary headings, toast bg */
+  --clr-brown-600: #3b312d;   /* body / comment text */
+  --clr-brown-500: #46332c;   /* body default, nav active */
+  --clr-brown-450: #3d2f2a;   /* sidebar text */
+  --clr-brown-400: #4a3a35;   /* comment / profile text */
+  --clr-brown-350: #53423c;   /* notification text */
+  --clr-brown-300: #5f4e48;   /* description text */
+  --clr-brown-280: #5f4b45;   /* footer text */
+  --clr-brown-250: #6d5a54;   /* secondary text */
+  --clr-brown-240: #6d5448;   /* secondary text alt */
+  --clr-brown-200: #7c6660;   /* muted text — action-muted */
+  --clr-brown-150: #8a736c;   /* muted — subtitles, timestamps */
+  --clr-brown-100: #a3928c;   /* placeholder, lighter text */
+  --clr-brown-80:  #a0897e;   /* bottom nav inactive */
+
+  /* ==========================================================
+     COLOR PALETTE — Cream / Warm neutrals (surfaces)
+     ========================================================== */
+  --clr-cream-50:  #fffaf7;   /* primary surface — cards, sidebar */
+  --clr-cream-60:  #fffdfb;   /* brighter surface — search form */
+  --clr-cream-70:  #fff8f4;   /* footer shell */
+  --clr-cream-80:  #fff8f7;   /* post action focus */
+  --clr-cream-90:  #fff7f4;   /* notification bg */
+  --clr-cream-100: #fff7f3;   /* search hover */
+  --clr-cream-150: #fff4f5;   /* spoiler bg */
+  --clr-cream-200: #fcf2ef;   /* current nav indicator */
+  --clr-cream-250: #fffaf2;   /* vote bg */
+  --clr-cream-300: #f8f1ec;   /* sidebar item hover */
+  --clr-cream-350: #f8f1ee;   /* spoiler bg alt */
+  --clr-cream-400: #f5eee9;   /* page background */
+  --clr-cream-450: #f6eee9;   /* logo bg */
+  --clr-cream-500: #f5ebe5;   /* hover (login, search icon) */
+  --clr-cream-550: #f3e7e1;   /* upload btn bg */
+  --clr-cream-600: #eee2dc;   /* hover active, sidebar active */
+  --clr-cream-650: #f7ebe5;   /* setting item hover */
+  --clr-cream-700: #f7ece8;   /* modal close hover */
+  --clr-cream-750: #f7edeb;   /* profile btn bg */
+  --clr-cream-800: #f5efed;   /* spoiler bg */
+  --clr-cream-850: #f8f1f2;   /* file preview bg */
+
+  /* ==========================================================
+     COLOR PALETTE — Rose / Pink (accent)
+     ========================================================== */
+  --clr-rose-50:  #fdecef;    /* hashtag soft */
+  --clr-rose-80:  #fff3f5;    /* comment unavailable bg */
+  --clr-rose-100: #f4e5e7;    /* button bg, search btn */
+  --clr-rose-120: #f4dfdc;    /* media nav hover */
+  --clr-rose-150: #ecd9d1;    /* upload hover */
+  --clr-rose-200: #ead4d8;    /* button hover */
+  --clr-rose-250: #e7cfd3;    /* search / upload btn hover */
+  --clr-rose-300: #e8c6c2;    /* delete confirm hover */
+  --clr-rose-350: #f1d8d5;    /* profile btn hover */
+  --clr-rose-400: #d69096;    /* light rose — activity icon */
+  --clr-rose-420: #d88a99;    /* post stats icon */
+  --clr-rose-500: #b76e79;    /* PRIMARY ROSE ACCENT */
+  --clr-rose-520: #b85c72;    /* hashtag color */
+  --clr-rose-550: #be7079;    /* hover rose btn */
+  --clr-rose-600: #9f5e68;    /* dark rose hover */
+  --clr-rose-650: #8e5963;    /* post stat hover */
+  --clr-rose-700: #8d4f59;    /* search submit hover */
+  --clr-rose-750: #7c414b;    /* preview remove hover */
+  --clr-rose-800: #9b5965;    /* spoiler rose text */
+  --clr-rose-850: #a86a72;    /* repost like count */
+  --clr-rose-900: #b5424d;    /* error rose */
+  --clr-rose-hot: #d94f88;    /* search hover strong */
+
+  /* ==========================================================
+     COLOR PALETTE — Warm gold / amber (secondary accent)
+     ========================================================== */
+  --clr-warm-200: #d6a17f;    /* warm accent — logo icon */
+  --clr-warm-250: #d9a07f;    /* stat count */
+  --clr-warm-300: #d9a08b;    /* outline focus */
+  --clr-warm-400: #c98c68;    /* hover warm */
+  --clr-warm-450: #c98f6f;    /* trending item */
+  --clr-warm-500: #b57239;    /* info icon */
+
+  /* ==========================================================
+     COLOR PALETTE — Red (danger / semantic)
+     ========================================================== */
+  --clr-red-50:  #fff1f1;     /* error bg */
+  --clr-red-60:  #fff2f1;     /* unread activity bg */
+  --clr-red-70:  #fff0e4;     /* info bg — amber-tinted */
+  --clr-red-80:  #fde9e9;     /* hidden bg */
+  --clr-red-100: #fdeeee;     /* status danger bg */
+  --clr-red-200: #d64045;     /* danger — unread dot, error */
+  --clr-red-250: #e03131;     /* danger hover */
+  --clr-red-300: #c92a2a;     /* danger dark */
+  --clr-red-400: #c4444b;     /* hidden icon */
+  --clr-red-450: #b83b43;     /* hidden status */
+  --clr-red-500: #e74c3c;     /* bottom nav badge */
+  --clr-red-like: #ff0000;    /* like button (brand red) */
+  --clr-red-like-hover: #e60023;
+
+  /* ==========================================================
+     COLOR PALETTE — Green (success)
+     ========================================================== */
+  --clr-green-50:  #edf7f0;   /* success bg */
+  --clr-green-500: #327247;   /* success text */
+
+  /* ==========================================================
+     COLOR PALETTE — Utility
+     ========================================================== */
+  --clr-white:      #ffffff;
+  --clr-gray-500:   #374151;   /* message text */
+  --clr-rose-border: #e5d6d8; /* preview border */
+
+  /* ==========================================================
+     BORDER COLORS — Brown (primary border family)
+     ========================================================== */
+  --border-brown-08: rgba(121, 91, 74, 0.08);
+  --border-brown-10: rgba(121, 91, 74, 0.10);
+  --border-brown-12: rgba(121, 91, 74, 0.12);
+  --border-brown-13: rgba(121, 91, 74, 0.13);
+  --border-brown-14: rgba(121, 91, 74, 0.14);
+  --border-brown-16: rgba(121, 91, 74, 0.16);
+  --border-brown-18: rgba(121, 91, 74, 0.18);
+  --border-brown-20: rgba(121, 91, 74, 0.20);
+  --border-brown-22: rgba(121, 91, 74, 0.22);
+  --border-brown-24: rgba(121, 91, 74, 0.24);
+  --border-brown-34: rgba(121, 91, 74, 0.34);
+
+  /* ==========================================================
+     BORDER COLORS — Rose (accent border family)
+     ========================================================== */
+  --border-rose-08: rgba(183, 110, 121, 0.08);
+  --border-rose-12: rgba(183, 110, 121, 0.12);
+  --border-rose-14: rgba(183, 110, 121, 0.14);
+  --border-rose-16: rgba(183, 110, 121, 0.16);
+  --border-rose-18: rgba(183, 110, 121, 0.18);
+  --border-rose-20: rgba(183, 110, 121, 0.20);
+  --border-rose-22: rgba(183, 110, 121, 0.22);
+  --border-rose-24: rgba(183, 110, 121, 0.24);
+  --border-rose-28: rgba(183, 110, 121, 0.28);
+  --border-rose-34: rgba(183, 110, 121, 0.34);
+  --border-rose-38: rgba(183, 110, 121, 0.38);
+  --border-rose-55: rgba(183, 110, 121, 0.55);
+
+  /* ==========================================================
+     BORDER COLORS — Warm accent family
+     ========================================================== */
+  --border-warm-24: rgba(214, 160, 127, 0.24);
+  --border-warm-25: rgba(214, 160, 127, 0.25);
+
+  /* ==========================================================
+     RGBA SHADOW COLORS (reusable to build shadows)
+     ========================================================== */
+  --shadow-brown-04: rgba(47, 36, 32, 0.04);
+  --shadow-brown-05: rgba(47, 36, 32, 0.05);
+  --shadow-brown-06: rgba(47, 36, 32, 0.06);
+  --shadow-brown-07: rgba(47, 36, 32, 0.07);
+  --shadow-brown-08: rgba(58, 42, 33, 0.08);
+  --shadow-brown-09: rgba(47, 36, 32, 0.09);
+  --shadow-brown-12: rgba(58, 42, 33, 0.12);
+  --shadow-brown-13: rgba(36, 27, 24, 0.13);
+  --shadow-brown-14: rgba(80, 54, 46, 0.14);
+  --shadow-brown-16: rgba(47, 36, 32, 0.16);
+  --shadow-brown-18: rgba(36, 27, 24, 0.18);
+  --shadow-brown-22: rgba(47, 36, 32, 0.22);
+  --shadow-brown-24: rgba(20, 15, 13, 0.24);
+  --shadow-rose-18: rgba(214, 144, 150, 0.18);
+  --shadow-black-06: rgba(0, 0, 0, 0.06);
+
+  /* ==========================================================
+     TYPOGRAPHY
+     ========================================================== */
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+  /* Font sizes (for consistency; fallback values remain in component styles) */
+  --text-xs:    0.75rem;
+  --text-sm:    0.82rem;
+  --text-base:  0.92rem;
+  --text-md:    0.98rem;
+  --text-lg:    1.02rem;
+  --text-xl:    1.2rem;
+  --text-2xl:   1.35rem;
+  --text-3xl:   1.45rem;
+  --text-4xl:   1.7rem;
+  --text-5xl:   1.85rem;
+
+  /* ==========================================================
+     BORDER RADIUS
+     ========================================================== */
+  --radius-2xs:  4px;
+  --radius-xs:   8px;
+  --radius-sm:   10px;
+  --radius-md:   12px;
+  --radius-lg:   14px;
+  --radius-xl:   16px;
+  --radius-2xl:  18px;
+  --radius-3xl:  20px;
+  --radius-4xl:  24px;
+  --radius-5xl:  28px;
+  --radius-full: 999px;
+  --radius-circle: 50%;
+
+  /* ==========================================================
+     SHADOWS
+     ========================================================== */
+  --shadow-xs:   0 6px 16px var(--shadow-brown-12);
+  --shadow-sm:   0 8px 20px var(--shadow-brown-12);
+  --shadow-md:   0 8px 22px var(--shadow-brown-08);
+  --shadow-md2:  0 8px 24px var(--shadow-brown-05);
+  --shadow-lg:   0 12px 30px var(--shadow-brown-06);
+  --shadow-lg2:  0 14px 30px var(--shadow-brown-13);
+  --shadow-xl:   0 14px 34px var(--shadow-brown-07);
+  --shadow-2xl:  0 18px 42px var(--shadow-brown-18);
+  --shadow-3xl:  0 24px 70px var(--shadow-brown-09);
+  --shadow-4xl:  0 28px 80px var(--shadow-brown-24);
+  --shadow-btn:  0 8px 22px var(--shadow-rose-18);
+  --shadow-toast: 0 12px 36px var(--shadow-brown-22);
+  --shadow-bottom-nav: 0 -2px 12px var(--shadow-black-06);
+  --shadow-footer: 0 -10px 32px var(--shadow-brown-04);
+
+  /* ==========================================================
+     TRANSITIONS — exponential curves (warm, gentle brand)
+     ========================================================== */
+
+  /* Exponential easing functions */
+  --ease-out-quart: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo:  cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* Transition presets (use these via var(--transition-*)) */
+  --transition-fast:  0.18s var(--ease-out-quart);
+  --transition-base:  0.2s  var(--ease-out-quart);
+  --transition-slow:  0.3s  var(--ease-out-quart);
+
+  /* Micro-interaction helpers */
+  --transition-lift:   transform 0.2s var(--ease-out-quint), box-shadow 0.2s var(--ease-out-quint);
+  --transition-press:  transform 0.12s var(--ease-in-out-quart);
+  --transition-fade:   opacity 0.2s var(--ease-out-quart);
+  --transition-slide:  transform 0.25s var(--ease-out-quint), opacity 0.2s var(--ease-out-quart);
+  --transition-color:  color 0.18s var(--ease-out-quart), background-color 0.18s var(--ease-out-quart), border-color 0.18s var(--ease-out-quart);
+
+  /* ==========================================================
+     Z-INDEX
+     ========================================================== */
+  --z-header:      999;
+  --z-dropdown:    1000;
+  --z-sticky:      1020;
+  --z-fixed:       1030;
+  --z-backdrop:    1040;
+  --z-modal:       1050;
+  --z-toast:       2100;
+
+  /* ==========================================================
+     SPACING (4px base unit)
+     ========================================================== */
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  10px;
+  --space-6:  12px;
+  --space-7:  14px;
+  --space-8:  16px;
+  --space-9:  18px;
+  --space-10: 20px;
+  --space-11: 22px;
+  --space-12: 24px;
+  --space-13: 26px;
+  --space-14: 28px;
+  --space-15: 30px;
+  --space-16: 32px;
+  --space-17: 34px;
+  --space-18: 36px;
+  --space-20: 40px;
+  --space-22: 42px;
+  --space-24: 48px;
+  --space-28: 52px;
+  --space-30: 60px;
+
+  /* ==========================================================
+     SIZING (fixed element sizes)
+     ========================================================== */
+  --size-icon-sm:  20px;
+  --size-icon-md:  34px;
+  --size-icon-lg:  42px;
+  --size-icon-xl:  48px;
+  --size-avatar:   44px;
+  --size-avatar-lg: 60px;
+  --size-avatar-xl: 72px;
+  --size-thumb:    56px;
+  --size-btn-mini: 36px;
+  --size-btn-sm:   40px;
+  --size-btn-md:   44px;
+  --size-bottom-nav: 64px;
+
+  /* ==========================================================
+     LAYOUT
+     ========================================================== */
+  --sidebar-width: 280px;
+  --content-max-width: 700px;
+  --header-height: 68px;
+
+  /* ==========================================================
+     LEGACY ALIASES (backward compat — do NOT remove)
+     These match the existing --archive-* variables used throughout.
+     ========================================================== */
+  --archive-hashtag-color:  var(--clr-rose-520);
+  --archive-hashtag-hover:  var(--clr-rose-700);
+  --archive-hashtag-soft:   var(--clr-rose-50);
+  --archive-hashtag-border: rgba(184, 92, 114, 0.22);
+  --archive-like-color:     var(--clr-red-like);
+  --archive-like-hover:     var(--clr-red-like-hover);
+  --archive-action-muted:   var(--clr-brown-200);
+}

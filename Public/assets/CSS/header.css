@@ -1,0 +1,118 @@
+/* ===== HEADER FIXED ===== */
+.archive-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    background-color: rgba(245, 238, 233, 0.95);
+    border-bottom: 1px solid var(--border-brown-12);
+}
+
+/* reset link trong header */
+.header-actions a,
+.header-actions a:visited,
+.header-actions a:hover,
+.header-actions a:active,
+.header-actions a:focus {
+    text-decoration: none !important;
+}
+
+/* logo chữ bên trái */
+.brand-logo {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--clr-brown-700);
+}
+
+/* logo icon ở giữa */
+.header-badge {
+    width: 52px;
+    height: 52px;
+    border: 1px solid rgba(214, 160, 127, 0.25);
+    border-radius: var(--radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--clr-cream-450);
+    color: var(--clr-warm-200);
+}
+
+.header-badge i {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+/* cụm bên phải */
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 18px;
+    flex-wrap: nowrap;
+}
+
+/* kính lúp + sao */
+.header-search-btn,
+.header-star-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--clr-brown-250) !important;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+/* cho 2 icon cách đều nhau */
+.header-search-btn,
+.header-star-btn {
+    width: 24px;
+    height: 24px;
+}
+
+.header-search-btn i,
+.header-star-btn i {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.header-search-btn:hover,
+.header-star-btn:hover {
+    color: var(--clr-brown-700) !important;
+}
+
+/* nút đăng nhập + đăng ký */
+.header-login-btn,
+.header-register-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--clr-brown-700) !important;
+    border: 1px solid var(--border-brown-18);
+    background: transparent;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.header-login-btn i,
+.header-register-btn i {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.header-login-btn span,
+.header-register-btn span {
+    line-height: 1;
+}
+
+.header-login-btn:hover,
+.header-register-btn:hover {
+    background-color: var(--clr-cream-600);
+    color: var(--clr-brown-700) !important;
+}
+

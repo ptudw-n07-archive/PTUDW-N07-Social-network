@@ -3,9 +3,8 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/../../Services/CsrfService.php';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -13,6 +12,7 @@ if (!defined('BASE_URL')) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập | Social Network</title>
+    <link rel="icon" type="image/png" href="<?php echo BASE_URL; ?>Public/assets/img/favicon-48x48.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/login-style.css">
 </head>
@@ -23,18 +23,19 @@ if (!defined('BASE_URL')) {
         <p class="subtitle">Vui lòng đăng nhập để kết nối với bạn bè</p>
              
         <?php if(isset($_SESSION['error'])): ?>
-            <div style="color: #dc3545; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(220, 53, 69, 0.08); border-radius: 4px;">
-                <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
+            <div class="auth-alert-error">
+                <?php echo htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
             </div>
         <?php endif; ?>
 
         <?php if(isset($_SESSION['success'])): ?>
-            <div style="color: #198754; padding: 8px; margin-bottom: 15px; font-size: 14px; text-align: center; background: rgba(25, 135, 84, 0.08); border-radius: 4px;">
-                <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
+            <div class="auth-alert-success">
+                <?php echo htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
 
-       <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=login" method="POST">
+        <form action="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=login" method="POST">
+            <?= \App\Services\CsrfService::hiddenField() ?>
             <div class="form-group">
                 <label for="username"><i class="fa-regular fa-user"></i> Tài khoản</label>
                 <input type="text" id="username" name="username" placeholder="Tên đăng nhập hoặc Email" required>
@@ -52,21 +53,26 @@ if (!defined('BASE_URL')) {
             <span>HOẶC</span>
         </div>
 
-        <div class="extra-links" style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; font-size: 14px;">
+        <a class="google-login-btn" href="<?php echo app_url('App/Controllers/GoogleLoginController.php'); ?>">
+            <span class="google-login-icon">G</span>
+            <span>Đăng nhập bằng Google</span>
+        </a>
+
+        <div class="auth-footer">
             
-            <div style="text-align: left; flex: 1;">
-                <a href="<?php echo BASE_URL; ?>App/Views/auth/forgotpassword.php" style="color: #666; text-decoration: none;">Quên mật khẩu?</a>
+            <div class="auth-footer-left">
+                <a href="<?php echo app_url('forgot-password'); ?>" class="auth-footer-link">Quên mật khẩu?</a>
             </div>
 
-            <div style="text-align: center; flex: 0 0 auto; padding: 0 15px;">
-                <a href="<?php echo BASE_URL; ?>Public/index.php" style="color: #888; text-decoration: none; font-size: 16px;" title="Về trang chủ">
+            <div class="auth-footer-center">
+                <a href="<?php echo app_url(''); ?>" class="auth-footer-link-home" title="Về trang chủ">
                     <i class="fa-solid fa-house"></i>
                 </a>
             </div>
 
-            <div style="text-align: right; flex: 1; line-height: 1.5;">
-                <span style="color: #666;">Chưa có tài khoản?</span><br>
-                <a href="<?php echo BASE_URL; ?>App/Views/auth/register.php" style="color: var(--primary-color); font-weight: bold; text-decoration: none;">Đăng ký</a>
+            <div class="auth-footer-right">
+                <span class="auth-footer-muted">Chưa có tài khoản?</span><br>
+                <a href="<?php echo app_url('register'); ?>" class="auth-link-accent">Đăng ký</a>
             </div>
 
         </div> </div> </body>

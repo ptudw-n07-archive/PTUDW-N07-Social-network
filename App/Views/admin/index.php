@@ -1,7 +1,24 @@
 <?php
-/** @var array $stats Đã được truyền từ AdminController */
-/** @var array $reports Đã được truyền từ AdminController */
-/** @var array $members Đã được truyền từ AdminController */
+require_once __DIR__ . '/../../../Config/Database.php';
+require_once __DIR__ . '/partials/image-helper.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (empty($_SESSION['user_id']) || (int)($_SESSION['role_id'] ?? 0) !== 1) {
+    header('Location: ' . app_url('login'));
+    exit();
+}
+
+/** @var array $stats */
+/** @var array $reports */
+/** @var array $members */
+/** @var array $roles */
+/** @var int|null $currentAdminId */
+/** @var array|null $currentAdmin */
+$adminProfileUrl = app_url('admin/profile');
+$adminAvatarUrl = admin_image_url($currentAdmin['ProfilePictureUrl'] ?? ($_SESSION['avatar'] ?? $_SESSION['ProfilePictureUrl'] ?? ''));
 ?>
 
 <!DOCTYPE html>
@@ -10,44 +27,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archive - Management Center</title>
+    <link rel="icon" type="image/png" href="<?php echo BASE_URL; ?>Public/assets/img/favicon-48x48.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
-    
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
     <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
     <link class="router-css" rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/admin-style.css">
-    <style>
-        .report-action-completed {
-            color: #000;
-            background: transparent;
-            border: none;
-            font-weight: 500;
-        }
-        .report-details-text {
-            color: inherit;
-            text-decoration: none;
-        }
-    </style>
 </head>
 
 <body class="admin-body">
-
     <header class="archive-header">
         <div class="container-fluid px-4 px-lg-5">
             <div class="row align-items-center py-3">
                 <div class="col-4 d-flex align-items-center">
-                    <div class="brand-logo">ARCHIVE</div>
+                    <a href="<?php echo app_url('admin'); ?>#overview" class="brand-logo text-decoration-none admin-dashboard-logo">ARCHIVE</a>
                 </div>
                 <div class="col-4 d-flex justify-content-center align-items-center">
                     <div class="header-badge"><i class="bi bi-stars"></i></div>
                 </div>
                 <div class="col-4 d-flex justify-content-end align-items-center gap-3">
-                    <div class="d-none d-md-flex align-items-center gap-2 me-2">
-                        <span class="text-muted small fw-bold">Quản trị viên</span>
-                        <div class="admin-profile-icon"><i class="bi bi-person-badge-fill"></i></div>
-                    </div>
+                    <a href="<?php echo htmlspecialchars($adminProfileUrl, ENT_QUOTES); ?>" class="admin-profile-link d-flex align-items-center gap-2 me-2" title="Admin Profile">
+                        <span class="text-muted small fw-bold d-none d-md-inline" id="adminHeaderName">Quản trị viên</span>
+                        <img id="adminHeaderAvatar" class="admin-profile-avatar" src="<?php echo htmlspecialchars($adminAvatarUrl, ENT_QUOTES); ?>" alt="Admin avatar" <?php echo admin_avatar_error_attr(); ?>>
+                    </a>
                     <button id="logoutBtn" class="header-logout-btn" type="button" data-logout-url="<?php echo BASE_URL; ?>App/Controllers/AuthController.php?action=logout">
                         <i class="bi bi-box-arrow-right"></i> <span>Đăng xuất</span>
                     </button>
@@ -56,10 +58,11 @@
         </div>
     </header>
 
-    <main class="container py-5">
+    <main class="container-fluid admin-main py-5">
         <div class="text-center mb-5">
             <h1 class="management-title">Trung tâm điều khiển</h1>
-            <p class="management-subtitle">Nơi điều phối và lưu giữ những khoảnh khắc của Archive.</p>
+            <p class="management-subtitle">Nơi điều phối và lưu giữ những khoảnh khắc của Archive</p>
+            <div class="admin-live-clock"><i class="bi bi-clock-history"></i><span data-admin-clock>--:--:-- · --/--/----</span></div>
         </div>
 
         <div class="d-flex justify-content-center mb-5">
@@ -68,7 +71,16 @@
                     <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab"><i class="bi bi-grid-1x2 me-2"></i>Tổng quan</button>
                 </li>
                 <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#statistics" type="button" role="tab"><i class="bi bi-bar-chart-line me-2"></i>Thống kê</button>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab"><i class="bi bi-shield-check me-2"></i>Kiểm duyệt</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#content" type="button" role="tab"><i class="bi bi-collection me-2"></i>Nội dung</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab"><i class="bi bi-bell me-2"></i>Thông báo</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#members" type="button" role="tab"><i class="bi bi-person-badge me-2"></i>Thành viên</button>
@@ -77,202 +89,55 @@
         </div>
 
         <div class="tab-content">
-            
-            <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                <div class="row g-4 d-flex align-items-stretch">
-                    
-                    <div class="col-md-3">
-                        <div class="admin-stat-card">
-                            <i class="bi bi-people mb-3"></i>
-                            <span class="stat-label">Thành viên</span>
-                            <h2 class="stat-value"><?php echo $stats['users']; ?></h2>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3">
-                        <div class="admin-stat-card">
-                            <i class="bi bi-exclamation-octagon mb-3 text-danger"></i>
-                            <span class="stat-label">Báo cáo mới</span>
-                            <h2 class="stat-value text-danger"><?php echo $stats['reports']; ?></h2>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3">
-                        <div class="admin-stat-card">
-                            <i class="bi bi-file-earmark-post mb-3"></i>
-                            <span class="stat-label">Bài viết</span>
-                            <h2 class="stat-value"><?php echo $stats['posts']; ?></h2>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3">
-                        <div class="admin-stat-card">
-                            <i class="bi bi-heart-pulse mb-3 pink-icon"></i>
-                            <span class="stat-label">Hoạt động</span>
-                            <h2 class="stat-value"><?php echo $stats['activity']; ?></h2>
-                        </div>
-                    </div>
-                    
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="reports" role="tabpanel">
-                <div class="admin-table-container">
-                    <table class="table align-middle">
-                        <thead>
-                            <tr>
-                                <th>Đối tượng bị báo cáo</th>
-                                <th>Lý do vi phạm</th>
-                                <th>Nội dung báo cáo</th>
-                                <th>Thời gian gửi</th>
-                                <th>Trạng thái</th>
-                                <th class="text-end">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if(!empty($reports)): ?>
-                                <?php foreach($reports as $r): ?>
-                                <tr id="report-row-<?php echo $r['id']; ?>" data-report-id="<?php echo $r['id']; ?>" data-details="<?php echo htmlspecialchars($r['details'] ?? '', ENT_QUOTES); ?>">
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="me-3">
-                                                <img src="<?php echo BASE_URL . $r['avatar']; ?>" alt="avatar" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">  
-                                            </div>
-                                            <div>
-                                                <h6 class="mb-0 fw-bold"><?php echo htmlspecialchars($r['user']); ?></h6>
-                                                <small class="text-muted"><?php echo htmlspecialchars($r['type']); ?></small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><span class="small"><?php echo htmlspecialchars($r['reason']); ?></span></td>
-                                    <td>
-                                        <?php $detailText = trim($r['details'] ?? ''); ?>
-                                        <?php if ($detailText !== ''): ?>
-                                            <span onclick="showReportDetails(<?php echo $r['id']; ?>)" class="small report-details-text text-truncate" style="max-width:220px; display:inline-block; cursor:pointer;" title="<?php echo htmlspecialchars($detailText, ENT_QUOTES); ?>"><?php echo htmlspecialchars(mb_strimwidth($detailText, 0, 80, '...')); ?></span>
-                                        <?php else: ?>
-                                            <span class="small text-muted">Không có chi tiết</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="small text-muted"><?php echo htmlspecialchars($r['time']); ?></td>
-                                    <td>
-                                        <?php if ($r['status'] === 'Chờ duyệt'): ?>
-                                            <span class="badge rounded-pill bg-warning text-dark px-2.5 py-1 text-xs fw-medium">Chờ duyệt</span>
-                                        <?php else: ?>
-                                            <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Đã xử lý</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-end report-actions">
-                                        <?php if ($r['status'] === 'Chờ duyệt'): ?>
-                                            <div class="d-flex justify-content-end gap-2">
-                                                <button class="btn btn-outline-secondary btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'ignore')">Bỏ qua</button>
-                                                <button class="btn btn-danger btn-sm" onclick="handleReportAction(<?php echo $r['id']; ?>, 'hide')">Ẩn nội dung</button>
-                                                <button class="btn btn-warning btn-sm text-white" onclick="handleReportAction(<?php echo $r['id']; ?>, 'warn')">Cảnh cáo</button>
-                                            </div>
-                                        <?php else: ?>
-                                            <span class="report-action-completed"><i class="bi bi-check2-all"></i> Hoàn tất</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="6" class="text-center text-muted py-4">Hiện tại hệ thống sạch sẽ, chưa có báo cáo vi phạm nào!</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="members" role="tabpanel">
-                <div class="admin-table-container">
-                    <table class="table align-middle">
-                        <thead>
-                            <tr>
-                                <th>Thành viên</th>
-                                <th>Vai trò</th>
-                                <th>Ngày tham gia</th>
-                                <th>Trạng thái</th>
-                                <th class="text-end">Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if(!empty($members)): ?>
-                                <?php foreach($members as $m): ?>
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="me-3">
-                                                <img src="<?php echo BASE_URL . $m['avatar']; ?>" alt="avatar" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover; border-color: rgba(121, 91, 74, 0.15) !important;">
-                                            </div>
-                                            <div class="fw-bold"><?php echo htmlspecialchars($m['name']); ?></div>
-                                        </div>
-                                    </td>
-                                    <td class="small text-muted"><?php echo htmlspecialchars($m['role']); ?></td>
-                                    <td class="small"><?php echo htmlspecialchars($m['joined']); ?></td>
-                                    <td>
-                                        <?php if (($m['status'] ?? '') === 'Đã khóa'): ?>
-                                            <span class="badge rounded-pill bg-danger text-white px-2.5 py-1 text-xs fw-medium">Đã khóa</span>
-                                        <?php else: ?>
-                                            <span class="badge rounded-pill bg-success text-white px-2.5 py-1 text-xs fw-medium">Hoạt động</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td class="text-end"><button class="btn btn-outline-brown">Sửa</button></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted py-4">Chưa có thành viên nào tham gia mạng xã hội.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
+            <?php require __DIR__ . '/partials/overview.php'; ?>
+            <?php require __DIR__ . '/partials/statistics.php'; ?>
+            <?php require __DIR__ . '/partials/moderation.php'; ?>
+            <?php require __DIR__ . '/partials/content.php'; ?>
+            <?php require __DIR__ . '/partials/notifications.php'; ?>
+            <?php require __DIR__ . '/partials/members.php'; ?>
         </div>
     </main>
 
-    <div id="adminModal" class="admin-modal d-none" aria-hidden="true" role="dialog" aria-modal="true">
-        <div class="admin-modal-backdrop" data-admin-modal-close></div>
-        <div class="admin-modal-container">
-            <div class="admin-modal-card">
-                <div class="admin-modal-header">
-                    <h5 class="admin-modal-title">Thông báo</h5>
-                    <button type="button" class="admin-modal-close" data-admin-modal-close aria-label="Đóng">&times;</button>
-                </div>
-                <div class="admin-modal-body">
-                    <p class="admin-modal-message">Nội dung sẽ hiển thị tại đây.</p>
-                </div>
-                <div class="admin-modal-actions">
-                    <button type="button" class="btn btn-outline-brown admin-modal-cancel" data-admin-modal-cancel>Hủy</button>
-                    <button type="button" class="btn btn-pink-admin admin-modal-confirm" data-admin-modal-confirm>Xác nhận</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="adminToastContainer" class="admin-toast-container" aria-live="polite" aria-atomic="true"></div>
 
-    <div class="modal fade" id="adminNoteModal" tabindex="-1" aria-labelledby="adminNoteModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="adminNoteModalLabel">Ghi chú xử lý báo cáo</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="adminNoteTextarea" class="form-label">Ghi chú của quản trị viên</label>
-                        <textarea id="adminNoteTextarea" class="form-control" rows="4" placeholder="Nhập ghi chú xử lý báo cáo..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="button" class="btn btn-primary" id="adminNoteSaveBtn">Xác nhận</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <?php require __DIR__ . '/partials/shared-modals.php'; ?>
 
     <script>
+        // Gom các endpoint admin cho file JS dùng chung.
         window.ADMIN_PROCESS_REPORT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=processReport";
+        window.ADMIN_OVERVIEW_STATS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewStats";
+        window.ADMIN_OVERVIEW_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=overviewDetail";
+        window.ADMIN_STATISTICS_RANKINGS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsRankings";
+        window.ADMIN_STATISTICS_CHARTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsCharts";
+        window.ADMIN_STATISTICS_INSIGHTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=statisticsInsights";
+        window.ADMIN_REPORT_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getReportDetail";
+        window.ADMIN_UPDATE_USER_ROLE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=updateUserRole";
+        window.ADMIN_TOGGLE_USER_ACTIVE_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleUserActive";
+        window.ADMIN_LIST_MEMBERS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listMembers";
+        window.ADMIN_LIST_NOTIFICATIONS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listNotifications";
+        window.ADMIN_NOTIFICATION_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getNotificationDetail";
+        window.ADMIN_DELETE_NOTIFICATION_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteNotification";
+        window.ADMIN_SEARCH_NOTIFICATION_RECEIVERS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=searchNotificationReceivers";
+        window.ADMIN_SEND_SYSTEM_NOTIFICATION_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=sendSystemNotification";
+        window.ADMIN_LIST_CONTENT_POSTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listContentPosts";
+        window.ADMIN_CONTENT_POST_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getContentPostDetail";
+        window.ADMIN_TOGGLE_CONTENT_POST_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleContentPostHidden";
+        window.ADMIN_DELETE_CONTENT_POST_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteContentPost";
+        window.ADMIN_LIST_CONTENT_COMMENTS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listContentComments";
+        window.ADMIN_CONTENT_COMMENT_DETAIL_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=getContentCommentDetail";
+        window.ADMIN_TOGGLE_CONTENT_COMMENT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleContentCommentHidden";
+        window.ADMIN_DELETE_CONTENT_COMMENT_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteContentComment";
+        window.ADMIN_LIST_CONTENT_HASHTAGS_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=listContentHashtags";
+        window.ADMIN_TOGGLE_CONTENT_HASHTAG_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=toggleContentHashtagHidden";
+        window.ADMIN_DELETE_CONTENT_HASHTAG_URL = "<?php echo BASE_URL; ?>App/Controllers/AdminController.php?action=deleteContentHashtag";
+        window.ADMIN_CURRENT_USER_ID = <?php echo (int)($currentAdminId ?? 0); ?>;
+        window.ADMIN_BASE_URL = "<?php echo BASE_URL; ?>";
+        window.ADMIN_CSRF_TOKEN = "<?php echo htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES); ?>";
+        window.ADMIN_TIMEZONE = "Asia/Ho_Chi_Minh";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-core.js"></script>
     <script src="<?php echo BASE_URL; ?>Public/assets/JS/admin-script.js"></script>
 </body>
 </html>

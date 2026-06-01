@@ -1,22 +1,27 @@
 <?php
-namespace App\Controllers; // Thêm namespace cho Controller
+namespace App\Controllers;
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../../Config/Database.php'; // Đi lùi 2 cấp ra hẳn ngoài gốc để tìm Config
-require_once __DIR__ . '/../Models/FollowModel.php';     // Chỉ cần lùi 1 cấp là thấy anh bạn hàng xóm Models rồi
+require_once __DIR__ . '/../../Config/Database.php';
+require_once __DIR__ . '/../Models/FollowModel.php';
+require_once __DIR__ . '/../Models/NotificationModel.php';
 
 use App\Models\FollowModel;
+use App\Models\NotificationModel;
 use Database;
 
 class FollowController {
     private $followModel;
+    private $notificationModel;
 
     public function __construct() {
         $database = new Database();
         $db = $database->connect();
         $this->followModel = new FollowModel($db);
+        $this->notificationModel = new NotificationModel($db);
     }
 
     public function getSuggestedUsers($currentUserId) {
@@ -25,6 +30,11 @@ class FollowController {
 
     public function toggle() {
         header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            echo json_encode(["success" => false, "message" => "Yêu cầu không hợp lệ."]);
+            return;
+        }
 
         $followerId = $_SESSION['user_id'] ?? null;
         $followingId = filter_var($_POST['userId'] ?? null, FILTER_VALIDATE_INT);
@@ -56,6 +66,27 @@ class FollowController {
         $status = $this->followModel->toggleFollow((int) $followerId, (int) $followingId);
         $isFollowing = $status === "followed";
         $followerCount = $this->followModel->countFollowers((int) $followingId);
+
+        if ($status === "followed") {
+            $followTypeId = $this->notificationModel->getTypeIdByName('Follow');
+            $sender = $this->followModel->getUserById((int) $followerId);
+            $senderName = trim((string) ($sender['FullName'] ?? ''));
+
+            if ($senderName === '') {
+                $senderName = !empty($sender['Username']) ? '@' . $sender['Username'] : 'Người dùng';
+            }
+
+            if ($followTypeId) {
+                $this->notificationModel->createNotification(
+                    $followTypeId,
+                    (int) $followingId,
+                    (int) $followerId,
+                    null,
+                    null,
+                    $senderName . ' đã theo dõi bạn'
+                );
+            }
+        }
 
         echo json_encode([
             "success" => true,

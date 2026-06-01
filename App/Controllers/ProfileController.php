@@ -15,6 +15,7 @@ use App\Models\PostModel;
 use App\Models\UserModel;
 use Database;
 use Exception;
+use PDOException;
 
 class ProfileController {
     private UserModel $userModel;
@@ -48,11 +49,29 @@ class ProfileController {
         }
 
         $isOwnProfile = (int) $profileUserId === (int) $currentUserId;
-        $posts = $this->postModel->getPostsByUserId($profileUserId, $currentUserId);
+        $posts = $this->postModel->getPostsByUserId($profileUserId, $currentUserId, false);
+        $reposts = $this->postModel->getRepostsByUserId($profileUserId, $currentUserId);
+        $commentsByPostId = $this->postModel->getCommentsByPostIds(array_merge(
+            array_column($posts, 'PostID'),
+            array_column($reposts, 'PostID')
+        ));
+
+        foreach ($posts as &$post) {
+            $postId = (int) ($post['PostID'] ?? 0);
+            $post['Comments'] = $commentsByPostId[$postId] ?? [];
+        }
+        unset($post);
+
+        foreach ($reposts as &$repost) {
+            $postId = (int) ($repost['PostID'] ?? 0);
+            $repost['Comments'] = $commentsByPostId[$postId] ?? [];
+        }
+        unset($repost);
 
         return [
             'profile' => $profile,
             'posts' => $posts,
+            'reposts' => $reposts,
             'currentUserId' => $currentUserId,
             'profileUserId' => (int) $profileUserId,
             'isOwnProfile' => $isOwnProfile,
@@ -75,11 +94,16 @@ class ProfileController {
     public function update() {
         header('Content-Type: application/json; charset=utf-8');
 
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
         try {
             $userId = $this->requireLoginJson();
 
             $fullName = trim($_POST['fullname'] ?? '');
-            $username = trim($_POST['username'] ?? '');
+            $username = UserModel::normalizeUsername($_POST['username'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $bio = trim($_POST['bio'] ?? '');
 
@@ -88,8 +112,8 @@ class ProfileController {
                 return;
             }
 
-            if (!preg_match('/^[A-Za-z0-9_\\.]{3,50}$/', $username)) {
-                $this->json(false, "Username phải có 3-50 ký tự, chỉ gồm chữ, số, dấu gạch dưới hoặc dấu chấm.");
+            if (!UserModel::isValidUsername($username)) {
+                $this->json(false, "Tên đăng nhập chỉ được gồm 3-50 ký tự, chữ thường, số, dấu gạch dưới hoặc dấu chấm. Không dùng dấu, khoảng trắng hoặc chữ hoa.");
                 return;
             }
 
@@ -104,7 +128,7 @@ class ProfileController {
             }
 
             if ($this->userModel->isUsernameTaken($username, $userId)) {
-                $this->json(false, "Username này đã được sử dụng.");
+                $this->json(false, "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.");
                 return;
             }
 
@@ -137,6 +161,54 @@ class ProfileController {
                     'CreatedAt' => $profile['CreatedAt']
                 ]
             ]);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                if (isset($username, $userId) && $this->userModel->isUsernameTaken($username, $userId)) {
+                    $this->json(false, "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.");
+                    return;
+                }
+
+                if (isset($email, $userId) && $this->userModel->isEmailTaken($email, $userId)) {
+                    $this->json(false, "Email này đã được sử dụng.");
+                    return;
+                }
+
+                $this->json(false, "Tên đăng nhập hoặc email đã được sử dụng. Vui lòng chọn thông tin khác.");
+                return;
+            }
+
+            $this->json(false, "Không thể cập nhật hồ sơ lúc này. Vui lòng thử lại.");
+        } catch (Exception $e) {
+            $this->json(false, $e->getMessage());
+        }
+    }
+
+    public function reportUser(): void {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!\App\Services\CsrfService::validateRequest()) {
+            $this->json(false, "Yêu cầu không hợp lệ.");
+            return;
+        }
+
+        try {
+            $reporterUserId = $this->requireLoginJson();
+            $reportedUserId = filter_var($_POST['userId'] ?? null, FILTER_VALIDATE_INT);
+            $reason = trim((string) ($_POST['reason'] ?? ''));
+            $details = trim((string) ($_POST['details'] ?? ''));
+
+            if (!$reportedUserId || $reportedUserId < 1 || $reason === '') {
+                $this->json(false, "Thiếu thông tin báo cáo.");
+                return;
+            }
+
+            if ((int) $reportedUserId === (int) $reporterUserId) {
+                $this->json(false, "Bạn không thể tự báo cáo hồ sơ của mình.");
+                return;
+            }
+
+            $success = $this->userModel->createUserReport($reporterUserId, (int) $reportedUserId, $reason, $details);
+            $this->json($success, $success ? "Đã gửi báo cáo người dùng." : "Không thể gửi báo cáo người dùng.");
         } catch (Exception $e) {
             $this->json(false, $e->getMessage());
         }
@@ -146,7 +218,7 @@ class ProfileController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            header("Location: " . BASE_URL . "App/Views/auth/login.php");
+            header('Location: ' . app_url('login'));
             exit();
         }
 
@@ -192,9 +264,13 @@ class ProfileController {
             throw new Exception("File avatar không đúng định dạng ảnh hợp lệ.");
         }
 
-        $uploadDir = __DIR__ . '/../../Public/uploads/avatars/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
+        $uploadDir = app_uploads_root('avatars/');
+        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
+            throw new Exception("Không thể tạo thư mục lưu avatar trên server.");
+        }
+
+        if (!is_writable($uploadDir)) {
+            throw new Exception("Thư mục lưu avatar không có quyền ghi.");
         }
 
         $fileName = uniqid('avatar_', true) . '.' . $extension;
@@ -211,6 +287,7 @@ class ProfileController {
         return [
             'profile' => null,
             'posts' => [],
+            'reposts' => [],
             'currentUserId' => $currentUserId,
             'profileUserId' => $profileUserId,
             'isOwnProfile' => false,
@@ -239,6 +316,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset(
 
     if ($_GET['action'] === 'update') {
         $controller->update();
+    } elseif ($_GET['action'] === 'reportUser') {
+        $controller->reportUser();
     }
 }
 ?>

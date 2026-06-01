@@ -1,0 +1,93 @@
+/* ===== ARCHIVE FOOTER PARTIAL ===== */
+.archive-footer {
+    color: var(--clr-brown-280);
+}
+
+.archive-footer-shell {
+    padding: 42px 34px 24px;
+    border: 1px solid var(--border-brown-16);
+    border-radius: var(--radius-5xl) 28px 0 0;
+    background: var(--clr-cream-70);
+    box-shadow: 0 -10px 32px rgba(47, 36, 32, 0.04);
+}
+
+.archive-footer-brand {
+    margin-bottom: 14px;
+    color: var(--clr-brown-800);
+    font-family: var(--font-heading);
+    font-size: clamp(1.85rem, 4vw, 2.6rem);
+    font-weight: 800;
+    line-height: 1;
+}
+
+.archive-footer-text {
+    max-width: 390px;
+    color: var(--clr-brown-250);
+    font-size: 0.98rem;
+    line-height: 1.75;
+}
+
+.archive-footer-title {
+    margin-bottom: 14px;
+    color: var(--clr-brown-700);
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+
+.archive-footer-list {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.archive-footer-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    color: var(--clr-brown-250);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition-base), transform var(--transition-base);
+}
+
+.archive-footer-link:hover,
+.archive-footer-link:focus {
+    color: var(--clr-rose-500);
+    transform: translateX(2px);
+}
+
+.archive-footer-meta {
+    color: var(--clr-brown-250);
+    font-size: 0.94rem;
+    line-height: 1.55;
+}
+
+.archive-footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    margin-top: 34px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-brown-13);
+    color: var(--clr-brown-150);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.archive-footer-bottom-icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(214, 160, 127, 0.24);
+    border-radius: var(--radius-circle);
+    background: var(--clr-cream-60);
+    color: var(--clr-warm-200);
+    flex-shrink: 0;
+}
+

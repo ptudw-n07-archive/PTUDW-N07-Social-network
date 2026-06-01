@@ -3,16 +3,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (!defined('BASE_URL')) {
-    define("BASE_URL", "http://localhost:3000/");
-}
+require_once __DIR__ . '/../../../Config/Database.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: " . BASE_URL . "App/Views/auth/login.php");
+    header('Location: ' . app_url('login'));
     exit();
 }
 
-require_once __DIR__ . '/../Controllers/PostController.php';
+require_once __DIR__ . '/../../Controllers/PostController.php';
+require_once __DIR__ . '/../post/partials/post-menu.php';
 
 use App\Controllers\PostController;
 
@@ -26,9 +25,10 @@ if (function_exists('mb_substr')) {
 }
 
 $postController = new PostController();
+$currentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $posts = $tag === '' ? [] : $postController->getPostsByHashtag($tag);
 
-function hashtagAssetPath($path, $default = '') {
+function hashtagAssetPath($path, $default = ''): string {
     $path = trim((string) $path);
 
     if ($path === '') {
@@ -52,11 +52,11 @@ function hashtagAssetPath($path, $default = '') {
     return BASE_URL . $path;
 }
 
-function hashtagImagePath($path) {
+function hashtagImagePath($path): string {
     return hashtagAssetPath($path, BASE_URL . "Public/assets/img/default-avatar.jpg");
 }
 
-function hashtagPostMediaPath($path) {
+function hashtagPostMediaPath($path): string {
     $path = trim((string) $path);
 
     if ($path === '') {
@@ -77,7 +77,7 @@ function hashtagPostMediaPath($path) {
     return hashtagAssetPath($cleanPath);
 }
 
-function hashtagPostMediaType($path) {
+function hashtagPostMediaType($path): string {
     $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
 
     if (in_array($extension, ['mp4', 'mov', 'webm'], true)) {
@@ -91,7 +91,7 @@ function hashtagPostMediaType($path) {
     return 'file';
 }
 
-function hashtagPostMediaMimeType($path) {
+function hashtagPostMediaMimeType($path): string {
     $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
 
     return match ($extension) {
@@ -106,7 +106,7 @@ function hashtagPostMediaMimeType($path) {
     };
 }
 
-function hashtagTimeAgo($datetime) {
+function hashtagTimeAgo($datetime): string {
     $timestamp = strtotime($datetime);
     $diff = time() - $timestamp;
 
@@ -117,15 +117,15 @@ function hashtagTimeAgo($datetime) {
     return date("d/m/Y", $timestamp);
 }
 
-function hashtagProfileUrl($userId) {
-    return BASE_URL . "App/Views/profile.php?id=" . urlencode((string) $userId);
+function hashtagProfileUrl($userId): string {
+    return app_url("profile?id=" . urlencode((string) $userId));
 }
 
-function hashtagUrl($tag) {
-    return BASE_URL . "App/Views/hashtag.php?tag=" . urlencode((string) $tag);
+function hashtagUrl($tag): string {
+    return app_url("hashtag?tag=" . urlencode((string) $tag));
 }
 
-function renderHashtagPostContent($content) {
+function renderHashtagPostContent($content): string {
     $parts = preg_split('/(#[\p{L}\p{N}_]+)/u', (string) $content, -1, PREG_SPLIT_DELIM_CAPTURE);
     $html = '';
 
@@ -150,9 +150,11 @@ function renderHashtagPostContent($content) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Archive - #<?= htmlspecialchars($tag, ENT_QUOTES, 'UTF-8') ?></title>
 
+    <link rel="icon" type="image/png" href="<?php echo BASE_URL; ?>Public/assets/img/favicon-48x48.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <?php include __DIR__ . '/../partials/fonts.php'; ?>
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>Public/assets/CSS/style.css">
 </head>
 
@@ -162,7 +164,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-4 px-lg-5">
         <div class="row align-items-center py-3">
             <div class="col-4 d-flex align-items-center">
-                <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="brand-logo text-decoration-none">ARCHIVE</a>
+                <a href="<?php echo app_url('feed'); ?>" class="brand-logo text-decoration-none">ARCHIVE</a>
             </div>
 
             <div class="col-4 d-flex justify-content-center">
@@ -173,10 +175,10 @@ function renderHashtagPostContent($content) {
 
             <div class="col-4 d-flex justify-content-end">
                 <div class="header-actions">
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="header-search-btn" title="Bảng tin">
+                    <a href="<?php echo app_url('feed'); ?>" class="header-search-btn" title="Bảng tin">
                         <i class="bi bi-house-door"></i>
                     </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="header-login-btn">
+                    <a href="<?php echo app_url('profile'); ?>" class="header-login-btn">
                         <i class="bi bi-person-circle"></i>
                         <span>Hồ sơ</span>
                     </a>
@@ -190,21 +192,7 @@ function renderHashtagPostContent($content) {
     <div class="container-fluid px-3 px-lg-4">
         <div class="row g-4">
             <div class="col-lg-1 d-none d-lg-block">
-                <aside class="left-sidebar d-flex flex-column align-items-center gap-4">
-                    <div class="sidebar-logo"><i class="bi bi-circle-square"></i></div>
-                    <a href="<?php echo BASE_URL; ?>App/Views/feed.php" class="sidebar-icon" title="Trang chủ">
-                        <i class="bi bi-house-door-fill"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/search.php" class="sidebar-icon" title="Tìm kiếm">
-                        <i class="bi bi-search"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/createpost.php" class="sidebar-icon" title="Đăng bài">
-                        <i class="bi bi-plus-square"></i>
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>App/Views/profile.php" class="sidebar-icon" title="Hồ sơ">
-                        <i class="bi bi-person"></i>
-                    </a>
-                </aside>
+                <?php $activePage = 'hashtag'; include __DIR__ . '/../post/partials/sidebar.php'; ?>
             </div>
 
             <div class="col-lg-8 col-xl-7 mx-auto">
@@ -218,7 +206,15 @@ function renderHashtagPostContent($content) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($posts as $post): ?>
-                        <div class="bg-white post-card mb-3">
+                        <?php $isLiked = (int) ($post['IsLiked'] ?? 0) > 0; ?>
+                        <div
+                            class="bg-white post-card mb-3 hashtag-post-card"
+                            id="post-<?= (int) $post['PostID'] ?>"
+                            role="link"
+                            tabindex="0"
+                            data-detail-url="<?= app_url('post-detail') ?>?id=<?= (int) $post['PostID'] ?>"
+                            <?= archivePostCardAttributes($post, (int) $currentUserId) ?>
+                        >
                             <div class="p-3">
                                 <div class="d-flex gap-3">
                                     <a href="<?= hashtagProfileUrl($post['UserID']) ?>">
@@ -231,11 +227,15 @@ function renderHashtagPostContent($content) {
                                     </a>
 
                                     <div class="flex-grow-1">
+                                        <div class="post-card-header">
                                         <div class="fw-semibold">
                                             <a href="<?= hashtagProfileUrl($post['UserID']) ?>" class="text-decoration-none text-dark">
-                                                <?= htmlspecialchars($post['FullName'] ?: $post['Username'], ENT_QUOTES, 'UTF-8') ?>
+                                                <?= htmlspecialchars($post['FullName'] ?: '@' . $post['Username'], ENT_QUOTES, 'UTF-8') ?>
                                             </a>
                                             • <?= hashtagTimeAgo($post['CreatedAt']) ?>
+                                        </div>
+
+                                        <?php archiveRenderPostMenu($post, (int) $currentUserId); ?>
                                         </div>
 
                                         <p class="post-text">
@@ -245,22 +245,54 @@ function renderHashtagPostContent($content) {
                                         <?php if (!empty($post['Images'])): ?>
                                             <?php foreach (explode(',', $post['Images']) as $img): ?>
                                                 <?php $mediaSrc = hashtagPostMediaPath($img); ?>
+                                                <?php $mediaType = hashtagPostMediaType($img); ?>
                                                 <?php if ($mediaSrc !== ''): ?>
-                                                    <?php if (hashtagPostMediaType($img) === 'video'): ?>
-                                                        <video controls class="img-fluid rounded-4 mb-3" style="max-height: 450px; object-fit: cover;">
+                                                    <?php if ($mediaType === 'video'): ?>
+                                                        <video controls class="img-fluid rounded-4 mb-3 media-fit-cover">
                                                             <source src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(hashtagPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
                                                         </video>
-                                                    <?php elseif (hashtagPostMediaType($img) === 'image'): ?>
+                                                    <?php elseif ($mediaType === 'image'): ?>
                                                         <img
                                                             src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>"
-                                                            class="img-fluid rounded-4 mb-3"
-                                                            style="max-height: 450px; object-fit: cover;"
+                                                            class="img-fluid rounded-4 mb-3 media-fit-cover"
                                                             alt="post image"
                                                         >
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
+
+                                        <div class="post-actions d-flex gap-4">
+                                            <button
+                                                type="button"
+                                                class="feed-like-btn no-post-nav <?= $isLiked ? 'liked' : '' ?>"
+                                                onclick="toggleLike(this)"
+                                                data-post-id="<?= (int) $post['PostID'] ?>"
+                                                aria-pressed="<?= $isLiked ? 'true' : 'false' ?>"
+                                            >
+                                                <i class="bi <?= $isLiked ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
+                                                <span class="like-count" data-like-count><?= (int) ($post['LikeCount'] ?? 0) ?></span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="no-post-nav"
+                                                onclick="window.location.href='<?= app_url('post-detail') ?>?id=<?= (int) $post['PostID'] ?>#comments'"
+                                            >
+                                                <i class="bi bi-chat"></i>
+                                                <span class="comment-count" data-comment-count><?= (int) ($post['CommentCount'] ?? 0) ?></span>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="no-post-nav repost-btn"
+                                                onclick="repostPost(this)"
+                                                data-post-id="<?= (int) $post['PostID'] ?>"
+                                                title="Đăng lại bài viết"
+                                            >
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -272,6 +304,34 @@ function renderHashtagPostContent($content) {
     </div>
 </section>
 
+<script>
+window.APP_BASE_URL = "<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>";
+window.FEED_CSRF_TOKEN = "<?= htmlspecialchars(\App\Services\CsrfService::getToken(), ENT_QUOTES, 'UTF-8') ?>";
+document.querySelectorAll(".hashtag-post-card").forEach(function (card) {
+    function openPost(event) {
+        if (event.target.closest("a, button, input, textarea, select, label, video, .no-post-nav, .post-menu")) {
+            return;
+        }
+
+        const detailUrl = card.dataset.detailUrl;
+        if (detailUrl) {
+            window.location.href = detailUrl;
+        }
+    }
+
+    card.addEventListener("click", openPost);
+    card.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") {
+            return;
+        }
+
+        event.preventDefault();
+        openPost(event);
+    });
+});
+</script>
+<script src="<?php echo BASE_URL; ?>Public/assets/JS/feed.js?v=20260528-hashtag-actions"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php include __DIR__ . '/../post/partials/bottom-nav.php'; ?>
 </body>
 </html>
