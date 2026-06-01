@@ -175,5 +175,4 @@ sh ./run-app.sh
 
 - `Public/uploads` không commit vì được tạo runtime bằng symlink
 - `storage/uploads/*` có `.gitkeep` để giữ cấu trúc thư mục
-- `*.sql` không push lên git, cần giữ file để người khác import database
 - Google Login cần OAuth Client ID riêng từ Google Cloud Console
