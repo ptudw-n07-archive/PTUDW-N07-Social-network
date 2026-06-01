@@ -115,9 +115,9 @@ class AuthController
                 throw new \RuntimeException('Could not create pending user.');
             }
 
-            $this->gmailService->sendVerificationEmail($email, $username, $verifyLink);
+            $this->userModel->markEmailVerified($userId);
             $this->conn->commit();
-            $_SESSION['success'] = 'Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản trước khi đăng nhập.';
+            $_SESSION['success'] = 'Đăng ký thành công! Bạn có thể đăng nhập ngay.';
 
             $this->redirect('login');
         } catch (PDOException $e) {
