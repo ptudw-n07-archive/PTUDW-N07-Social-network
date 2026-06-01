@@ -122,13 +122,28 @@ Repo hiện đã được chuẩn bị để deploy thử Railway bằng Railpac
 Set ít nhất:
 
 ```env
-APP_URL=https://<your-railway-domain>
-DB_HOST=<your-db-host>
+APP_URL=http://localhost:8080
+MAIL_DEBUG_MODE=false 
+
+DB_HOST=100.76.147.122
 DB_PORT=3306
-DB_NAME=<your-db-name>
-DB_USER=<your-db-user>
-DB_PASSWORD=<your-db-password>
-UPLOADS_ROOT=/data/uploads
+DB_NAME=db_archive
+DB_USER=root
+DB_PASSWORD=
+DB_SOCKET=
+UPLOADS_ROOT=Public/uploads
+
+GMAIL_SENDER_EMAIL=nguyengiahan2202@gmail.com
+GMAIL_SENDER_NAME=Archive
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+GOOGLE_REDIRECT_URI=http://localhost:8080/App/Controllers/GoogleOAuthCallback.php
+
+GOOGLE_LOGIN_CLIENT_ID=
+GOOGLE_LOGIN_CLIENT_SECRET=
+GOOGLE_LOGIN_REDIRECT_URI=http://localhost:8080/App/Controllers/GoogleLoginController.php
 ```
 
 > Nếu chưa gắn volume, có thể tạm dùng `UPLOADS_ROOT=storage/uploads` để thử deploy, nhưng file upload sẽ không bền vững qua các lần redeploy.
