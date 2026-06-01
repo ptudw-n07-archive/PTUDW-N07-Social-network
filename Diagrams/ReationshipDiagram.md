@@ -1,1 +1,1 @@
-<img width="2560" height="2473" alt="RD" src="https://github.com/user-attachments/assets/02c6e84b-6d71-48be-84ba-79855bf2840e" />
+<img width="956" height="1585" alt="erd-archive" src="https://github.com/user-attachments/assets/6011433c-2cbb-4b38-8356-5b8ea0f316d6" />
