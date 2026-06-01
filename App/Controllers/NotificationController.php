@@ -12,7 +12,7 @@ use App\Models\NotificationModel;
 use Database;
 
 class NotificationController {
-    private $notificationModel;
+    private NotificationModel $notificationModel;
 
     public function __construct() {
         $database = new Database();
@@ -66,15 +66,14 @@ class NotificationController {
         }
 
         $userId = $_SESSION['user_id'] ?? null;
-        $notificationId = $_POST['notificationId'] ?? null;
+        $notificationId = filter_var($_POST['notificationId'] ?? null, FILTER_VALIDATE_INT);
 
         if (!$userId || !$notificationId) {
-            echo json_encode(["success" => false, "message" => "Thieu thong tin thong bao."]);
+            $this->json(false, "Thieu thong tin thong bao.");
             return;
         }
 
-        echo json_encode([
-            "success" => $this->notificationModel->markAsRead($notificationId, $userId),
+        $this->json($this->notificationModel->markAsRead($notificationId, (int) $userId), "", [
             "unreadCount" => $this->notificationModel->countUnread($userId)
         ]);
     }
@@ -90,7 +89,7 @@ class NotificationController {
         $userId = $_SESSION['user_id'] ?? null;
 
         if (!$userId) {
-            echo json_encode(["success" => false, "message" => "Ban chua dang nhap."]);
+            $this->json(false, "Ban chua dang nhap.");
             return;
         }
 
@@ -100,8 +99,7 @@ class NotificationController {
             $this->acknowledgeBadge($userId, $this->notificationModel->getNotificationsByUser($userId));
         }
 
-        echo json_encode([
-            "success" => $success,
+        $this->json($success, "", [
             "unreadCount" => $this->notificationModel->countUnread($userId)
         ]);
     }
@@ -111,8 +109,7 @@ class NotificationController {
 
         $userId = $_SESSION['user_id'] ?? null;
 
-        echo json_encode([
-            "success" => (bool) $userId,
+        $this->json((bool) $userId, "", [
             "unreadCount" => $userId ? $this->notificationModel->countUnread($userId) : 0
         ]);
     }
@@ -197,7 +194,7 @@ class NotificationController {
         require __DIR__ . '/../Views/notifications/detail.php';
     }
 
-    private function isDetailNotification($notification) {
+    private function isDetailNotification(array $notification): bool {
         return in_array((string) ($notification['TypeName'] ?? ''), [
             'ReportWarning',
             'ContentHidden',
@@ -208,7 +205,7 @@ class NotificationController {
         ], true);
     }
 
-    private function acknowledgeBadge($userId, $notifications) {
+    private function acknowledgeBadge($userId, array $notifications): void {
         if (empty($notifications)) {
             return;
         }
@@ -220,25 +217,29 @@ class NotificationController {
             'notificationId' => (int) ($newest['NotificationID'] ?? 0)
         ];
     }
+
+    private function json(bool $success, string $message = "", array $extra = []): void {
+        echo json_encode(array_merge([
+            "success" => $success,
+            "message" => $message
+        ], $extra), JSON_UNESCAPED_UNICODE);
+    }
 }
 
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
     $controller = new NotificationController();
 
-    if ($_GET['action'] === 'markAsRead') {
-        $controller->markAsRead();
-    } elseif ($_GET['action'] === 'markAllAsRead') {
-        $controller->markAllAsRead();
-    } elseif ($_GET['action'] === 'unreadCount') {
-        $controller->unreadCount();
-    } elseif ($_GET['action'] === 'open') {
-        $controller->open();
-    } elseif ($_GET['action'] === 'detail') {
-        $controller->detail();
-    } else {
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(["success" => false, "message" => "Action khong hop le."]);
-    }
+    match ((string) $_GET['action']) {
+        'markAsRead' => $controller->markAsRead(),
+        'markAllAsRead' => $controller->markAllAsRead(),
+        'unreadCount' => $controller->unreadCount(),
+        'open' => $controller->open(),
+        'detail' => $controller->detail(),
+        default => (function () {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(["success" => false, "message" => "Action khong hop le."], JSON_UNESCAPED_UNICODE);
+        })()
+    };
 
     exit;
 }

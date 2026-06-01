@@ -13,6 +13,9 @@ use Database;
 use Exception;
 
 class SearchController {
+    private const MIN_SEARCH_KEYWORD_LENGTH = 2;
+    private const DEFAULT_SEARCH_LIMIT = 5;
+
     private SearchModel $searchModel;
 
     public function __construct() {
@@ -30,7 +33,7 @@ class SearchController {
             $type = $_GET['type'] ?? 'all';
             $page = max(1, (int) ($_GET['page'] ?? 1));
 
-            if ($this->keywordLength($keyword) < 2) {
+            if ($this->keywordLength($keyword) < self::MIN_SEARCH_KEYWORD_LENGTH) {
                 $this->json(true, "Nhap toi thieu 2 ky tu.", [
                     'users' => [],
                     'posts' => [],
@@ -40,46 +43,17 @@ class SearchController {
                 return;
             }
 
-            $perPage = match ($type) {
-                'users' => 12,
-                'posts' => 10,
-                'hashtags' => 10,
-                default => 5
-            };
+            $perPage = $this->perPageForType($type);
             $offset = ($page - 1) * $perPage;
 
             $result = match ($type) {
-                'users' => [
-                    'users' => $this->searchModel->searchUsers($userId, $keyword, $perPage, $offset),
-                    'posts' => [],
-                    'hashtags' => [],
-                    'pagination' => [
-                        'hasMore' => ($offset + $perPage) < $this->searchModel->countUsers($keyword, $userId),
-                        'total' => $this->searchModel->countUsers($keyword, $userId)
-                    ]
-                ],
-                'posts' => [
-                    'users' => [],
-                    'posts' => $this->searchModel->searchPosts($keyword, $userId, $perPage, $offset),
-                    'hashtags' => [],
-                    'pagination' => [
-                        'hasMore' => ($offset + $perPage) < $this->searchModel->countPosts($keyword, $userId),
-                        'total' => $this->searchModel->countPosts($keyword, $userId)
-                    ]
-                ],
-                'hashtags' => [
-                    'users' => [],
-                    'posts' => [],
-                    'hashtags' => $this->searchModel->searchHashtags($keyword, $perPage, $offset),
-                    'pagination' => [
-                        'hasMore' => ($offset + $perPage) < $this->searchModel->countHashtags($keyword),
-                        'total' => $this->searchModel->countHashtags($keyword)
-                    ]
-                ],
+                'users' => $this->searchTypedUsers($userId, $keyword, $perPage, $offset),
+                'posts' => $this->searchTypedPosts($userId, $keyword, $perPage, $offset),
+                'hashtags' => $this->searchTypedHashtags($keyword, $perPage, $offset),
                 default => [
-                    'users' => $this->searchModel->searchUsers($userId, $keyword, 5, 0),
-                    'posts' => $this->searchModel->searchPosts($keyword, $userId, 5, 0),
-                    'hashtags' => $this->searchModel->searchHashtags($keyword, 5, 0),
+                    'users' => $this->searchModel->searchUsers($userId, $keyword, self::DEFAULT_SEARCH_LIMIT, 0),
+                    'posts' => $this->searchModel->searchPosts($keyword, $userId, self::DEFAULT_SEARCH_LIMIT, 0),
+                    'hashtags' => $this->searchModel->searchHashtags($keyword, self::DEFAULT_SEARCH_LIMIT, 0),
                     'pagination' => ['hasMore' => false, 'total' => 0]
                 ]
             };
@@ -156,7 +130,7 @@ class SearchController {
             $userId = $this->requireLoginJson();
             $keyword = $this->normalizeKeyword($_POST['keyword'] ?? $_POST['q'] ?? '');
 
-            if ($this->keywordLength($keyword) < 2) {
+            if ($this->keywordLength($keyword) < self::MIN_SEARCH_KEYWORD_LENGTH) {
                 $this->json(false, "Tu khoa can toi thieu 2 ky tu.");
                 return;
             }
@@ -238,8 +212,52 @@ class SearchController {
         return function_exists('mb_strlen') ? mb_strlen($keyword) : strlen($keyword);
     }
 
-    private function lower(string $value): string {
-        return function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+    private function perPageForType(string $type): int {
+        return match ($type) {
+            'users' => 12,
+            'posts', 'hashtags' => 10,
+            default => self::DEFAULT_SEARCH_LIMIT
+        };
+    }
+
+    private function searchTypedUsers(int $userId, string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countUsers($keyword, $userId);
+
+        return [
+            'users' => $this->searchModel->searchUsers($userId, $keyword, $perPage, $offset),
+            'posts' => [],
+            'hashtags' => [],
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
+
+    private function searchTypedPosts(int $userId, string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countPosts($keyword, $userId);
+
+        return [
+            'users' => [],
+            'posts' => $this->searchModel->searchPosts($keyword, $userId, $perPage, $offset),
+            'hashtags' => [],
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
+
+    private function searchTypedHashtags(string $keyword, int $perPage, int $offset): array {
+        $total = $this->searchModel->countHashtags($keyword);
+
+        return [
+            'users' => [],
+            'posts' => [],
+            'hashtags' => $this->searchModel->searchHashtags($keyword, $perPage, $offset),
+            'pagination' => $this->pagination($total, $perPage, $offset)
+        ];
+    }
+
+    private function pagination(int $total, int $perPage, int $offset): array {
+        return [
+            'hasMore' => ($offset + $perPage) < $total,
+            'total' => $total
+        ];
     }
 
     private function json(bool $success, string $message, array $extra = []): void {
@@ -253,7 +271,7 @@ class SearchController {
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '') && isset($_GET['action'])) {
     $controller = new SearchController();
 
-    match ($_GET['action']) {
+    match ((string) $_GET['action']) {
         'search' => $controller->search(),
         'suggest' => $controller->suggest(),
         'suggestHashtags' => $controller->suggestHashtags(),

@@ -456,17 +456,13 @@ if (isset($_GET['action'])) {
     $controller = new AuthController($db_connection);
     $action = $_GET['action'];
 
-    if ($action === 'login') {
-        $controller->loginProcess();
-    } elseif ($action === 'register') {
-        $controller->register();
-    } elseif ($action === 'verify_email') {
-        $controller->verifyEmail();
-    } elseif ($action === 'forgot_password' || $action === 'sendResetOtp' || $action === 'forgot') {
-        $controller->forgotPassword();
-    } elseif ($action === 'reset_password' || $action === 'resetWithOtp') {
-        $controller->resetPassword();
-    } elseif ($action === 'logout') {
-        $controller->logout();
-    }
+    match ($action) {
+        'login' => $controller->loginProcess(),
+        'register' => $controller->register(),
+        'verify_email' => $controller->verifyEmail(),
+        'forgot_password', 'sendResetOtp', 'forgot' => $controller->forgotPassword(),
+        'reset_password', 'resetWithOtp' => $controller->resetPassword(),
+        'logout' => $controller->logout(),
+        default => null
+    };
 }
