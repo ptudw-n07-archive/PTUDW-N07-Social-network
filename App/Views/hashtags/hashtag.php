@@ -28,7 +28,7 @@ $postController = new PostController();
 $currentUserId = (int) ($_SESSION['user_id'] ?? 0);
 $posts = $tag === '' ? [] : $postController->getPostsByHashtag($tag);
 
-function hashtagAssetPath($path, $default = '') {
+function hashtagAssetPath($path, $default = ''): string {
     $path = trim((string) $path);
 
     if ($path === '') {
@@ -52,11 +52,11 @@ function hashtagAssetPath($path, $default = '') {
     return BASE_URL . $path;
 }
 
-function hashtagImagePath($path) {
+function hashtagImagePath($path): string {
     return hashtagAssetPath($path, BASE_URL . "Public/assets/img/default-avatar.jpg");
 }
 
-function hashtagPostMediaPath($path) {
+function hashtagPostMediaPath($path): string {
     $path = trim((string) $path);
 
     if ($path === '') {
@@ -77,7 +77,7 @@ function hashtagPostMediaPath($path) {
     return hashtagAssetPath($cleanPath);
 }
 
-function hashtagPostMediaType($path) {
+function hashtagPostMediaType($path): string {
     $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
 
     if (in_array($extension, ['mp4', 'mov', 'webm'], true)) {
@@ -91,7 +91,7 @@ function hashtagPostMediaType($path) {
     return 'file';
 }
 
-function hashtagPostMediaMimeType($path) {
+function hashtagPostMediaMimeType($path): string {
     $extension = strtolower(pathinfo(parse_url((string) $path, PHP_URL_PATH) ?: (string) $path, PATHINFO_EXTENSION));
 
     return match ($extension) {
@@ -106,7 +106,7 @@ function hashtagPostMediaMimeType($path) {
     };
 }
 
-function hashtagTimeAgo($datetime) {
+function hashtagTimeAgo($datetime): string {
     $timestamp = strtotime($datetime);
     $diff = time() - $timestamp;
 
@@ -117,15 +117,15 @@ function hashtagTimeAgo($datetime) {
     return date("d/m/Y", $timestamp);
 }
 
-function hashtagProfileUrl($userId) {
+function hashtagProfileUrl($userId): string {
     return app_url("profile?id=" . urlencode((string) $userId));
 }
 
-function hashtagUrl($tag) {
+function hashtagUrl($tag): string {
     return app_url("hashtag?tag=" . urlencode((string) $tag));
 }
 
-function renderHashtagPostContent($content) {
+function renderHashtagPostContent($content): string {
     $parts = preg_split('/(#[\p{L}\p{N}_]+)/u', (string) $content, -1, PREG_SPLIT_DELIM_CAPTURE);
     $html = '';
 
@@ -245,12 +245,13 @@ function renderHashtagPostContent($content) {
                                         <?php if (!empty($post['Images'])): ?>
                                             <?php foreach (explode(',', $post['Images']) as $img): ?>
                                                 <?php $mediaSrc = hashtagPostMediaPath($img); ?>
+                                                <?php $mediaType = hashtagPostMediaType($img); ?>
                                                 <?php if ($mediaSrc !== ''): ?>
-                                                    <?php if (hashtagPostMediaType($img) === 'video'): ?>
+                                                    <?php if ($mediaType === 'video'): ?>
                                                         <video controls class="img-fluid rounded-4 mb-3 media-fit-cover">
                                                             <source src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>" type="<?= htmlspecialchars(hashtagPostMediaMimeType($img), ENT_QUOTES, 'UTF-8') ?>">
                                                         </video>
-                                                    <?php elseif (hashtagPostMediaType($img) === 'image'): ?>
+                                                    <?php elseif ($mediaType === 'image'): ?>
                                                         <img
                                                             src="<?= htmlspecialchars($mediaSrc, ENT_QUOTES, 'UTF-8') ?>"
                                                             class="img-fluid rounded-4 mb-3 media-fit-cover"
