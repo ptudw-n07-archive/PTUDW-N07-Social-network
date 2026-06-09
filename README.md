@@ -1,4 +1,5 @@
-
+<div align="center">
+     
 # ARCHIVE Social Network
 
 ### A full-stack social networking web application inspired by Meta Threads
